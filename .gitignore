@@ -1,0 +1,27 @@
+# ── секрети: ніколи не в репозиторій ──
+.env
+.env.*
+!.env.example
+
+# ── залежності: хост ставить їх сам через npm install ──
+node_modules/
+
+# ── дані, які живуть лише в контейнері ──
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# ── бінарники, які довантажуються самі ──
+bin/
+*.exe
+
+# ── збірки й архіви ──
+*.zip
+assets/emblem.gif
+
+# ── службове ──
+npm-debug.log*
+*.log
+.DS_Store
+Thumbs.db

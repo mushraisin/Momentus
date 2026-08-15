@@ -1,0 +1,23 @@
+{
+  "name": "discord-ai-community-bot",
+  "version": "1.0.0",
+  "description": "AI Community Manager / Moderator / Reputation System для Discord — керування виключно через GUI (кнопки, меню, модальні вікна).",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "deploy": "node scripts/deployContextMenus.js",
+    "backup": "node scripts/backupNow.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0",
+    "@libsql/client": "^0.17.4",
+    "@napi-rs/canvas": "^1.0.6",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5"
+  }
+}
