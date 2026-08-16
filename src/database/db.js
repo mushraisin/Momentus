@@ -431,6 +431,12 @@ export async function initDatabase() {
   // Чи можна зупиняти некерований плеєр зняттям рамки. Деякі сайти після
   // цього стартують з нуля — тоді режим вимикають.
   await addColumn('cinema_state', 'hard_pause', 'INTEGER NOT NULL DEFAULT 1');
+  // Свої картинки можна не лише носити, а й виставити в магазин:
+  // ціна, ознака «на вітрині», назва й лічильник продажів.
+  await addColumn('user_assets', 'title', 'TEXT');
+  await addColumn('user_assets', 'price', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumn('user_assets', 'listed', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumn('user_assets', 'sales', 'INTEGER NOT NULL DEFAULT 0');
 
   log.info(`База даних готова: ${isRemote ? 'Turso (remote)' : url}`);
 }

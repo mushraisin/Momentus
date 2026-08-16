@@ -944,12 +944,17 @@ ok('профіль: загальне число й графік динаміки
   assert.equal(shop.status, 200, 'сторінка магазину відкривається');
   assert.ok(shop.body.includes('sh-balance'), 'баланс FP на видноті');
 
-  // категорії списком ліворуч
+  // категорії списком ліворуч — рівно пʼять, як домовились
   assert.ok(shop.body.includes('class="sh-side"'), 'категорії окремим списком');
-  for (const pack of ['Однотонні фони', 'Градієнти', 'Живі фони', 'Акцентні кольори',
-    'Рамки аватара', 'Прозорі вікна', 'Стилі вікон', 'Власний контент']) {
-    assert.ok(shop.body.includes(pack), `категорія «${pack}» показана`);
+  for (const cat of ['Фони', 'Акцентні кольори', 'Рамки', 'Вікна', 'Кастом']) {
+    assert.ok(shop.body.includes(`>${cat}<`), `категорія «${cat}» показана`);
   }
+  assert.equal((shop.body.match(/class="sh-cat/g) ?? []).length, 5, 'категорій рівно пʼять');
+
+  // поштучні речі мають власну ціну, а набором лишились тільки безкоштовні кольори
+  assert.ok(shop.body.includes('data-id="frame.spin"'), 'рамка продається окремо');
+  assert.ok(shop.body.includes('data-id="pack.solid"'), 'безкоштовні кольори — набором');
+  assert.ok(!shop.body.includes('data-id="pack.gradient"'), 'градієнти більше не набір');
 
   // зайвих підписів у гаманці більше немає
   assert.ok(!shop.body.includes('нараховуються щодня'), 'опис про нарахування прибрано');
@@ -961,22 +966,21 @@ ok('профіль: загальне число й графік динаміки
   assert.ok(!shop.body.includes('Банер профілю') && !shop.body.includes('Опис про себе'),
     'банер і опис більше не товар');
 
-  // бустерські набори видно, але замкнені; прозорі вікна — безкоштовні всім
-  assert.ok(shop.body.includes('sh-card locked'), 'бустерські набори замкнені');
+  // бустерське видно всім, але замкнене й позначене
+  assert.ok(shop.body.includes('sh-card locked'), 'бустерське замкнене');
   assert.ok(shop.body.includes('Лише бустерам'), 'зрозуміло, чому замкнено');
-  const freeCards = shop.body.slice(shop.body.indexOf('id="pack.cardsFree"'));
-  assert.ok(!freeCards.slice(0, 200).includes('locked'), 'прозорі вікна відкриті без бусту');
+  assert.ok(shop.body.includes('class="sh-badge"'), 'позначка «лише для бустерів» на картці');
 
   // анонім у магазин не заходить
   assert.equal((await req('/shop')).status, 302, 'без входу — на сторінку входу');
 
-  // набір береться цілком, вдруге — вже свій
+  // безкоштовний набір береться цілком, вдруге — вже свій
   assert.equal((await jreq('/api/shop/buy', auth, { item: 'pack.solid' })).status, 200, 'набір береться');
   assert.equal((await jreq('/api/shop/buy', auth, { item: 'pack.solid' })).status, 400, 'двічі не візьмеш');
-  assert.equal(JSON.parse((await jreq('/api/shop/buy', auth, { item: 'pack.gradient' })).body).error,
-    'booster', 'бустерський набір закритий');
+  assert.equal(JSON.parse((await jreq('/api/shop/buy', auth, { item: 'motion.tide' })).body).error,
+    'booster', 'бустерська річ закрита');
 
-  // вдягається будь-яка річ із набору — і саме в профілі
+  // вдягається річ із купленого набору; чуже — ні
   assert.equal((await jreq('/api/shop/equip', auth, { item: 'solid.dusk' })).status, 200, 'своє вдягається');
   assert.equal((await jreq('/api/shop/equip', auth, { item: 'grad.ember' })).status, 400, 'чуже — ні');
 
@@ -994,14 +998,66 @@ ok('профіль: загальне число й графік динаміки
   assert.equal((await jreq('/api/shop/clear', auth, { what: 'background' })).status, 200, 'знімається');
   assert.ok(!/\.bg\{background:#150f22\}/.test((await req('/me', auth)).body), 'фон повернувся до типового');
 
-  // ціну править лише адміністратор
-  assert.equal((await jreq('/api/shop/price', auth, { item: 'pack.gradient', price: 500 })).status, 403,
+  // ціну й позначку править лише адміністратор — і в окремому вікні
+  assert.equal((await jreq('/api/shop/price', auth, { item: 'grad.aurora', price: 500 })).status, 403,
     'звичайний учасник ціну не змінить');
-  const asAdmin = await jreq('/api/shop/price', adm, { item: 'pack.gradient', price: 500 });
-  assert.equal(asAdmin.status, 200, 'адміністратор змінює ціну');
-  assert.ok((await req('/shop', adm)).body.includes('500 ✨FP'), 'нова ціна показана');
+  assert.equal((await jreq('/api/shop/price', adm, { item: 'grad.aurora', price: 500 })).status, 200,
+    'адміністратор змінює ціну');
+  const shopAdm = await req('/shop', adm);
+  assert.ok(shopAdm.body.includes('500 ✨FP'), 'нова ціна показана');
+  assert.ok(shopAdm.body.includes('id="sh-prices"'), 'вікно цін є');
+  assert.ok(shopAdm.body.includes('id="sh-openprices"'), 'відкривається однією кнопкою');
+  assert.ok(!shopAdm.body.includes('sh-setprice'), 'поля цін більше не на картках');
+
+  // позначка «лише для бустерів» ставиться й знімається
+  assert.equal((await jreq('/api/shop/flag', auth, { item: 'grad.aurora', booster: true })).status, 403,
+    'звичайний учасник позначку не поставить');
+  const flagged = await jreq('/api/shop/flag', adm, { item: 'grad.aurora', booster: true });
+  assert.equal(JSON.parse(flagged.body).booster, true, 'адміністратор закрив річ бустом');
+  assert.equal(JSON.parse((await jreq('/api/shop/buy', auth, { item: 'grad.aurora' })).body).error,
+    'booster', 'після позначки річ закрита');
+  await jreq('/api/shop/flag', adm, { item: 'grad.aurora', booster: false });
 }
 ok('магазин: набори, категорії ліворуч, ціни від адміністратора');
+
+// 21.5 «Кастом»: вітрина робіт учасників — гроші йдуть авторові
+{
+  const { assetsRepo, walletRepo } = await import('../src/database/repositories.js');
+  const AUTHOR = '777000777000777000';
+
+  // роботу автора виставлено на вітрину
+  const assetId = await assetsRepo.add(G, AUTHOR, {
+    kind: 'background', mime: 'image/png', sizeBytes: 100, objectKey: 'ch/1', url: 'https://x/1',
+  });
+  await assetsRepo.setListing(G, AUTHOR, assetId, { listed: true, price: 40, title: 'Нічний ліс' });
+
+  const shop = await req('/shop', auth);
+  assert.ok(shop.body.includes('Нічний ліс'), 'робота видно у вітрині');
+  assert.ok(shop.body.includes(`asset:${assetId}`), 'її можна купити');
+  assert.ok(/class="sh-by"/.test(shop.body), 'видно, хто виклав');
+
+  // купуємо: у покупця списується, авторові нараховується
+  await walletRepo.add(G, U, 100);
+  const before = (await walletRepo.get(G, AUTHOR)).balance;
+  const buy = await jreq('/api/shop/buy', auth, { item: `asset:${assetId}` });
+  assert.equal(buy.status, 200, 'робота купується');
+  assert.equal((await walletRepo.get(G, AUTHOR)).balance, before + 40, 'гроші пішли авторові');
+
+  // куплене можна вдягти
+  assert.equal((await jreq('/api/shop/equip', auth, { item: `asset:${assetId}` })).status, 200,
+    'куплена робота вдягається');
+  assert.match((await req('/me', auth)).body, new RegExp(`url\\(/asset/${assetId}\\)`),
+    'вона стала фоном');
+
+  // двічі не купиш, свою — теж
+  assert.equal(JSON.parse((await jreq('/api/shop/buy', auth, { item: `asset:${assetId}` })).body).error,
+    'owned', 'двічі не купиш');
+
+  // виставляти може лише бустер
+  assert.equal((await jreq('/api/shop/list', auth, { asset: assetId, price: 10 })).status, 403,
+    'без бусту нічого не виставиш');
+}
+ok('кастом: вітрина учасників, оплата авторові, покупка й вдягання');
 
 // 22. персоналізація профілю: опис усім, картинки — бустерам
 {

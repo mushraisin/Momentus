@@ -53,7 +53,9 @@ export const CONFIG_SCHEMA = {
   // Роль бустера Discord видає сам, щойно людина дала серверу буст.
   'general.boosterRoleIds': { type: 'roles', default: [], label: 'Ролі бустерів', group: 'general' },
   // Ціни наборів: {'pack.gradient': 240, …}. Правляться на сайті адміністратором.
-  'shop.prices': { type: 'json', default: {}, label: 'Ціни наборів', group: 'general' },
+  'shop.prices': { type: 'json', default: {}, label: 'Ціни в магазині', group: 'general' },
+  // Які речі закриті бустом: {'grad.violet': true, …}. Теж правиться на сайті.
+  'shop.booster': { type: 'json', default: {}, label: 'Що лише для бустерів', group: 'general' },
 
   // ── Модерація ─────────────────────────────
   'moderation.aiAdvice': { type: 'bool', default: true, label: 'AI-поради перед покаранням', group: 'moderation' },

@@ -917,6 +917,26 @@ export const assetsRepo = {
     `, args);
   },
 
+  /** Вітрина: усе, що учасники виставили на продаж. */
+  market(guildId, limit = 60) {
+    return all(`
+      SELECT * FROM user_assets WHERE guild_id = ? AND listed = 1
+      ORDER BY sales DESC, created_at DESC LIMIT ?
+    `, [guildId, limit]);
+  },
+
+  /** Виставити або зняти з вітрини. */
+  setListing(guildId, userId, id, { listed, price, title }) {
+    return run(`
+      UPDATE user_assets SET listed = ?, price = ?, title = COALESCE(?, title)
+      WHERE guild_id = ? AND user_id = ? AND id = ?
+    `, [listed ? 1 : 0, Math.max(0, Math.round(price ?? 0)), title ?? null, guildId, userId, id]);
+  },
+
+  addSale(id) {
+    return run('UPDATE user_assets SET sales = sales + 1 WHERE id = ?', [id]);
+  },
+
   refreshUrl(id, url, expires) {
     return run('UPDATE user_assets SET url = ?, url_expires = ? WHERE id = ?', [url, expires, id]);
   },

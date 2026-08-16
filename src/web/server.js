@@ -608,8 +608,19 @@ async function renderShop(res, guild, session, lang, path) {
   const wallet = await cosmeticsService.wallet(guild.id, session.user_id);
   const owned = await cosmeticsService.owned(guild.id, session.user_id);
 
+  // Вітрина «Кастом» — роботи учасників; імена авторів беремо з кешу гільдії.
+  const market = await cosmeticsService.market(guild.id);
+  const authors = {};
+  for (const m of market) {
+    const mem = guild.members.cache.get(m.author);
+    authors[m.author] = mem?.displayName ?? m.author;
+  }
+
   const body = R.shopPage({
-    packs: cosmeticsService.catalog(guild.id),
+    items: cosmeticsService.catalog(guild.id),
+    categories: cosmeticsService.CATEGORIES,
+    market,
+    authors,
     owned,
     booster: cosmeticsService.isBooster(guild.id, member),
     admin: isAdmin(guild, session),
@@ -619,6 +630,11 @@ async function renderShop(res, guild, session, lang, path) {
       background: await cosmeticsService.uploadsLeft(guild.id, session.user_id, 'background'),
       banner: await cosmeticsService.uploadsLeft(guild.id, session.user_id, 'banner'),
     },
+    // свої роботи — щоб можна було виставити їх на вітрину прямо тут
+    mine: (await assetsRepo.list(guild.id, session.user_id, null, 24)).map((a) => ({
+      id: a.id, kind: a.kind, url: `/asset/${a.id}`,
+      title: a.title ?? '', price: Number(a.price ?? 0), listed: !!a.listed, sales: Number(a.sales ?? 0),
+    })),
     lang,
   });
   return html(res, 200, guild, session, lang, path, t(lang, 'shop.title'), body, false, 'shop');
@@ -661,12 +677,31 @@ async function shopApi(req, res, guild, session, action) {
     return json(res, 200, { ok: true, look });
   }
 
-  // ціни править лише адміністратор
+  // виставити свою роботу на вітрину «Кастом» (або зняти звідти)
+  if (action === 'list') {
+    const r = await cosmeticsService.listOnMarket(guild.id, session.user_id, member, {
+      asset: body.asset,
+      price: body.price,
+      title: body.title,
+      listed: body.listed !== false,
+    });
+    if (!r.ok) return json(res, r.reason === 'booster' ? 403 : 400, { error: r.reason });
+    return json(res, 200, { ok: true });
+  }
+
+  // ціни й позначки править лише адміністратор
   if (action === 'price') {
     if (!isAdmin(guild, session)) return json(res, 403, { error: 'forbidden' });
     const ok = await cosmeticsService.setPrice(guild.id, itemId, body.price);
     if (!ok) return json(res, 400, { error: 'unknown' });
     return json(res, 200, { ok: true, price: cosmeticsService.price(guild.id, itemId) });
+  }
+
+  if (action === 'flag') {
+    if (!isAdmin(guild, session)) return json(res, 403, { error: 'forbidden' });
+    const ok = await cosmeticsService.setBoosterOnly(guild.id, itemId, body.booster);
+    if (!ok) return json(res, 400, { error: 'unknown' });
+    return json(res, 200, { ok: true, booster: cosmeticsService.boosterOnly(guild.id, itemId) });
   }
 
   return json(res, 404, { error: 'unknown' });

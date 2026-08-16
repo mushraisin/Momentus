@@ -301,12 +301,15 @@ nav:has(.langs[open]){overflow:visible}
 .name{font-size:25px;font-weight:800}
 .pill{display:inline-block;padding:4px 13px;border-radius:999px;font-size:13px;font-weight:700;
   background:rgba(107,124,255,.16);border:1px solid rgba(107,124,255,.45)}
-.score{margin-left:auto;text-align:center}
-.score b{display:block;font-size:38px;line-height:1;color:#fff}
-.score span{font-size:11px;color:var(--dim);letter-spacing:.14em}
-/* Гаманець — не другий рейтинг: дрібний чип під числом, а не рівний блок поруч */
-.fpchip{display:inline-flex;align-items:center;gap:5px;margin-top:9px;padding:4px 10px;
-  border-radius:999px;font-size:12px;font-weight:700;color:#f0d79a;
+/* Рейтинг: число, під ним підпис, ще нижче — гаманець.
+   Усе в стовпчик по центру, інакше чип тулиться збоку до підпису. */
+.score{margin-left:auto;display:flex;flex-direction:column;align-items:center;gap:6px;
+  text-align:center;flex:none}
+.score b{font-size:38px;line-height:1;color:#fff}
+.score span{font-size:11px;color:var(--dim);letter-spacing:.14em;line-height:1}
+/* Гаманець — не другий рейтинг: дрібний чип під підписом */
+.fpchip{display:inline-flex;align-items:center;gap:5px;margin-top:2px;padding:4px 11px;
+  border-radius:999px;font-size:12px;font-weight:700;color:#f0d79a;line-height:1.3;
   background:rgba(224,180,92,.12);border:1px solid rgba(224,180,92,.3)}
 .fpchip i{font-style:normal;font-size:11px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
@@ -887,7 +890,9 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 }
 @media(max-width:640px){
   .cat{grid-template-columns:126px 1fr 42px;gap:10px}
-  .score{margin-left:0;width:100%;text-align:left}
+  /* на вузькому екрані рейтинг стає в рядок зліва, чип — поруч із підписом */
+  .score{margin-left:0;width:100%;flex-direction:row;align-items:baseline;
+    justify-content:flex-start;gap:10px;text-align:left}
   /* меню в один рядок із горизонтальним скролом — інакше шапка з'їдає пів екрана */
   header,.topbar-in{flex-wrap:nowrap;gap:8px}
   header{padding-bottom:18px}
@@ -1050,7 +1055,45 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 }
 
 .tagp.good{border-color:rgba(67,196,123,.45);background:rgba(67,196,123,.14);color:#7fe0a4}
-.sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:16px}
+.sh-body{display:flex;flex-direction:column;gap:30px}
+.sh-sec{scroll-margin-top:90px;animation:fadeUp .5s both}
+.sh-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px}
+.sh-h h2{margin:0 0 2px;font-size:19px;letter-spacing:-.01em}
+.sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(226px,1fr));gap:16px}
+
+/* позначка «лише для бустерів» — прямо на картці */
+.sh-badge{position:absolute;left:12px;top:12px;font-size:14px;line-height:1;
+  padding:4px 7px;border-radius:9px;background:rgba(155,107,255,.24);
+  border:1px solid rgba(155,107,255,.45)}
+.sh-by{font-size:12px;color:var(--dim);margin-top:4px}
+.sh-by b{color:var(--text);font-weight:600}
+.sh-prev i.im{background:center/cover no-repeat}
+
+/* свої роботи: назва, ціна й одна кнопка «виставити» */
+.sh-own{margin-bottom:16px;padding:14px;border-radius:16px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.sh-gt{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.sh-mine{display:flex;flex-direction:column;gap:10px}
+.sh-my{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sh-my.listed{opacity:1}
+.sh-myimg{width:56px;height:36px;border-radius:8px;flex:none;background:center/cover no-repeat;
+  border:1px solid var(--line)}
+.sh-mytitle{flex:1;min-width:140px}
+.sh-myprice{width:96px;flex:none}
+.sh-my input{padding:8px 11px;border-radius:10px;font:inherit;font-size:13px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+.sh-my input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+
+/* вікно цін: список у стовпчик, кнопка 💜 поруч із кожним */
+.sh-pricewin{width:min(560px,94vw)}
+.sh-pricelist{max-height:56vh;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:8px}
+.sh-prow{display:flex;align-items:center;gap:10px}
+.sh-pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.sh-prow input{width:110px;flex:none;padding:8px 11px;border-radius:10px;font:inherit;font-size:13px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+.sh-flag{flex:none;padding:7px 11px;opacity:.45}
+.sh-flag.on{opacity:1;background:rgba(155,107,255,.2);border-color:rgba(155,107,255,.5)}
+.sh-openprices{margin-left:auto}
 
 .sh-card{position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;
   border-radius:16px;background:var(--card);border:1px solid var(--line);
@@ -2817,23 +2860,73 @@ const SHOP_JS = `
       return;
     }
 
-    /* ── ціна набору (адміністратор) ── */
-    var setp=e.target.closest('.sh-setprice');
-    if(setp){
-      var box=setp.closest('.sh-card');
-      var input=box.querySelector('.sh-price input');
-      setp.disabled=true;
-      post('/api/shop/price',{item:setp.dataset.pack,price:input.value}).then(function(j){
-        setp.disabled=false;
+    /* ── вікно цін (адміністратор) ── */
+    var openp=e.target.closest('#sh-openprices');
+    var win=document.getElementById('sh-prices');
+    if(openp&&win){win.hidden=false;document.body.style.overflow='hidden';return}
+    if(win&&!win.hidden&&(e.target===win||e.target.closest('.sh-pricex'))){
+      win.hidden=true;document.body.style.overflow='';return;
+    }
+
+    /* позначка «лише для бустерів» */
+    var flag=e.target.closest('.sh-flag');
+    if(flag){
+      var next=!flag.classList.contains('on');
+      post('/api/shop/flag',{item:flag.dataset.item,booster:next}).then(function(j){
         if(j.error){fail(j.error);return}
-        var p=box.querySelector('.sh-p');
-        if(p)p.textContent=j.price?j.price+' ✨FP':'безкоштовно';
-        var b=box.querySelector('.sh-buy');
-        if(b)b.textContent=j.price?j.price+' ✨':'Взяти';
-        var cc=document.querySelector('.sh-cat[data-cat="'+setp.dataset.pack+'"] .sh-cc');
-        if(cc&&!box.classList.contains('mine'))cc.textContent=j.price?j.price+' ✨':'безкоштовно';
-        setp.classList.add('done');
-        setTimeout(function(){setp.classList.remove('done')},900);
+        flag.classList.toggle('on',j.booster);
+        var card=document.querySelector('.sh-card[data-id="'+flag.dataset.item+'"]');
+        if(card){
+          var badge=card.querySelector('.sh-badge');
+          if(j.booster&&!badge){
+            var s=document.createElement('span');s.className='sh-badge';s.textContent='💜';
+            card.insertBefore(s,card.querySelector('.sh-b'));
+          }else if(!j.booster&&badge)badge.remove();
+        }
+      });
+      return;
+    }
+
+    /* зберегти всі ціни одним рухом */
+    var save=e.target.closest('.sh-saveprices');
+    if(save){
+      var rows=[].slice.call(document.querySelectorAll('.sh-prow'));
+      save.disabled=true;
+      Promise.all(rows.map(function(r){
+        return post('/api/shop/price',{item:r.dataset.item,price:r.querySelector('input').value})
+          .then(function(j){
+            if(j.error)return;
+            var card=document.querySelector('.sh-card[data-id="'+r.dataset.item+'"]');
+            if(!card)return;
+            var p=card.querySelector('.sh-p');
+            if(p)p.textContent=j.price?j.price+' ✨FP':'безкоштовно';
+            var b=card.querySelector('.sh-buy');
+            if(b)b.textContent=j.price?j.price+' ✨':'Взяти';
+          });
+      })).then(function(){
+        save.disabled=false;save.classList.add('done');
+        setTimeout(function(){save.classList.remove('done')},900);
+      });
+      return;
+    }
+
+    /* ── виставити свою роботу на вітрину ── */
+    var list=e.target.closest('.sh-list');
+    if(list){
+      var row=list.closest('.sh-my');
+      var on=list.dataset.on==='1';
+      list.disabled=true;
+      post('/api/shop/list',{
+        asset:list.dataset.asset,
+        price:row.querySelector('.sh-myprice').value,
+        title:row.querySelector('.sh-mytitle').value,
+        listed:!on,
+      }).then(function(j){
+        list.disabled=false;
+        if(j.error){fail(TEXT[j.error]||j.error);return}
+        list.dataset.on=on?'0':'1';
+        list.textContent=on?'Виставити':'Зняти';
+        row.classList.toggle('listed',!on);
       });
     }
   });
@@ -4260,94 +4353,139 @@ export function dropdown(id, options, label = '') {
  * заради чого бустити), але кнопка в них замкнена.
  */
 export function shopPage({
-  packs = [], owned = [], booster = false, admin = false,
+  items = [], categories = [], market = [], authors = {}, mine = [],
+  owned = [], booster = false, admin = false,
   balance = 0, lang = 'uk', uploads = {}, uploadLimit = 3,
 }) {
   const has = new Set(owned);
 
-  // Ліворуч список категорій, праворуч самі набори. Клік по категорії
-  // просто прокручує до неї — так видно і структуру, і вміст одразу.
-  const side = `<aside class="sh-side">
-    ${packs.map((p, i) => `<a class="sh-cat${i === 0 ? ' on' : ''}" href="#${esc(p.id)}" data-cat="${esc(p.id)}">
-      <span class="sh-cn">${esc(p.name)}</span>
-      <span class="sh-cc">${has.has(p.id) ? '✓' : (p.price ? `${p.price} ✨` : t(lang, 'shop.free'))}</span>
-    </a>`).join('')}
-  </aside>`;
-
-  /** Прев'ю набору — кілька справжніх зразків, а не іконка. */
-  const swatches = (p) => {
-    if (p.custom) {
-      return `<div class="sh-prev custom"><span>＋</span></div>`;
+  /** Прев'ю самої речі: колір є колір, набір — кілька зразків, робота — картинка. */
+  const swatchOne = (it) => {
+    const v = it.value ?? {};
+    if (it.kind === 'background' && v.type === 'solid') return `<i style="background:${esc(v.color)}"></i>`;
+    if (it.kind === 'background' && v.type === 'gradient') {
+      return `<i style="background:linear-gradient(${v.angle}deg,${esc(v.from)},${esc(v.to)})"></i>`;
     }
-    const list = p.items.slice(0, 4).map((it) => {
-      if (it.kind === 'background' && it.value.type === 'solid') {
-        return `<i style="background:${esc(it.value.color)}"></i>`;
-      }
-      if (it.kind === 'background' && it.value.type === 'gradient') {
-        return `<i style="background:linear-gradient(${it.value.angle}deg,${esc(it.value.from)},${esc(it.value.to)})"></i>`;
-      }
-      if (it.kind === 'background' && it.value.type === 'motion') {
-        return `<i class="mo" style="--a:${esc(it.value.from)};--b:${esc(it.value.to)}"></i>`;
-      }
-      if (it.kind === 'accent') return `<i class="ac" style="--c:${esc(it.value.color)}"></i>`;
-      if (it.kind === 'card') {
-        return `<i class="cd" style="background:${esc(it.value.bg)};border-color:${esc(it.value.line)}"></i>`;
-      }
-      return `<i class="fr" style="--c:${esc(it.value.color)}"></i>`;
-    }).join('');
-    return `<div class="sh-prev">${list}</div>`;
+    if (it.kind === 'background' && v.type === 'motion') {
+      return `<i class="mo" style="--a:${esc(v.from)};--b:${esc(v.to)}"></i>`;
+    }
+    if (v.type === 'image') return `<i class="im" style="background-image:url(${esc(v.url)})"></i>`;
+    if (it.kind === 'accent') return `<i class="ac" style="--c:${esc(v.color)}"></i>`;
+    if (it.kind === 'card') return `<i class="cd" style="background:${esc(v.bg)};border-color:${esc(v.line)}"></i>`;
+    return `<i class="fr" style="--c:${esc(v.color)}"></i>`;
+  };
+  const preview = (entry) => `<div class="sh-prev">${
+    (entry.pack ? entry.items.slice(0, 4) : [entry]).map(swatchOne).join('')}</div>`;
+
+  const card = (entry, i) => {
+    const owns = has.has(entry.id);
+    const locked = entry.booster && !booster;
+    const isMarket = entry.category === 'custom';
+
+    const action = locked
+      ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
+      : owns
+        ? `<a class="btn ghost sm" href="/me#look">${esc(t(lang, 'shop.inProfile'))}</a>`
+        : `<button class="btn sm sh-buy" data-item="${esc(entry.id)}">
+            ${entry.price ? `${entry.price} ✨` : esc(t(lang, 'shop.take'))}</button>`;
+
+    // хто це виклав — видно одразу, це ж чужа робота
+    const by = isMarket
+      ? `<div class="sh-by">${esc(t(lang, 'shop.by'))} <b>${esc(authors[entry.author] ?? entry.author)}</b>${
+        entry.sales ? ` · ${entry.sales} ${esc(t(lang, 'shop.sold'))}` : ''}</div>`
+      : '';
+
+    const payload = esc(JSON.stringify(entry.pack
+      ? entry.items.map((it) => ({ id: it.id, name: it.name, kind: it.kind, value: it.value }))
+      : [{ id: entry.id, name: entry.name, kind: entry.kind, value: entry.value }]));
+
+    return `<article class="sh-card${locked ? ' locked' : ''}${owns ? ' mine' : ''}"
+        data-id="${esc(entry.id)}" data-items="${payload}"
+        style="animation-delay:${Math.min(i * 0.04, 0.35)}s">
+      ${preview(entry)}
+      ${entry.booster ? `<span class="sh-badge" title="${esc(t(lang, 'shop.boosterOnly'))}">💜</span>` : ''}
+      <div class="sh-b">
+        <div>
+          <div class="sh-n">${esc(entry.name)}</div>
+          ${entry.hint ? `<div class="hint">${esc(entry.hint)}</div>` : ''}
+          ${by}
+        </div>
+        <div class="sh-p">${entry.price ? `${entry.price} ✨FP` : esc(t(lang, 'shop.free'))}</div>
+      </div>
+      <div class="sh-a">${action}</div>
+    </article>`;
   };
 
-  const packCard = (p, i) => {
-    const mine = has.has(p.id);
-    const locked = p.booster && !booster;
-
-    const action = p.custom
-      ? (locked
-        ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
-        : `<a class="btn sm" href="/me#look">${esc(t(lang, 'shop.upload'))}</a>`)
-      : locked
-        ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
-        : mine
-          ? `<a class="btn ghost sm" href="/me#look">${esc(t(lang, 'shop.inProfile'))}</a>`
-          : `<button class="btn sm sh-buy" data-item="${esc(p.id)}">
-              ${p.price ? `${p.price} ✨` : esc(t(lang, 'shop.take'))}</button>`;
-
-    const priceEdit = admin
-      ? `<div class="sh-price">
-          <input type="number" min="0" max="99999" value="${p.price}" data-pack="${esc(p.id)}"
-            aria-label="${esc(t(lang, 'shop.price'))}">
-          <button class="btn ghost sm sh-setprice" data-pack="${esc(p.id)}">${esc(t(lang, 'shop.savePrice'))}</button>
+  // Розділи: категорія → її речі. «Кастом» наповнюють самі учасники.
+  const sections = categories.map((c) => {
+    const list = c.id === 'custom' ? market : items.filter((i) => i.category === c.id);
+    const own = c.id === 'custom' && mine.length
+      ? `<div class="sh-own">
+          <div class="sh-gt">${esc(t(lang, 'shop.yourWorks'))}</div>
+          <div class="hint" style="margin-bottom:10px">${esc(t(lang, 'shop.uploadsLeft', {
+        bg: uploads.background ?? uploadLimit, ban: uploads.banner ?? uploadLimit, max: uploadLimit,
+      }))}</div>
+          <div class="sh-mine">
+            ${mine.map((a) => `<div class="sh-my${a.listed ? ' listed' : ''}" data-asset="${a.id}">
+              <span class="sh-myimg" style="background-image:url(${esc(a.url)})"></span>
+              <input class="sh-mytitle" type="text" maxlength="60" value="${esc(a.title)}"
+                placeholder="${esc(t(lang, 'shop.workTitle'))}">
+              <input class="sh-myprice" type="number" min="1" max="99999" value="${a.price || 25}">
+              <button class="btn ghost sm sh-list" data-asset="${a.id}" data-on="${a.listed ? '1' : '0'}">
+                ${a.listed ? esc(t(lang, 'shop.unlist')) : esc(t(lang, 'shop.list'))}</button>
+            </div>`).join('')}
+          </div>
         </div>`
       : '';
 
-    const uploadInfo = p.custom && !locked
-      ? `<div class="hint sh-left">${esc(t(lang, 'shop.uploadsLeft', {
-        bg: uploads.background ?? uploadLimit, ban: uploads.banner ?? uploadLimit, max: uploadLimit,
-      }))}</div>`
+    const upload = c.id === 'custom'
+      ? (booster
+        ? `<a class="btn sm" href="/me#look">${esc(t(lang, 'shop.upload'))}</a>`
+        : `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`)
       : '';
 
-    // повний склад набору їде в розмітці — вікно передперегляду малює його
-    // без жодного запиту на сервер
-    const payload = esc(JSON.stringify(p.items.map((it) =>
-      ({ id: it.id, name: it.name, kind: it.kind, value: it.value }))));
-
-    return `<article class="sh-card${locked ? ' locked' : ''}${mine ? ' mine' : ''}"
-        id="${esc(p.id)}" data-id="${esc(p.id)}" data-items="${payload}"
-        style="animation-delay:${Math.min(i * 0.05, 0.4)}s">
-      ${swatches(p)}
-      <div class="sh-b">
+    return `<section class="sh-sec" id="${esc(c.id)}">
+      <div class="sh-h">
         <div>
-          <div class="sh-n">${esc(p.name)}</div>
-          <div class="hint">${esc(p.hint ?? '')}</div>
+          <h2>${esc(c.name)}</h2>
+          <div class="hint">${esc(c.hint)}</div>
         </div>
-        <div class="sh-p" data-price="${p.id}">${p.price ? `${p.price} ✨FP` : esc(t(lang, 'shop.free'))}</div>
+        ${upload}
       </div>
-      ${uploadInfo}
-      <div class="sh-a">${action}</div>
-      ${priceEdit}
-    </article>`;
-  };
+      ${own}
+      ${list.length
+    ? `<div class="sh-grid">${list.map(card).join('')}</div>`
+    : `<div class="muted">${esc(t(lang, 'shop.emptyCat'))}</div>`}
+    </section>`;
+  }).join('');
+
+  // Ліворуч — самі категорії, згори вниз.
+  const side = `<aside class="sh-side">
+    ${categories.map((c, i) => `<a class="sh-cat${i === 0 ? ' on' : ''}" href="#${esc(c.id)}" data-cat="${esc(c.id)}">
+      <span class="sh-cn">${esc(c.name)}</span>
+      <span class="sh-cc">${c.id === 'custom' ? market.length : items.filter((x) => x.category === c.id).length}</span>
+    </a>`).join('')}
+  </aside>`;
+
+  // Ціни й позначки правляться в окремому вікні — на картках це виглядало брудно.
+  const priceWin = admin
+    ? `<div class="pv-back" id="sh-prices" hidden><div class="pv sh-pricewin">
+        <div class="pv-h"><b>${esc(t(lang, 'shop.prices'))}</b>
+          <button class="gate-x sh-pricex" aria-label="×">×</button></div>
+        <div class="sh-pricelist">
+          ${items.map((p) => `<div class="sh-prow" data-item="${esc(p.id)}">
+            <span class="sh-pn">${esc(p.name)}</span>
+            <input type="number" min="0" max="99999" value="${p.price}" aria-label="${esc(t(lang, 'shop.price'))}">
+            <button class="btn ghost sm sh-flag${p.booster ? ' on' : ''}" data-item="${esc(p.id)}"
+              title="${esc(t(lang, 'shop.boosterOnly'))}">💜</button>
+          </div>`).join('')}
+        </div>
+        <div class="pv-f">
+          <span class="hint">${esc(t(lang, 'shop.pricesHint'))}</span>
+          <button class="btn sm sh-saveprices">${esc(t(lang, 'shop.savePrice'))}</button>
+        </div>
+      </div></div>`
+    : '';
 
   return `<div class="shop">
     <div class="card pane sh-wallet rise">
@@ -4356,12 +4494,14 @@ export function shopPage({
         <b id="sh-balance">${fmt(balance)}</b>
         <span>FP</span>
       </div>
+      ${admin ? `<button class="btn ghost sm sh-openprices" id="sh-openprices">⚙ ${esc(t(lang, 'shop.prices'))}</button>` : ''}
     </div>
     <div class="sh-layout">
       ${side}
-      <div class="sh-grid">${packs.map(packCard).join('')}</div>
+      <div class="sh-body">${sections}</div>
     </div>
     <div class="err" id="sh-err" hidden></div>
+    ${priceWin}
   </div>`;
 }
 
