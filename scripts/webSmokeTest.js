@@ -195,7 +195,7 @@ ok('у куті — GitHub і Telegram');
     'кнопка файлу в стилі сайту, а не рідна акцентна');
   // місце під «✓» зарезервоване там, де є власні відступи
   assert.match(g.body, /\.langmenu a\{[^}]*padding:9px 28px 9px 11px/, 'галочка не налазить на мову');
-  assert.match(g.body, /\.qopt\{padding:8px 28px 8px 11px/, 'галочка не налазить на якість');
+  assert.match(g.body, /\.qopt,\.vopt\{padding:8px 28px 8px 11px/, 'галочка не налазить на якість і озвучку');
 }
 ok('єдиний стиль кнопок і позначки «обрано»');
 
@@ -778,6 +778,22 @@ ok('порядок черги, автоперехід, кнопка «Далі»
   assert.ok(page.includes('cin-curtain'), 'завіса на паузі');
 }
 ok('вибір озвучки, завіса на паузі, перемикач жорсткої паузи');
+
+// 19.1 кінотеатр: єдиний стиль керування, без поля Referer
+{
+  const c = await req('/cinema', adm);
+  assert.ok(!c.body.includes('cin-ref'), 'поля Referer більше немає');
+  assert.ok(!/setReferer/.test(c.body), 'і підказки про нього теж');
+  // вибір якості й озвучки виглядають однаково і мають позначку «обрано»
+  assert.match(c.body, /\.qopt,\.vopt\{padding/, 'озвучка стилізована так само, як якість');
+  assert.match(c.body, /\.qopt\.on::after,\.vopt\.on::after/, 'позначка «✓» в обох списках');
+  assert.match(c.body, /\.pick-el\.on,[^{]*\.btn\.icon\.on/, 'перемикачі панелі у спільному стилі');
+  // смуга часу товщає під курсором, але висота елемента стала
+  assert.match(c.body, /\.seek\{position:relative;flex:1;min-width:180px;height:22px/, 'стала висота смуги');
+  assert.match(c.body, /\.seek\[data-admin="1"\]:hover::before,\.seek\[data-admin="1"\]:hover i\{height:8px/,
+    'під курсором смугу легше зачепити');
+}
+ok('кінотеатр: один стиль керування, без ручного Referer');
 
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });

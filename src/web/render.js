@@ -463,16 +463,20 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .btn.play:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 .btn.ghost{background:rgba(255,255,255,.05);border:1px solid var(--line)}
 /* Смуга тонка, але з високою зоною влучання — по ній зручно клікати */
-.seek{position:relative;flex:1;min-width:180px;height:20px;display:flex;align-items:center;cursor:default}
-.seek::before{content:'';position:absolute;left:0;right:0;height:5px;border-radius:999px;
-  background:rgba(255,255,255,.1)}
+/* Смуга часу: тонка в спокої, товща під курсором — влучити легше,
+   а сама панель від цього не «дихає», бо висота елемента стала. */
+.seek{position:relative;flex:1;min-width:180px;height:22px;display:flex;align-items:center;cursor:default}
+.seek::before{content:'';position:absolute;left:0;right:0;top:50%;height:5px;margin-top:-2.5px;
+  border-radius:999px;background:rgba(255,255,255,.1);transition:height .18s,margin-top .18s}
 .seek[data-admin="1"]{cursor:pointer}
-.seek i{position:absolute;left:0;height:5px;width:0;border-radius:999px;
+.seek i{position:absolute;left:0;top:50%;height:5px;margin-top:-2.5px;width:0;border-radius:999px;
   background:linear-gradient(90deg,#6b7cff,#9b6bff);
-  box-shadow:0 0 14px rgba(107,124,255,.55);transition:width .25s linear}
+  box-shadow:0 0 14px rgba(107,124,255,.55);
+  transition:width .25s linear,height .18s,margin-top .18s}
 .seek b{position:absolute;top:50%;left:0;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;
   background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.6);opacity:0;transform:scale(.6);
   transition:opacity .2s,transform .2s}
+.seek[data-admin="1"]:hover::before,.seek[data-admin="1"]:hover i{height:8px;margin-top:-4px}
 .seek[data-admin="1"]:hover b{opacity:1;transform:scale(1)}
 .seek[data-admin="1"]:hover i{box-shadow:0 0 20px rgba(107,124,255,.8)}
 .tm{font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
@@ -480,7 +484,13 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
 .btn.icon:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.14)}
 .btn.icon:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
-.btn.icon.on{background:rgba(107,124,255,.24);border-color:rgba(107,124,255,.65)}
+/* увімкнений перемикач у панелі — той самий вигляд «обрано», що й усюди
+   (сам колір задає спільний блок у кінці стилів) */
+.btn.icon.on{border-color:rgba(255,255,255,.35)}
+/* головна кнопка панелі — пуск/пауза; решта тихіші, щоб око не розбігалося */
+.cbar .btn.play{width:46px;height:46px;padding:0;flex:none;border-radius:14px;font-size:17px;
+  display:inline-flex;align-items:center;justify-content:center}
+.cbar .btn.play:disabled{opacity:.45;box-shadow:none;transform:none;cursor:not-allowed}
 
 /* ── Завіса на паузі: пояснює, що коїться, замість чорного екрана ── */
 .stagewrap{position:relative;display:flex;flex-direction:column;min-height:0}
@@ -549,9 +559,11 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   border-radius:12px;background:rgba(14,18,30,.97);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   animation:menuIn .22s cubic-bezier(.22,.9,.3,1) both}
-.qopt{padding:8px 28px 8px 11px;border:0;border-radius:8px;background:0;color:var(--text);font:inherit;
-  font-size:13px;text-align:left;cursor:pointer;transition:.18s}
-.qopt:hover{background:rgba(107,124,255,.16)}
+/* пункти меню якості й озвучки виглядають однаково — це один і той самий
+   спосіб вибору, лише різні списки */
+.qopt,.vopt{padding:8px 28px 8px 11px;border:0;border-radius:8px;background:0;color:var(--text);
+  font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.18s;position:relative}
+.qopt:hover,.vopt:hover{background:rgba(107,124,255,.16)}
 /* обрана якість / озвучка — у спільному блоці «обрано / натиснуто» */
 
 /* ── Вікно «зал зачинено» ── */
@@ -831,18 +843,21 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pick-el{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;
   min-width:0;white-space:nowrap;font-weight:600;transition:.2s cubic-bezier(.22,.9,.3,1)}
 .pick-el::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
-.pick-el.on,.btn.ghost.pick-el.on,
-.tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on{
+.pick-el.on,.btn.ghost.pick-el.on,.btn.icon.on,
+.tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on,.vopt.on{
   background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
   border-color:rgba(255,255,255,.35);
   box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
 .pick-el.on::after{opacity:.9}
 .pick-el:not(.on){opacity:.72}
 .pick-el:not(.on):hover{opacity:1;transform:translateY(-1px)}
-.drop-opt.on::after,.qopt.on::after,.langmenu a.on::after{opacity:.95}
+/* у списках «✓» стоїть праворуч; місце під нього тримає padding-right вище */
+.drop-opt::after,.qopt::after,.vopt::after,.langmenu a::after{content:'✓';position:absolute;
+  right:10px;font-size:11px;opacity:0;transition:.2s}
+.drop-opt.on::after,.qopt.on::after,.vopt.on::after,.langmenu a.on::after{opacity:.95}
 /* наведення на вже обране не має його «гасити» */
-.pick-el.on:hover,.tabs a.on:hover,.drop-opt.on:hover,.qopt.on:hover{
-  background:linear-gradient(180deg,#8b97ff,#6675f5)}
+.pick-el.on:hover,.tabs a.on:hover,.drop-opt.on:hover,.qopt.on:hover,.vopt.on:hover,
+.btn.icon.on:hover{background:linear-gradient(180deg,#8b97ff,#6675f5)}
 
 /* Натискання відчутне скрізь однаково */
 .pick-el:active,.tabs a:active,.drop-opt:active,.qopt:active,.pick-row:active,.like:active,
@@ -1859,12 +1874,11 @@ const CINEMA_JS = `
     var inp=document.getElementById('cin-src');
     if(!inp||!inp.value.trim())return;
     btn.disabled=true;btn.classList.add('busy');
+    /* Referer вписувати не треба: коли CDN пускає лише «зі свого» сайту,
+       сервер сам підставляє його з адреси потоку й веде через проксі. */
     post(action,{
       source:inp.value,
       title:(document.getElementById('cin-title')||{}).value,
-      /* Referer потрібен, коли CDN пускає лише «зі свого» сайту —
-         тоді потік піде через наш проксі з цим заголовком. */
-      referer:(document.getElementById('cin-ref')||{}).value,
     })
       .then(function(j){
         btn.disabled=false;btn.classList.remove('busy');
@@ -2905,7 +2919,6 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     <div class="up">
       <input type="text" id="cin-src" placeholder="${esc(t(lang, 'cin.setSource'))}">
       <input type="text" id="cin-title" placeholder="${esc(t(lang, 'cin.setTitle'))}">
-      <input type="text" id="cin-ref" placeholder="${esc(t(lang, 'cin.setReferer'))}">
       <div class="row" style="gap:10px;flex-wrap:wrap">
         <button class="btn" id="cin-queue">＋ ${esc(t(lang, 'cin.queueAdd'))}</button>
         ${state.canEdit ? `<button class="btn ghost" id="cin-load">${esc(t(lang, 'cin.load'))}</button>` : ''}
