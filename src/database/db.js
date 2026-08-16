@@ -163,6 +163,19 @@ CREATE TABLE IF NOT EXISTS warnings (
 );
 CREATE INDEX IF NOT EXISTS idx_warn_user ON warnings (guild_id, user_id, expires_at);
 
+-- Дії персоналу з нативними правами Discord: відключення з голосового,
+-- серверні мути, кіки, бани. Потрібні лише для нагляду, тож живуть недовго.
+CREATE TABLE IF NOT EXISTS staff_actions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id     TEXT NOT NULL,
+  moderator_id TEXT NOT NULL,
+  target_id    TEXT,
+  action       TEXT NOT NULL,
+  weight       REAL NOT NULL DEFAULT 1,
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_staff_mod ON staff_actions (guild_id, moderator_id, created_at);
+
 CREATE TABLE IF NOT EXISTS achievements (
   guild_id   TEXT NOT NULL,
   user_id    TEXT NOT NULL,

@@ -828,6 +828,47 @@ export const warnRepo = {
   },
 };
 
+// ─────────────────────────────────────────────
+//  ДІЇ ПЕРСОНАЛУ (нагляд)
+// ─────────────────────────────────────────────
+export const staffRepo = {
+  /** Скільки тримаємо записи — довше вікна нагляду тримати немає сенсу. */
+  TTL_MS: 6 * 3600_000,
+
+  async add(guildId, { moderatorId, targetId, action, weight = 1 }) {
+    const res = await run(`
+      INSERT INTO staff_actions (guild_id, moderator_id, target_id, action, weight, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [guildId, moderatorId, targetId ?? null, action, weight, Date.now()]);
+    return num(res.lastInsertRowid);
+  },
+
+  /** Дії одного модератора за останні windowMs. */
+  async recent(guildId, moderatorId, windowMs, now = Date.now()) {
+    const rows = await all(`
+      SELECT * FROM staff_actions
+      WHERE guild_id = ? AND moderator_id = ? AND created_at > ?
+      ORDER BY created_at ASC
+    `, [guildId, moderatorId, now - windowMs]);
+    return rows.map(shapeStaff);
+  },
+
+  purge(now = Date.now()) {
+    return run('DELETE FROM staff_actions WHERE created_at <= ?', [now - staffRepo.TTL_MS]);
+  },
+};
+
+function shapeStaff(row) {
+  return {
+    id: num(row.id),
+    moderatorId: row.moderator_id,
+    targetId: row.target_id ?? null,
+    action: row.action,
+    weight: Number(row.weight ?? 1),
+    createdAt: num(row.created_at),
+  };
+}
+
 function shapeWarn(row) {
   return {
     id: num(row.id),

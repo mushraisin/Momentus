@@ -258,9 +258,16 @@ export const punishmentService = {
    * Сповіщення: лог-канал і ЛС покараному. Помилки тут не критичні —
    * покарання вже застосоване, а лист міг і не дійти.
    */
-  async notify(guild, { target, moderator, kind, minutes, reason, lifted = false }) {
+  async notify(guild, { target, moderator, kind, minutes, reason, note = null, lifted = false }) {
     const label = KIND_LABEL[kind] ?? kind;
-    const term = lifted ? '' : (minutes ? `на ${fmtMin(minutes)}` : 'до зняття');
+    const warnLike = kind === 'warn';
+    const color = lifted ? 0x43c47b : (warnLike ? 0xf0a742 : 0xef5350);
+    const icon = lifted ? '✅' : (warnLike ? '⚠️' : '⛔');
+    // у попередження строку немає — воно просто згасає за 72 години
+    const term = lifted || warnLike ? '' : (minutes ? `на ${fmtMin(minutes)}` : 'до зняття');
+    const by = moderator === 'system'
+      ? (lifted ? 'система (час вийшов)' : 'система (автоматично)')
+      : `<@${moderator}>`;
 
     const logId = configService.get(guild.id, 'general.modLogChannelId');
     if (logId) {
@@ -268,13 +275,15 @@ export const punishmentService = {
       if (ch?.isTextBased?.()) {
         await ch.send({
           embeds: [{
-            color: lifted ? 0x43c47b : 0xef5350,
-            title: lifted ? '✅ Покарання знято' : `${'⛔'} ${cap(label)}`,
+            color,
+            title: lifted ? '✅ Покарання знято' : `${icon} ${cap(label)}`,
             description: [
               `**Кому:** <@${target.id}>`,
-              `**Хто:** ${moderator === 'system' ? 'система (час вийшов)' : `<@${moderator}>`}`,
+              `**Хто:** ${by}`,
               term ? `**Термін:** ${term}` : null,
+              warnLike && !lifted ? '**Згасне:** через 72 год' : null,
               `**Причина:** ${reason || '—'}`,
+              note ? `**Деталі:** ${note}` : null,
             ].filter(Boolean).join('\n'),
             timestamp: new Date().toISOString(),
           }],
@@ -285,11 +294,13 @@ export const punishmentService = {
     if (!lifted && configService.get(guild.id, 'moderation.dmOnPunish')) {
       await target.send({
         embeds: [{
-          color: 0xef5350,
+          color,
           title: `${cap(label)} на сервері ${guild.name}`,
           description: [
             term ? `**Термін:** ${term}` : null,
+            warnLike ? 'Попередження згасне саме через 72 години.' : null,
             `**Причина:** ${reason || 'не вказана'}`,
+            note ? `**Деталі:** ${note}` : null,
           ].filter(Boolean).join('\n'),
         }],
       }).catch(() => {});
@@ -302,6 +313,9 @@ export const KIND_LABEL = {
   text: 'текстовий мут',
   voice: 'голосовий мут',
   full: 'повний мут',
+  warn: 'попередження',
+  kick: 'виганяння з сервера',
+  ban: 'бан',
 };
 
 /** Скільки чинних попереджень призводять до автоматичного мута. */

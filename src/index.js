@@ -33,6 +33,9 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildVoiceStates,
+    // без цього наміру не приходять записи журналу аудиту —
+    // а саме з них видно дії персоналу з нативними правами Discord
+    GatewayIntentBits.GuildModeration,
   ],
   partials: [Partials.Message, Partials.Reaction, Partials.Channel, Partials.GuildMember],
 });

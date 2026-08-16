@@ -6,6 +6,7 @@ import { COLORS } from './theme.js';
 import { punishmentService, KIND_LABEL, WARN_LIMIT } from '../services/punishmentService.js';
 import { modRepo } from '../database/repositories.js';
 import { accessService } from '../services/accessService.js';
+import { staffWatch } from '../services/staffWatch.js';
 
 /** Готові терміни — щоб не вписувати число щоразу. */
 export const DURATIONS = [
@@ -80,6 +81,16 @@ export async function modTarget(guild, targetId, member) {
       ? warns.map((w, i) => `**${i + 1}.** ${w.reason ? `${String(w.reason).slice(0, 50)} · ` : ''}згасне ${untilText(w.expiresAt)}`).join('\n')
       : 'немає',
   });
+
+  // якщо людина сама щось модерувала нативними правами — показуємо її рахунок
+  const staff = await staffWatch.score(guild.id, targetId).catch(() => null);
+  if (staff?.actions) {
+    embed.addFields({
+      name: 'Дії з правами Discord',
+      value: `${staff.actions} за вікно нагляду · вага ${staff.score}/${staff.limit}`,
+      inline: true,
+    });
+  }
 
   if (history.length) {
     embed.addFields({

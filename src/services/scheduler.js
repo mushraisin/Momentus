@@ -1,6 +1,6 @@
 import { reputationService } from './reputationService.js';
 import { backupService } from './backupService.js';
-import { reputationRepo, warnRepo } from '../database/repositories.js';
+import { reputationRepo, warnRepo, staffRepo } from '../database/repositories.js';
 import { pipeline } from './analysisPipeline.js';
 import { punishmentService } from './punishmentService.js';
 import { createLogger } from '../core/logger.js';
@@ -17,6 +17,7 @@ export function startScheduler(client) {
   setInterval(() => {
     punishmentService.liftExpired(client).catch(() => {});
     warnRepo.purge().catch(() => {});
+    staffRepo.purge().catch(() => {});
   }, 60_000);
 
   // Рейтинг оновлюється сам: хто був активний — потрапляє в чергу,

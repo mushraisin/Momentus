@@ -62,6 +62,14 @@ export const CONFIG_SCHEMA = {
   // Службові ролі мутів — бот створює й запам'ятовує їх сам.
   'moderation.textMuteRoleId': { type: 'string', default: '', label: 'Роль текстового мута', group: 'moderation' },
   'moderation.voiceMuteRoleId': { type: 'string', default: '', label: 'Роль голосового мута', group: 'moderation' },
+  // ── Нагляд за тими, хто має права Discord ──
+  // Рахуємо дії персоналу (відключення з голосового, серверні мути, кіки, бани)
+  // і, якщо в короткому вікні їх забагато, автоматично видаємо попередження.
+  'moderation.staffWatch': { type: 'bool', default: true, label: 'Стежити за діями персоналу', group: 'moderation' },
+  'moderation.staffWindowMin': { type: 'int', default: 10, label: 'Вікно нагляду (хв)', group: 'moderation' },
+  'moderation.staffLimit': { type: 'int', default: 10, label: 'Поріг ваги дій у вікні', group: 'moderation' },
+  'moderation.staffSameTargetLimit': { type: 'int', default: 4, label: 'Поріг дій по одній людині', group: 'moderation' },
+  'moderation.staffExemptRoles': { type: 'roles', default: [], label: 'Ролі поза наглядом', group: 'moderation' },
 
   // ── Галерея та кінотеатр ──────────────────
   // Канал-сховище: бот заливає туди медіа й тримає лише посилання.

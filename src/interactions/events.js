@@ -8,6 +8,7 @@ import { reputationService } from '../services/reputationService.js';
 import { setupPanel } from '../ui/adminPanel.js';
 import { offerPublish, removeByMessage } from '../services/galleryWatcher.js';
 import { punishmentService } from '../services/punishmentService.js';
+import { staffWatch } from '../services/staffWatch.js';
 import { caches } from '../core/cache.js';
 import { createLogger } from '../core/logger.js';
 
@@ -91,44 +92,84 @@ export function registerEvents(client) {
     postSetupPanel(client, guild);
   });
 
-  // ── Облік нативних покарань (для метрики «Порушення») ──
-  // Слухаємо audit log: тайм-аути/кіки/бани, зроблені будь-яким модератором чи ботом.
+  // ── Облік нативних дій персоналу ──────────
+  // Ролі з правами Discord працюють повз бота, але слід лишається в журналі
+  // аудиту. Звідси беремо і покарання учасників (для метрики «Порушення»),
+  // і самі дії модераторів (для нагляду за зловживанням правами).
   client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {
     try {
-      const map = {
-        [AuditLogEvent.MemberKick]: 'kick',
-        [AuditLogEvent.MemberBanAdd]: 'ban',
-      };
-      let action = map[entry.action];
+      const executorId = entry.executorId ?? 'unknown';
+      const seen = readAudit(entry);
+      if (!seen) return;
+      const { action, punishment, count } = seen;
+      const targetId = entry.targetId ?? null;
 
-      // тайм-аут приходить як оновлення учасника
-      if (!action && entry.action === AuditLogEvent.MemberUpdate) {
-        const t = entry.changes?.find((c) => c.key === 'communication_disabled_until');
-        if (t?.new) action = 'timeout';
+      // 1) покарання учасника — у журнал і в репутацію
+      if (punishment && targetId) {
+        await usersRepo.ensure(guild.id, targetId, null, null);
+        await modRepo.add({
+          guildId: guild.id,
+          userId: targetId,
+          moderatorId: executorId,
+          action: punishment,
+          reason: entry.reason ?? null,
+          result: 'applied',
+        });
+        await reputationService.recompute(guild.id, targetId);
+        caches.profile.delete(`${guild.id}:${targetId}`);
+        log.info(`Зафіксовано покарання ${punishment} для ${targetId}`);
       }
-      if (!action) return;
 
-      const userId = entry.targetId;
-      if (!userId) return;
-
-      await usersRepo.ensure(guild.id, userId, null, null);
-      await modRepo.add({
-        guildId: guild.id,
-        userId,
-        moderatorId: entry.executorId ?? 'unknown',
-        action,
-        reason: entry.reason ?? null,
-        result: 'applied',
+      // 2) сама дія — на рахунок модератора; забагато за раз → авто-попередження
+      const flagged = await staffWatch.record(guild, {
+        moderatorId: executorId, targetId, action, count,
       });
-      await reputationService.recompute(guild.id, userId);
-      caches.profile.delete(`${guild.id}:${userId}`);
-      log.info(`Зафіксовано покарання ${action} для ${userId}`);
+      if (flagged) log.info(`Персонал ${executorId}: ${flagged.reason}`);
     } catch (err) {
       log.warn('audit log обробка впала', err.message);
     }
   });
 
   log.info('Обробники подій зареєстровано.');
+}
+
+/**
+ * Розібрати запис журналу аудиту.
+ *
+ * @returns {null|{action:string, punishment:string|null, count:number}}
+ *   action     — що зробив модератор (для нагляду);
+ *   punishment — чи це покарання учасника (для журналу й репутації).
+ */
+function readAudit(entry) {
+  const A = AuditLogEvent;
+  const count = Number(entry.extra?.count ?? 1) || 1;
+
+  switch (entry.action) {
+    case A.MemberKick:
+      return { action: 'kick', punishment: 'kick', count: 1 };
+    case A.MemberBanAdd:
+      return { action: 'ban', punishment: 'ban', count: 1 };
+    case A.MemberDisconnect:
+      // Discord не каже, кого саме відключили — лише скільки людей
+      return { action: 'voice.disconnect', punishment: null, count };
+    case A.MemberMove:
+      return { action: 'voice.move', punishment: null, count };
+    case A.MessageBulkDelete:
+      return { action: 'message.bulkDelete', punishment: null, count };
+    case A.MemberUpdate: {
+      // тайм-аут, серверний мут і оглушення приходять як зміни полів учасника
+      const ch = (key) => entry.changes?.find((c) => c.key === key);
+      const t = ch('communication_disabled_until');
+      if (t?.new) return { action: 'timeout', punishment: 'timeout', count: 1 };
+      const mute = ch('mute');
+      if (mute?.new === true) return { action: 'voice.mute', punishment: null, count: 1 };
+      const deaf = ch('deaf');
+      if (deaf?.new === true) return { action: 'voice.deafen', punishment: null, count: 1 };
+      return null;
+    }
+    default:
+      return null;
+  }
 }
 
 /** Надіслати первинне налаштування, якщо канал панелі ще не привʼязано. */
