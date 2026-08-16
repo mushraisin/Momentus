@@ -7,7 +7,10 @@
 export const CONFIG_SCHEMA = {
   // ── Загальне ──────────────────────────────
   'general.locale': { type: 'string', default: 'uk', label: 'Мова інтерфейсу (uk/en)', group: 'general' },
-  'general.statsChannelId': { type: 'channel', default: '', label: 'Канал статистики', group: 'general' },
+  // Два різні канали: у першому живе панель для всіх, у другому — налаштування
+  // бота, які бачити стороннім ні до чого.
+  'general.statsChannelId': { type: 'channel', default: '', label: 'Канал панелі (для всіх)', group: 'general' },
+  'general.adminChannelId': { type: 'channel', default: '', label: 'Канал налаштувань (адмін)', group: 'general' },
   'general.modLogChannelId': { type: 'channel', default: '', label: 'Канал лог-модерації', group: 'general' },
   'general.systemLogChannelId': { type: 'channel', default: '', label: 'Системний лог', group: 'general' },
 

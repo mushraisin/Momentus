@@ -81,8 +81,47 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
 .modgrid{margin-top:0}
 .modgrid .log{max-height:420px}
 .modgrid .viewers{max-height:420px}
-.modgrid select{padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.05);
-  border:1px solid var(--line);color:var(--text);font:inherit}
+
+/* ── Спадне меню в стилі сайту (замість нативного select) ── */
+.drop{position:relative}
+.drop summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
+  padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.05);
+  border:1px solid var(--line);font-size:14px;transition:.25s}
+.drop summary::-webkit-details-marker{display:none}
+.drop summary:hover{border-color:rgba(107,124,255,.55)}
+.drop[open] summary{border-color:rgba(107,124,255,.65);background:rgba(107,124,255,.12)}
+.drop-l{color:var(--dim);font-size:13px}
+.drop-v{margin-left:auto;font-weight:600}
+.drop .chev{margin-left:0}
+.drop-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;padding:6px;
+  border-radius:12px;background:rgba(14,18,30,.98);border:1px solid var(--line);
+  box-shadow:0 16px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
+  max-height:260px;overflow:auto;animation:menuIn .2s cubic-bezier(.22,.9,.3,1) both}
+.drop-opt{padding:9px 11px;border:0;border-radius:9px;background:0;color:var(--text);
+  font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
+.drop-opt:hover{background:rgba(107,124,255,.16)}
+.drop-opt.on{background:rgba(107,124,255,.22)}
+
+/* ── Вибір учасника з пошуком ── */
+.picker{position:relative}
+.pick-btn{width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);
+  font:inherit;font-size:14px;cursor:pointer;transition:.25s}
+.pick-btn:hover{border-color:rgba(107,124,255,.55)}
+.pick-face{width:26px;height:26px;flex:none;border-radius:50%;background:rgba(255,255,255,.08)
+  center/cover no-repeat;border:1px solid var(--line)}
+.pick-face.on{border-color:rgba(107,124,255,.6)}
+.pick-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:31;padding:8px;
+  border-radius:14px;background:rgba(14,18,30,.98);border:1px solid var(--line);
+  box-shadow:0 18px 44px rgba(0,0,0,.6);animation:menuIn .2s cubic-bezier(.22,.9,.3,1) both}
+.pick-menu[hidden]{display:none}
+.pick-search{width:100%;padding:9px 12px;border-radius:10px;margin-bottom:6px;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);font:inherit;font-size:13px}
+.pick-list{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow:auto}
+.pick-row{display:flex;align-items:center;gap:10px;padding:7px 9px;border:0;border-radius:10px;
+  background:0;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
+.pick-row:hover{background:rgba(107,124,255,.16)}
+.pick-row img{width:24px;height:24px;border-radius:50%;flex:none}
 .kindbtn.on{background:rgba(107,124,255,.22);border-color:rgba(107,124,255,.6);color:#fff}
 .viewer .tagp{flex:none}
 .langs{position:relative;margin-left:6px}
@@ -1810,6 +1849,74 @@ const MOD_JS = `
   var kind='text',err=document.getElementById('mod-err');
   function fail(t){if(!err)return;err.textContent=t;err.hidden=!t}
 
+  /* ── Спадні меню в стилі сайту ── */
+  document.addEventListener('click',function(e){
+    var opt=e.target.closest('.drop-opt');
+    if(opt){
+      var drop=opt.closest('.drop');
+      drop.dataset.value=opt.dataset.value;
+      drop.querySelector('.drop-v').textContent=opt.textContent;
+      drop.querySelectorAll('.drop-opt').forEach(function(o){o.classList.toggle('on',o===opt)});
+      drop.removeAttribute('open');
+      return;
+    }
+    var open=document.querySelector('.drop[open]');
+    if(open&&!open.contains(e.target))open.removeAttribute('open');
+  });
+
+  /* ── Вибір учасника: список із пошуком замість вписування ID ── */
+  var picker=document.getElementById('mod-picker');
+  if(picker){
+    var menu=document.getElementById('mod-menu'),list=document.getElementById('mod-list'),
+        search=document.getElementById('mod-search'),hidden=document.getElementById('mod-user'),
+        nameEl=document.getElementById('mod-name'),faceEl=document.getElementById('mod-face');
+    var timer=null;
+
+    function load(q){
+      fetch('/api/members?q='+encodeURIComponent(q||''))
+        .then(function(r){return r.json()}).then(function(j){
+          list.innerHTML='';
+          if(!j.members||!j.members.length){
+            var none=document.createElement('div');none.className='muted';
+            none.textContent=list.dataset.empty||'—';list.appendChild(none);return;
+          }
+          j.members.forEach(function(m){
+            var row=document.createElement('button');row.type='button';row.className='pick-row';
+            row.dataset.id=m.id;row.dataset.name=m.name;row.dataset.avatar=m.avatar;
+            var im=document.createElement('img');im.src=m.avatar;im.alt='';
+            var sp=document.createElement('span');sp.textContent=m.name;
+            row.appendChild(im);row.appendChild(sp);list.appendChild(row);
+          });
+        }).catch(function(){});
+    }
+
+    document.getElementById('mod-pick').addEventListener('click',function(){
+      var show=menu.hidden;
+      menu.hidden=!show;
+      if(show){search.value='';load('');setTimeout(function(){search.focus()},30)}
+    });
+
+    search.addEventListener('input',function(){
+      clearTimeout(timer);
+      var q=this.value;
+      timer=setTimeout(function(){load(q)},200);
+    });
+
+    list.addEventListener('click',function(e){
+      var row=e.target.closest('.pick-row');if(!row)return;
+      hidden.value=row.dataset.id;
+      nameEl.textContent=row.dataset.name;
+      faceEl.style.backgroundImage='url('+row.dataset.avatar+')';
+      faceEl.classList.add('on');
+      menu.hidden=true;
+      fail('');
+    });
+
+    document.addEventListener('click',function(e){
+      if(!picker.contains(e.target))menu.hidden=true;
+    });
+  }
+
   document.addEventListener('click',function(e){
     var k=e.target.closest('.kindbtn');
     if(k){
@@ -1831,12 +1938,12 @@ const MOD_JS = `
 
     if(e.target.closest('#mod-apply')){
       var user=(document.getElementById('mod-user').value||'').replace(/[^0-9]/g,'');
-      if(!user){fail('ID учасника');return}
+      if(!user){fail(document.getElementById('mod-picker').dataset.need||'Оберіть учасника');return}
       fail('');
       fetch('/api/mod/apply',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({
           userId:user,kind:kind,
-          minutes:Number(document.getElementById('mod-dur').value||0),
+          minutes:Number(document.getElementById('mod-dur').dataset.value||0),
           reason:document.getElementById('mod-reason').value||''
         })}).then(function(r){return r.json()}).then(function(j){
           if(j.error){fail(({limit:'Перевищено ваш ліміт',rank:'Цей учасник рівний вам або вищий',
@@ -2504,6 +2611,25 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
  * Панель модерації на сайті. Показується лише тим, хто має доступ, —
  * і сторінка, і дії перевіряються на сервері, а не тільки схованою кнопкою.
  */
+/**
+ * Спадне меню в стилі сайту. Нативний <select> не піддається оформленню
+ * (список малює операційна система), тому будуємо своє на <details> —
+ * так само, як перемикач мов.
+ */
+export function dropdown(id, options, label = '') {
+  const [firstValue, firstLabel] = options[0] ?? ['', '—'];
+  return `<details class="drop" id="${esc(id)}" data-value="${esc(firstValue)}">
+    <summary>
+      ${label ? `<span class="drop-l">${esc(label)}</span>` : ''}
+      <b class="drop-v">${esc(firstLabel)}</b><i class="chev"></i>
+    </summary>
+    <div class="drop-menu">
+      ${options.map(([v, l], i) => `<button type="button" class="drop-opt${i === 0 ? ' on' : ''}"
+        data-value="${esc(v)}">${esc(l)}</button>`).join('')}
+    </div>
+  </details>`;
+}
+
 export function modPage({ active = [], journal = [], who = {}, lang = 'uk', limitMinutes = 0, kinds = {} }) {
   const name = (id) => esc(who[id]?.name ?? id);
   const face = (id) => esc(who[id]?.avatar ?? avatarUrl(id, null, 64));
@@ -2518,14 +2644,28 @@ export function modPage({ active = [], journal = [], who = {}, lang = 'uk', limi
   const form = `<div class="card pane">
     <div class="pane-h">${esc(t(lang, 'mod.apply'))}</div>
     <div class="up">
-      <input type="text" id="mod-user" placeholder="${esc(t(lang, 'mod.userId'))}">
+      <!-- вибір учасника з пошуком: ID вписувати не треба -->
+      <div class="picker" id="mod-picker" data-need="${esc(t(lang, 'mod.needMember'))}">
+        <button class="pick-btn" id="mod-pick" type="button">
+          <span class="pick-face" id="mod-face"></span>
+          <span id="mod-name">${esc(t(lang, 'mod.pickMember'))}</span>
+          <i class="chev"></i>
+        </button>
+        <div class="pick-menu" id="mod-menu" hidden>
+          <input type="text" class="pick-search" id="mod-search"
+            placeholder="${esc(t(lang, 'mod.search'))}" autocomplete="off">
+          <div class="pick-list" id="mod-list" data-empty="${esc(t(lang, 'mod.noMembers'))}"></div>
+        </div>
+        <input type="hidden" id="mod-user">
+      </div>
+
       <div class="row" style="gap:8px;flex-wrap:wrap">
         ${['text', 'voice', 'full'].map((k, i) => `<button class="btn ghost sm kindbtn${i === 0 ? ' on' : ''}"
           data-kind="${k}">${KIND_ICON[k]} ${esc(kinds[k] ?? k)}</button>`).join('')}
       </div>
-      <select id="mod-dur">
-        ${durations.map(([m, l]) => `<option value="${m}">${esc(l)}</option>`).join('')}
-      </select>
+
+      ${dropdown('mod-dur', durations.map(([m, l]) => [String(m), l]), t(lang, 'mod.duration'))}
+
       <input type="text" id="mod-reason" placeholder="${esc(t(lang, 'mod.reason'))}">
       <button class="btn" id="mod-apply">${esc(t(lang, 'mod.applyBtn'))}</button>
       <div class="hint">${limitMinutes

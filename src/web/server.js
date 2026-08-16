@@ -335,6 +335,28 @@ async function handle(req, res) {
     return modApi(req, res, guild, session, path.slice(9));
   }
 
+  // ── пошук учасників для вибору (без вписування ID) ──
+  if (path === '/api/members') {
+    if (!isModerator(guild, session)) return json(res, 403, { error: 'forbidden' });
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+    const me = session?.user_id;
+
+    const list = [...guild.members.cache.values()]
+      .filter((m) => !m.user?.bot && m.id !== me)
+      .filter((m) => !q
+        || m.displayName?.toLowerCase().includes(q)
+        || m.user?.username?.toLowerCase().includes(q))
+      .slice(0, 25)
+      .map((m) => ({
+        id: m.id,
+        name: m.displayName ?? m.user?.username ?? m.id,
+        tag: m.user?.username ?? '',
+        avatar: m.user?.displayAvatarURL?.({ extension: 'png', size: 64 }) ?? avatarUrl(m.id, null, 64),
+      }));
+
+    return json(res, 200, { members: list });
+  }
+
   // ── кінотеатр ──
   if (path === '/cinema') return renderCinema(res, guild, session, lang, path, hostOf(req));
   if (path === '/api/cinema/state') return json(res, 200, await cinemaState(guild, session));

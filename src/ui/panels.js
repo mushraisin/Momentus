@@ -14,17 +14,26 @@ import { verificationService } from '../services/verificationService.js';
 /** Адреса сайту для кнопки-посилання. */
 const SITE_URL = () => process.env.WEB_PUBLIC_URL || 'https://moments.zadrypanka.xyz';
 
-/** Хаб у каналі статистики. */
+/**
+ * Панель для всіх. Модерація живе тут же, поруч із картками, —
+ * кнопку бачать усі, але спрацює вона лише в того, хто має доступ.
+ */
 export function hubPanel(guild) {
   return {
     embeds: [E.hubEmbed(guild)],
-    components: rows([
-      button({ id: cid(NS.PROFILE, 'open'), label: 'Профіль', emoji: '👤', style: ButtonStyle.Primary }),
-      button({ id: cid(NS.REP, 'open'), label: 'Репутація', emoji: '📊' }),
-      button({ id: cid(NS.VERIFY, 'run'), label: 'Перевірка', emoji: '🛡️', style: ButtonStyle.Success }),
-      linkButton({ label: 'Сайт', url: SITE_URL(), emoji: '🌐' }),
-      linkButton({ label: 'Кінотеатр', url: `${SITE_URL().replace(/\/$/, '')}/cinema`, emoji: '🎬' }),
-    ]),
+    components: [
+      ...rows([
+        button({ id: cid(NS.PROFILE, 'open'), label: 'Профіль', emoji: '👤', style: ButtonStyle.Primary }),
+        button({ id: cid(NS.REP, 'open'), label: 'Репутація', emoji: '📊' }),
+        button({ id: cid(NS.VERIFY, 'run'), label: 'Перевірка', emoji: '🎖️', style: ButtonStyle.Success }),
+        button({ id: cid(NS.MOD, 'home'), label: 'Модерація', emoji: '🛡️', style: ButtonStyle.Danger }),
+      ]),
+      ...rows([
+        linkButton({ label: 'Сайт', url: SITE_URL(), emoji: '🌐' }),
+        linkButton({ label: 'Кінотеатр', url: `${SITE_URL().replace(/\/$/, '')}/cinema`, emoji: '🎬' }),
+        linkButton({ label: 'Галерея', url: `${SITE_URL().replace(/\/$/, '')}/gallery`, emoji: '🖼️' }),
+      ]),
+    ],
   };
 }
 
@@ -40,7 +49,8 @@ function nav(active) {
   return rows([
     mk(NS.PROFILE, 'open', 'Профіль', '👤'),
     mk(NS.REP, 'open', 'Репутація', '📊'),
-    mk(NS.VERIFY, 'run', 'Перевірка', '🛡️'),
+    mk(NS.VERIFY, 'run', 'Перевірка', '🎖️'),
+    mk(NS.MOD, 'home', 'Модерація', '🛡️'),
     linkButton({ label: 'Сайт', url: SITE_URL(), emoji: '🌐' }),
   ]);
 }

@@ -491,7 +491,16 @@ ok('галерея з Discord-каналу: публікація, звʼязок
   const modPage = await req('/mod', adm);
   assert.equal(modPage.status, 200);
   assert.ok(modPage.body.includes('mod-apply'), 'форма покарання');
-  assert.ok(modPage.body.includes('mod-user'), 'поле учасника');
+
+  // учасник обирається зі списку з пошуком, а не вписуванням ID
+  assert.ok(modPage.body.includes('pick-search'), 'пошук учасників');
+  assert.ok(!modPage.body.includes('<select'), 'жодних нативних select — усі меню свої');
+  assert.ok(modPage.body.includes('drop-menu'), 'спадне меню в стилі сайту');
+
+  // список учасників закритий для сторонніх
+  assert.equal((await req('/api/members', auth)).status, 403, 'список учасників лише модераторам');
+  const members = JSON.parse((await req('/api/members', adm)).body);
+  assert.ok(Array.isArray(members.members), 'список повертається');
 
   // не можна карати того, хто рівний або вищий за правами
   const self = await jreq('/api/mod/apply', adm, { userId: OWNER_ID, kind: 'text', minutes: 10 });

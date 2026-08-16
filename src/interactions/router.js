@@ -330,6 +330,9 @@ async function adminHandlers(interaction, action, args) {
       return bindHub(interaction, interaction.values?.[0]);
     case 'bindHere':
       return bindHub(interaction, interaction.channelId);
+    // канал налаштувань: сюди приходить сама адмін-панель
+    case 'bindAdmin':
+      return bindAdmin(interaction, interaction.values?.[0]);
     // розділ відкривається кнопкою; args[1] — сторінка, якщо полів багато
     case 'group':
       return safeUpdate(interaction, admin.adminGroup(
@@ -467,7 +470,34 @@ async function bindHub(interaction, channelId) {
   } catch (err) {
     return ephemeral(interaction, `⚠️ ${err.message}`);
   }
-  return ephemeral(interaction, `✅ <#${channelId}>`);
+  // майстер оновлюємо на місці, щоб було видно, що вже готово
+  await safeUpdate(interaction, admin.setupPanel(guild)).catch(() => {});
+  return undefined;
+}
+
+/**
+ * Канал налаштувань: панель керування ботом переїжджає туди,
+ * щоб не висіти на очах у всіх.
+ */
+async function bindAdmin(interaction, channelId) {
+  const guild = interaction.guild;
+  if (!channelId) return ephemeral(interaction, '⚠️ Канал не визначено.');
+  const channel = await guild.channels.fetch(channelId).catch(() => null);
+  if (!channel?.isTextBased?.()) return ephemeral(interaction, '⚠️ Це не текстовий канал.');
+
+  const me = guild.members.me;
+  if (me && !channel.permissionsFor(me)?.has('SendMessages')) {
+    return ephemeral(interaction, `⛔ Немає прав писати у <#${channelId}>.`);
+  }
+
+  await configService.set(guild.id, 'general.adminChannelId', channelId);
+  try {
+    await channel.send(await admin.adminHome(guild));
+  } catch (err) {
+    return ephemeral(interaction, `⚠️ ${err.message}`);
+  }
+  await safeUpdate(interaction, admin.setupPanel(guild)).catch(() => {});
+  return undefined;
 }
 
 /** Зсув пріоритету рівня. */

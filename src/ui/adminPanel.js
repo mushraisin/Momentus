@@ -19,21 +19,49 @@ const GROUP_LABELS = {
   privacy: '🔒 Приватність',
 };
 
-/** Первинне налаштування: привʼязка каналу. */
+/**
+ * Первинне налаштування: два канали з різним призначенням.
+ *
+ *   панель — для всіх: профіль, репутація, перевірка, сайт, модерація;
+ *   налаштування — лише для адміністратора, там живе ця панель.
+ *
+ * Обидва обираються тут же, у будь-якому порядку; майстер сам показує,
+ * що вже готово, а чого ще бракує.
+ */
 export function setupPanel(guild) {
+  const cfg = configService.all(guild.id);
+  const hub = cfg['general.statsChannelId'];
+  const adminCh = cfg['general.adminChannelId'];
+
+  const mark = (id) => (id ? `✅ <#${id}>` : '⬜ не обрано');
+
   const embed = baseEmbed()
-    .setColor(COLORS.primary)
-    .setTitle('Налаштування')
-    .setDescription('Оберіть канал для панелі.')
+    .setColor(hub && adminCh ? COLORS.good ?? COLORS.primary : COLORS.primary)
+    .setTitle('Перший запуск')
+    .setDescription([
+      'Боту потрібні два канали — вони з різним призначенням.',
+      '',
+      `**1. Панель для всіх** — ${mark(hub)}`,
+      '-# профіль, репутація, перевірка, сайт і кінотеатр; модерація — кому дозволено',
+      '',
+      `**2. Налаштування бота** — ${mark(adminCh)}`,
+      '-# лише для адміністрації: сюди приходить панель керування',
+    ].join('\n'))
     .setFooter({ text: guild.name });
 
   return {
     embeds: [embed],
     components: [
-      channelSelectRow({ id: cid(NS.ADMIN, 'bindChannel'), placeholder: 'Канал для панелі…' }),
+      channelSelectRow({ id: cid(NS.ADMIN, 'bindChannel'), placeholder: '1 · Канал панелі для всіх…' }),
+      channelSelectRow({ id: cid(NS.ADMIN, 'bindAdmin'), placeholder: '2 · Канал налаштувань…' }),
       ...rows([
-        button({ id: cid(NS.ADMIN, 'bindHere'), label: 'Тут', emoji: '📢', style: ButtonStyle.Success }),
-        button({ id: cid(NS.ADMIN, 'home'), label: 'Налаштування', emoji: '⚙️' }),
+        button({
+          id: cid(NS.ADMIN, 'home'),
+          label: 'Готово, до налаштувань',
+          emoji: '⚙️',
+          style: ButtonStyle.Success,
+          disabled: !(hub && adminCh),
+        }),
       ]),
     ],
   };
