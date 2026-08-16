@@ -214,17 +214,17 @@ async function modHandlers(interaction, action, args) {
     case 'pickAgain': {
       const targetId = action === 'pick' ? interaction.values?.[0] : args[0];
       if (!targetId) return ephemeral(interaction, 'Не обрано учасника.');
-      return show(modTarget(guild, targetId, interaction.member));
+      return show(await mod.modTarget(guild, targetId, interaction.member));
     }
 
     case 'active':
-      return show(modActive(guild));
+      return show(await mod.modActive(guild));
 
     case 'ask': {
       const [targetId, kind] = args;
       const guard = await canModerate(interaction, targetId);
       if (guard) return ephemeral(interaction, guard);
-      return show(modDuration(guild, targetId, kind, interaction.member));
+      return show(mod.modDuration(guild, targetId, kind, interaction.member));
     }
 
     // Термін обрано — питаємо причину окремим вікном.
@@ -264,7 +264,7 @@ async function modHandlers(interaction, action, args) {
           target: target.user, moderator: interaction.user.id, kind: kind === 'all' ? 'full' : kind, lifted: true,
         });
       }
-      return show(modTarget(guild, targetId, interaction.member));
+      return show(await mod.modTarget(guild, targetId, interaction.member));
     }
 
     case 'warn': {

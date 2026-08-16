@@ -77,7 +77,26 @@ nav{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
 nav a{padding:8px 15px;border-radius:999px;background:rgba(255,255,255,.04);
   border:1px solid var(--line);font-size:14px;transition:.28s cubic-bezier(.22,.9,.3,1)}
 nav a:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.12);transform:translateY(-2px)}
-nav a.active{border-color:rgba(107,124,255,.7);background:rgba(107,124,255,.18)}
+nav a.active{border-color:rgba(107,124,255,.7);background:rgba(107,124,255,.18);
+  box-shadow:0 0 0 3px rgba(107,124,255,.14)}
+nav a:active{transform:scale(.96)}
+
+/* ── Загальне шліфування ──
+   Дрібниці, які видно не одразу, але без яких сайт «сирий»:
+   однакове кільце фокуса з клавіатури, свій колір виділення тексту,
+   плавне гортання й повага до системного «менше руху». */
+:focus{outline:0}
+:focus-visible{outline:2px solid rgba(107,124,255,.85);outline-offset:2px;border-radius:8px}
+::selection{background:rgba(107,124,255,.35);color:#fff}
+html{scroll-behavior:smooth}
+img,video{-webkit-user-drag:none}
+button,a{-webkit-tap-highlight-color:transparent}
+/* довгі слова й посилання не розпирають картки */
+.card,.pane,.item .cap,.lreason{overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
 /* службова кнопка (модерація) — окремо від основних, із розділювачем */
 nav a.apart{margin-left:10px;padding-left:15px;border-color:rgba(239,83,80,.35);
   background:rgba(239,83,80,.1);position:relative}
@@ -104,6 +123,11 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
 .drop-l{color:var(--dim);font-size:13px}
 .drop-v{margin-left:auto;font-weight:600}
 .drop .chev{margin-left:0}
+/* Картки мають backdrop-filter, а це власний контекст накладання: z-index
+   меню всередині картки не підніме його над сусідньою карткою. Тому підіймаємо
+   саму картку, поки в ній щось розкрито. Стосується всіх спадних меню й пікерів. */
+.card:has(.drop[open]),.card:has(.pick-menu:not([hidden])),.pane:has(.drop[open]){
+  position:relative;z-index:40}
 .drop-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;padding:6px;
   border-radius:12px;background:rgba(14,18,30,.98);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
@@ -111,7 +135,7 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
 .drop-opt{padding:9px 11px;border:0;border-radius:9px;background:0;color:var(--text);
   font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
 .drop-opt:hover{background:rgba(107,124,255,.16)}
-.drop-opt.on{background:rgba(107,124,255,.22)}
+/* обраний пункт — у спільному блоці «обрано / натиснуто» */
 
 /* ── Вибір учасника з пошуком ── */
 .picker{position:relative}
@@ -133,21 +157,46 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
   background:0;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
 .pick-row:hover{background:rgba(107,124,255,.16)}
 .pick-row img{width:24px;height:24px;border-radius:50%;flex:none}
-/* Обраний вид покарання має бути видно з першого погляду:
-   акцентна заливка, світла рамка, кільце й позначка.
-   Сітка з однакових комірок — щоб кнопки не стрибали між рядками
-   при виборі, а «✓» має своє місце завжди, лише невидиме. */
-.kindrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.up .kindbtn{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;
+/* ── Спільна мова «обрано / натиснуто» ──
+   Один вигляд для всього сайту: акцентна заливка, світла рамка, кільце
+   й позначка «✓». Клас .pick ставимо будь-якій кнопці-перемикачу,
+   а .on означає «обрано». Розмір при виборі не змінюється — місце
+   під «✓» зарезервоване, тож нічого не стрибає. */
+.pick-el{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;
   min-width:0;white-space:nowrap;font-weight:600;transition:.2s cubic-bezier(.22,.9,.3,1)}
-.up .kindbtn .kl{overflow:hidden;text-overflow:ellipsis}
-.up .kindbtn::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
-.up .kindbtn.on{background:linear-gradient(180deg,#7d8bff,#5b6bf0);
+.pick-el::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
+.pick-el.on{background:linear-gradient(180deg,#7d8bff,#5b6bf0);
   border-color:rgba(255,255,255,.35);color:#fff;
   box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
-.up .kindbtn.on::after{opacity:.9}
-.up .kindbtn:not(.on){opacity:.72}
-.up .kindbtn:not(.on):hover{opacity:1}
+.pick-el.on::after{opacity:.9}
+.pick-el:not(.on){opacity:.72}
+.pick-el:not(.on):hover{opacity:1;transform:translateY(-1px)}
+.pick-el:active{transform:scale(.96)}
+
+/* Колонок стільки, скільки влізе: назви покарань довгі («голосовий мут»),
+   тож комірка не вужча за напис, а сам напис при потребі переходить на
+   другий рядок — обрізати текст у кнопці не можна. */
+.kindrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.up .kindbtn{display:flex;min-height:44px;padding:8px 12px;white-space:normal}
+.up .kindbtn .kl{white-space:normal;text-align:center;line-height:1.2;
+  hyphens:auto;overflow-wrap:anywhere}
+@media(max-width:420px){.kindrow{grid-template-columns:1fr}}
+
+/* Ті самі правила — для вкладок, мов, варіантів у меню й якості відео,
+   щоб «обране» скрізь читалося однаково. */
+.tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on{
+  background:linear-gradient(180deg,#7d8bff,#5b6bf0);border-color:rgba(255,255,255,.35);color:#fff;
+  box-shadow:0 0 0 3px rgba(107,124,255,.18)}
+.tabs a.on{box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
+.drop-opt,.qopt,.langmenu a,.pick-row{position:relative;padding-right:26px}
+.drop-opt::after,.qopt::after,.langmenu a::after{content:'✓';position:absolute;right:10px;
+  font-size:11px;opacity:0;transition:.2s}
+.drop-opt.on::after,.qopt.on::after,.langmenu a.on::after{opacity:.95}
+
+/* Натискання відчутне скрізь однаково */
+.tabs a:active,.drop-opt:active,.qopt:active,.pick-row:active,.like:active,
+.lbnav:active,.lbclose:active,.gbtn:active,.dbtn:active,.langmenu a:active{
+  transform:scale(.96)}
 
 /* Поле для свого терміну — той самий стиль, що й решта полів вводу.
    Стрілки-«крутилки» браузера прибираємо: вони псують вигляд. */
@@ -194,7 +243,7 @@ nav:has(.langs[open]){overflow:visible}
 .langmenu a:hover{background:rgba(107,124,255,.16);transform:none}
 .langmenu a b{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--dim);min-width:22px}
 .langmenu a span{color:var(--text)}
-.langmenu a.on{background:rgba(107,124,255,.2)}
+/* обрана мова — у спільному блоці «обрано / натиснуто» */
 .langmenu a.on b{color:var(--accent)}
 @keyframes menuIn{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
 
@@ -277,7 +326,15 @@ td.num{text-align:right;font-weight:800}
   animation:fadeUp .5s both;transition:.35s cubic-bezier(.22,.9,.3,1)}
 .item:hover{transform:translateY(-4px);border-color:rgba(107,124,255,.35)}
 .item .media{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#0b0e16;cursor:zoom-in}
-.item video.media{cursor:pointer}
+.item video.media{cursor:zoom-in;pointer-events:none}
+.spot-m{cursor:zoom-in}
+.spot-m video.media{pointer-events:none}
+/* натяк, що плитку можна розгорнути */
+.item .shot::after{content:'⤢';position:absolute;right:10px;bottom:10px;width:28px;height:28px;
+  display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:13px;
+  color:#fff;background:rgba(8,11,19,.7);border:1px solid rgba(255,255,255,.14);
+  opacity:0;transform:translateY(4px);transition:.25s;pointer-events:none}
+.item:hover .shot::after{opacity:1;transform:none}
 .item .meta{padding:12px 14px}
 .item .cap{font-size:14px;margin-bottom:8px;word-break:break-word}
 .item .who{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:7px}
@@ -485,7 +542,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .qopt{padding:8px 11px;border:0;border-radius:8px;background:0;color:var(--text);font:inherit;
   font-size:13px;text-align:left;cursor:pointer;transition:.18s}
 .qopt:hover{background:rgba(107,124,255,.16)}
-.qopt.on{background:rgba(107,124,255,.22);color:#fff}
+/* обрана якість / озвучка — у спільному блоці «обрано / натиснуто» */
 
 /* ── Вікно «зал зачинено» ── */
 .clayout.blurred{filter:blur(3px);opacity:.5;pointer-events:none}
@@ -616,7 +673,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .tabs a{padding:7px 15px;border-radius:999px;font-size:13px;border:1px solid var(--line);
   background:rgba(255,255,255,.04);transition:.28s cubic-bezier(.22,.9,.3,1)}
 .tabs a:hover{transform:translateY(-2px);border-color:rgba(107,124,255,.5)}
-.tabs a.on{background:rgba(107,124,255,.18);border-color:rgba(107,124,255,.65)}
+/* вигляд обраної вкладки — у спільному блоці «обрано / натиснуто» вище */
 
 .like{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:6px 13px;border-radius:999px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);cursor:pointer;font-size:14px;
@@ -641,7 +698,49 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .lightbox{position:fixed;inset:0;background:rgba(3,5,10,.92);display:none;align-items:center;
   justify-content:center;z-index:50;padding:24px;animation:fadeIn .25s both;backdrop-filter:blur(6px)}
 .lightbox.on{display:flex}
-.lightbox>*{max-width:96vw;max-height:92vh;border-radius:14px}
+
+/* ── Велике вікно публікації ──
+   Медіа зверху, під ним підпис, автор і лайк; стрілками — сусідні публікації. */
+/* Вікно завжди однакове — як у відеосервісів: чорна сцена сталої висоти,
+   медіа вписується всередину, а під ним рядок із підписом, автором і лайком.
+   Так вертикальне фото й широке відео виглядають однаково охайно. */
+.lbox{--stage:62vh;--foot:72px;display:flex;flex-direction:column;width:min(1040px,94vw);
+  height:calc(var(--stage) + var(--foot));box-sizing:border-box;
+  border-radius:18px;overflow:hidden;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 30px 90px rgba(0,0,0,.6);animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
+@keyframes lbIn{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:none}}
+.lbm{display:flex;align-items:center;justify-content:center;background:#04060c;
+  height:var(--stage);flex:none;min-width:0;position:relative}
+.lbm img,.lbm video{max-width:100%;max-height:100%;width:auto;height:auto;
+  display:block;object-fit:contain}
+.lbf{display:flex;align-items:center;gap:14px;padding:14px 18px;flex:none;
+  height:var(--foot);box-sizing:border-box;
+  border-top:1px solid var(--line);background:rgba(255,255,255,.02)}
+.lbf .lbtxt{min-width:0;flex:1}
+.lbf .cap{font-size:15px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbf .who{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:7px}
+.lbf .who img{width:20px;height:20px;border-radius:50%}
+.lbf .who a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.lbf .when{font-size:11px;color:var(--dim);letter-spacing:.04em;flex:none}
+@media(max-width:760px){.lbox{--stage:46vh;--foot:64px}.lbf{padding:10px 14px;gap:10px}}
+.lbclose{position:absolute;right:18px;top:16px;z-index:2;width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;
+  color:var(--text);background:rgba(12,16,26,.8);border:1px solid var(--line);transition:.2s}
+.lbclose:hover{background:rgba(107,124,255,.3);transform:rotate(90deg)}
+.lbnav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:46px;height:46px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;
+  cursor:pointer;color:var(--text);background:rgba(12,16,26,.8);border:1px solid var(--line);
+  transition:.2s;opacity:.75}
+.lbnav:hover{opacity:1;background:rgba(107,124,255,.3)}
+.lbnav[disabled]{opacity:.18;pointer-events:none}
+.lbprev{left:18px}
+.lbnext{right:18px}
+.lbn{font-size:12px;color:var(--dim);flex:none;letter-spacing:.06em}
+@media(max-width:640px){
+  .lbnav{width:38px;height:38px;font-size:16px}
+  .lbprev{left:6px}.lbnext{right:6px}
+  .lbf{flex-wrap:wrap;gap:10px}
+}
 
 /* ── Посилання на репозиторій у куті ── */
 .gh{position:fixed;right:16px;bottom:14px;z-index:35;width:36px;height:36px;
@@ -979,19 +1078,107 @@ const GALLERY_JS = `
         }).catch(function(){});
       return;
     }
-    var m=e.target.closest('.media');
-    if(m&&m.tagName==='IMG'){
-      var lb=document.getElementById('lb');
-      lb.innerHTML='';
-      var big=document.createElement('img');big.src=m.dataset.full||m.src;
-      lb.appendChild(big);lb.classList.add('on');
+    /* ── Велике вікно публікації ──
+       Клік по картці відкриває її на весь екран; стрілками ходимо по стрічці. */
+    var shot=e.target.closest('.shot,.spot-m');
+    if(shot&&!e.target.closest('.acts,.like')){
+      e.preventDefault();
+      open(cards().indexOf(shot.closest('[data-item]')));
       return;
     }
-    var lb2=document.getElementById('lb');
-    if(lb2&&lb2.classList.contains('on')&&e.target.closest('#lb')){lb2.classList.remove('on');lb2.innerHTML=''}
+    if(e.target.closest('.lbclose')){close();return}
+    var nav=e.target.closest('.lbnav');
+    if(nav){if(viewIdx>=0)open(viewIdx+(nav.classList.contains('lbnext')?1:-1));return}
+    /* клік повз саме вікно — закриваємо */
+    var box=document.getElementById('lb');
+    if(box&&box.classList.contains('on')&&e.target.closest('#lb')&&!e.target.closest('.lbox')){close()}
   });
+
+  /* Індекс відкритої публікації. Імʼя навмисно своє: у слухачі вище
+     вже є локальна var cur, і вона перекрила б цю на весь слухач. */
+  var viewIdx=-1;
+
+  /** Усі публікації на сторінці по порядку, без повторів «кліпу дня».
+      Беремо лише самі картки — усередині теж трапляється data-item (кнопки дій). */
+  function cards(){
+    var seen={},out=[];
+    var all=document.querySelectorAll('.grid>[data-item],.spots>[data-item],.spots .spot[data-item]');
+    for(var i=0;i<all.length;i++){
+      var id=all[i].dataset.item;
+      if(seen[id]||!all[i].querySelector('.media'))continue;
+      seen[id]=1;out.push(all[i]);
+    }
+    return out;
+  }
+
+  function close(){
+    var lb=document.getElementById('lb');
+    if(!lb)return;
+    lb.classList.remove('on');lb.innerHTML='';viewIdx=-1;
+    document.body.style.overflow='';
+  }
+
+  function open(i){
+    var list=cards(),lb=document.getElementById('lb');
+    if(!lb||!list.length)return;
+    /* i може прийти зіпсованим (−1 від indexOf, NaN від стрілки) — доводимо до межі */
+    i=Number(i);
+    if(!isFinite(i))return;
+    if(i<0||i>=list.length)return;
+    var card=list[i];
+    if(!card)return;
+    viewIdx=i;
+    var src=card.querySelector('.media');
+    if(!src)return;
+
+    var big;
+    if(src.tagName==='VIDEO'){
+      big=document.createElement('video');
+      big.src=src.currentSrc||src.src;big.controls=true;big.autoplay=true;big.playsInline=true;
+    }else{
+      big=document.createElement('img');
+      big.src=src.dataset.full||src.src;big.alt='';
+    }
+
+    var cap=card.querySelector('.cap'),who=card.querySelector('.who'),
+        when=card.querySelector('.when'),like=card.querySelector('.like');
+
+    var box=document.createElement('div');box.className='lbox';
+    var media=document.createElement('div');media.className='lbm';media.appendChild(big);
+    var foot=document.createElement('div');foot.className='lbf';
+    var txt=document.createElement('div');txt.className='lbtxt';
+    if(cap){var c=document.createElement('div');c.className='cap';c.textContent=cap.textContent;txt.appendChild(c)}
+    if(who)txt.appendChild(who.cloneNode(true));
+    foot.appendChild(txt);
+    if(when){var w=document.createElement('div');w.className='when';w.textContent=when.textContent.trim();foot.appendChild(w)}
+    /* лайк — жива копія: обробник вище оновлює всі кнопки з тим самим data-id */
+    if(like)foot.appendChild(like.cloneNode(true));
+    var n=document.createElement('div');n.className='lbn';n.textContent=(i+1)+' / '+list.length;
+    foot.appendChild(n);
+    box.appendChild(media);box.appendChild(foot);
+
+    lb.innerHTML='';
+    lb.appendChild(btn('lbnav lbprev','‹',i<=0));
+    lb.appendChild(box);
+    lb.appendChild(btn('lbnav lbnext','›',i>=list.length-1));
+    lb.appendChild(btn('lbclose','✕',false));
+    lb.classList.add('on');
+    document.body.style.overflow='hidden';
+  }
+
+  function btn(cls,label,off){
+    var b=document.createElement('button');
+    b.className=cls;b.type='button';b.textContent=label;
+    if(off)b.setAttribute('disabled','');
+    return b;
+  }
+
   addEventListener('keydown',function(e){
-    if(e.key==='Escape'){var l=document.getElementById('lb');if(l){l.classList.remove('on');l.innerHTML=''}}
+    var lb=document.getElementById('lb');
+    if(!lb||!lb.classList.contains('on'))return;
+    if(e.key==='Escape')close();
+    else if(e.key==='ArrowRight')open(viewIdx+1);
+    else if(e.key==='ArrowLeft')open(viewIdx-1);
   });
 })();
 `;
@@ -2327,9 +2514,13 @@ export function profilePage(profile, { username, avatar, roleName, roleColor, ra
 }
 
 /** Один медіа-елемент (спільний для стрічки й для «кліпів дня/місяця»). */
+/**
+ * Плитка у стрічці — це прев'ю, а не плеєр: рідних кнопок немає,
+ * бо клік відкриває публікацію у великому вікні, де вже є все керування.
+ */
 function mediaTag(it, cls = 'media') {
   return it.kind === 'video'
-    ? `<video class="${cls}" src="/media/${it.id}" preload="metadata" controls playsinline></video>`
+    ? `<video class="${cls}" src="/media/${it.id}" preload="metadata" muted playsinline></video>`
     : `<img class="${cls}" src="/media/${it.id}" alt="" loading="lazy">`;
 }
 
@@ -2792,9 +2983,9 @@ export function modPage({
       </div>
 
       <div class="kindrow">
-        ${['text', 'voice', 'full'].map((k, i) => `<button class="btn ghost sm kindbtn${i === 0 ? ' on' : ''}"
+        ${['text', 'voice', 'full'].map((k, i) => `<button class="btn ghost sm pick-el kindbtn${i === 0 ? ' on' : ''}"
           data-kind="${k}">${KIND_ICON[k]} <span class="kl">${esc(kinds[k] ?? k)}</span></button>`).join('')}
-        <button class="btn ghost sm kindbtn" data-kind="warn">⚠️ <span class="kl">${esc(t(lang, 'mod.warn'))}</span></button>
+        <button class="btn ghost sm pick-el kindbtn" data-kind="warn">⚠️ <span class="kl">${esc(t(lang, 'mod.warn'))}</span></button>
       </div>
 
       ${dropdown(

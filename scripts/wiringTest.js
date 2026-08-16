@@ -85,5 +85,29 @@ const selectTypes = homeRows.flatMap((r) => r.components).map((c) => c.type).fil
 assert.ok(selectTypes.includes(5), 'вибір учасника — селектор типу 5 (user)');
 ok('селектор учасника присутній — роутер має його приймати');
 
+// 5. роутер не кличе екрани «голим» іменем
+// Модулі підключені як простір імен (import * as mod), тож виклик modTarget(...)
+// замість mod.modTarget(...) проходить синтаксис, але падає вже в бою.
+{
+  const fs = await import('node:fs/promises');
+  const src = await fs.readFile('src/interactions/router.js', 'utf8');
+  const nsImports = [...src.matchAll(/import \* as (\w+) from '([^']+)'/g)];
+  assert.ok(nsImports.length, 'у роутері є простори імен');
+
+  for (const [, alias, spec] of nsImports) {
+    if (!spec.startsWith('.')) continue;
+    const mods = await import(spec.replace('..', '../src'));
+    for (const fn of Object.keys(mods)) {
+      if (typeof mods[fn] !== 'function') continue;
+      // шукаємо виклик імені, перед яким немає ані крапки, ані псевдоніма
+      const bare = new RegExp(`(?<![\\w.])${fn}\\s*\\(`, 'g');
+      const hits = [...src.matchAll(bare)].filter((m) => src.slice(0, m.index).endsWith(`${alias}.`) === false);
+      assert.equal(hits.length, 0,
+        `router.js: ${fn}(...) кличеться без «${alias}.» — у бою це ReferenceError`);
+    }
+  }
+}
+ok('екрани кличуться через свій простір імен, а не голим іменем');
+
 console.log(`\n✅ Усі ${passed} перевірок звʼязності пройдено.`);
 process.exit(0);

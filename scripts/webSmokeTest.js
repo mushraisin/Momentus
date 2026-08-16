@@ -166,6 +166,31 @@ assert.ok(gal.body.includes(AVATAR), 'аватар автора під публ�
 assert.equal(items[0].avatar, AVATAR, 'аватар збережено разом із публікацією');
 ok('галерея відображає завантажене разом з аватаром автора');
 
+// 9.1 велике вікно публікації: клік по плитці розгортає її
+{
+  const g = await req('/gallery', auth);
+  assert.ok(g.body.includes('id="lb"'), 'шар для великого вікна є');
+  assert.match(g.body, /\.lbox\{--stage/, 'стиль великого вікна');
+  assert.match(g.body, /\.lbnav\{position:absolute/, 'стрілки до сусідніх публікацій');
+  assert.ok(g.body.includes("shot=e.target.closest('.shot,.spot-m')"), 'клік по плитці відкриває вікно');
+  assert.ok(g.body.includes("e.key==='ArrowRight'") && g.body.includes("e.key==='ArrowLeft'"),
+    'гортання клавішами');
+  assert.ok(g.body.includes("e.key==='Escape'"), 'Esc закриває');
+  // у стрічці відео — прев'ю без рідних кнопок, керування вже у вікні
+  assert.ok(!/<video class="media[^"]*"[^>]*controls/.test(g.body), 'у плитці немає рідних кнопок відео');
+  assert.match(g.body, /\.item video\.media\{cursor:zoom-in;pointer-events:none\}/, 'клік по відео йде до плитки');
+
+  // вікно однакове для будь-якої публікації: стала сцена + сталий підвал
+  assert.match(g.body, /\.lbox\{--stage:62vh;--foot:72px/, 'сталі розміри вікна');
+  assert.match(g.body, /height:calc\(var\(--stage\) \+ var\(--foot\)\)/, 'висота не залежить від медіа');
+  assert.match(g.body, /\.lbm img,\.lbm video\{max-width:100%;max-height:100%/, 'медіа вписується в сцену');
+
+  // індекс відкритої публікації не має зватися cur — у слухачі вже є така змінна
+  assert.ok(g.body.includes('var viewIdx=-1'), 'своє імʼя для індексу');
+  assert.ok(!/open\(cur[+-]1\)/.test(g.body), 'гортання не спирається на перекриту cur');
+}
+ok('публікація відкривається у великому вікні з гортанням');
+
 // 10. решта сторінок
 const top = await req('/top');
 assert.equal(top.status, 200);
@@ -521,9 +546,17 @@ ok('галерея з Discord-каналу: публікація, звʼязок
 
   // кнопки видів покарання стоять сіткою — при виборі нічого не стрибає
   assert.match(modPage.body, /class="kindrow"/, 'кнопки в сітці');
-  assert.match(modPage.body, /\.kindrow\{display:grid/, 'сітка фіксує місця кнопок');
-  assert.match(modPage.body, /\.up \.kindbtn::after\{content:'✓';font-size:12px;opacity:0/,
+  assert.match(modPage.body, /\.kindrow\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(170px/,
+    'комірка не вужча за напис «голосовий мут»');
+  assert.match(modPage.body, /\.up \.kindbtn \.kl\{white-space:normal/, 'напис переходить на другий рядок');
+  assert.ok(!/\.up \.kindbtn \.kl\{[^}]*text-overflow:ellipsis/.test(modPage.body),
+    'назву покарання не обрізаємо');
+  assert.match(modPage.body, /\.pick-el::after\{content:'✓';font-size:12px;opacity:0/,
     'місце під «✓» зарезервоване завжди');
+  assert.ok(modPage.body.includes('pick-el kindbtn'), 'кнопки користуються спільним стилем вибору');
+
+  // спадне меню не має ховатися під сусідньою карткою (журнал)
+  assert.match(modPage.body, /\.card:has\(\.drop\[open\]\)/, 'картка з відкритим меню підіймається');
 }
 ok('панель модерації на сайті: кнопка й сторінка лише для модераторів');
 
