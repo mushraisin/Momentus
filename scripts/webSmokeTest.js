@@ -814,6 +814,32 @@ ok('кінотеатр: один стиль керування, без ручн�
 }
 ok('HLS: автоматичне підвищення якості з показом поточного рівня');
 
+// 19.3 зал: службове — у шухляді, на сторінці лишається екран
+{
+  const c = await req('/cinema', adm);
+  assert.ok(c.body.includes('id="cin-drawer"'), 'шухляда налаштувань є');
+  assert.ok(c.body.includes('id="cin-settings"'), 'кнопка ⚙ у шапці залу');
+
+  // джерело, зал, права й історія переїхали в шухляду
+  const drawer = c.body.slice(c.body.indexOf('id="cin-drawer"'), c.body.indexOf('id="cin-gate"') + 1 || undefined);
+  for (const id of ['cin-src', 'cin-load', 'data-lock', 'cin-log']) {
+    assert.ok(drawer.includes(id), `${id} — усередині шухляди`);
+  }
+  // а на самій сторінці лишились черга й глядачі
+  const page = c.body.slice(c.body.indexOf('class="cpanels"'), c.body.indexOf('id="cin-drawer"'));
+  assert.ok(page.includes('cin-queue-list'), 'черга лишилась на сторінці');
+  assert.ok(page.includes('cin-viewers'), 'зал теж');
+  assert.ok(!page.includes('cin-src'), 'поля джерела на сторінці немає');
+
+  // атмосфера: сяйво сцени й притлумлення панелей під час показу
+  assert.match(c.body, /\.room\.live \.stagewrap::before\{opacity:1/, 'сцена світиться під час показу');
+  assert.match(c.body, /\.room\.live \.screen\{box-shadow:[^}]*90px/, 'екран світить сильніше');
+  assert.match(c.body, /\.cpanels\.dim\{opacity:\.5\}/, 'решта тьмяніє');
+  assert.match(c.body, /@keyframes glowBreath/, 'світло дихає, а не стоїть');
+  assert.ok(c.body.includes("room.classList.toggle('live'"), 'клас вішає сама синхронізація');
+}
+ok('кінотеатр: налаштування в шухляді, атмосфера залу під час показу');
+
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
 assert.equal(gone.status, 200);

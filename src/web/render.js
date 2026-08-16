@@ -423,6 +423,25 @@ td.num{text-align:right;font-weight:800}
 .room::after{content:'';position:absolute;left:16px;right:16px;top:0;height:1px;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent);pointer-events:none}
 .room-h{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.room-r{display:flex;align-items:center;gap:10px;flex:none}
+
+/* ── Шухляда з налаштуваннями сеансу ──
+   Джерело, зал, права й історія потрібні зрідка, тож не займають сторінку:
+   виїжджають збоку поверх залу й так само зникають. */
+.cdrawer{position:fixed;right:0;top:0;bottom:0;width:min(430px,92vw);z-index:60;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(16,20,32,.98),rgba(11,14,24,.98));
+  border-left:1px solid var(--line);box-shadow:-24px 0 70px rgba(0,0,0,.6);
+  backdrop-filter:blur(14px);animation:drawerIn .32s cubic-bezier(.22,.9,.3,1) both}
+@keyframes drawerIn{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
+.cdrawer-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;
+  padding:18px 20px;border-bottom:1px solid var(--line);font-size:15px;letter-spacing:.02em}
+.cdrawer-h .gate-x{position:static}
+.cdrawer-b{flex:1;overflow:auto;padding:16px 18px 26px}
+.cdrawer-b .card{margin:0 0 14px;background:rgba(255,255,255,.03)}
+.cdrawer-back{position:fixed;inset:0;z-index:59;background:rgba(3,5,10,.6);
+  backdrop-filter:blur(3px);animation:fadeIn .25s both}
+@media(max-width:620px){.cdrawer{width:100%;border-left:0}}
 .room-t{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.25;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .room-s{font-size:12px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-top:5px}
@@ -442,7 +461,27 @@ td.num{text-align:right;font-weight:800}
   background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.3)}
 .screen{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:16/9;
   display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.07);
-  box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 18px 60px rgba(107,124,255,.10)}
+  box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 18px 60px rgba(107,124,255,.10);
+  transition:box-shadow .6s ease}
+
+/* ── Атмосфера залу ──
+   Поки йде показ, від екрана розходиться мʼяке світло, а сама кімната
+   темнішає — як у залі, де погасили лампи. Ефект чисто на тінях
+   і прозорості: жодних важких фільтрів, тож не гальмує. */
+.stagewrap::before{content:'';position:absolute;left:6%;right:6%;top:14%;bottom:-6%;z-index:0;
+  border-radius:50%;pointer-events:none;opacity:0;transition:opacity .8s ease;
+  background:radial-gradient(ellipse at center,rgba(107,124,255,.30),rgba(107,124,255,0) 70%);
+  filter:blur(46px)}
+.room.live .stagewrap::before{opacity:1;animation:glowBreath 7s ease-in-out infinite}
+@keyframes glowBreath{0%,100%{opacity:.75}50%{opacity:1}}
+.room.live .screen{box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 26px 90px rgba(107,124,255,.28)}
+/* світло зі сцени лягає на саму кімнату */
+.room.live{border-color:rgba(107,124,255,.28)}
+/* поки дивимось — усе стороннє тьмяніє, щоб не тягнуло око на себе;
+   клас вішаємо просто на самі панелі, без залежності від батька */
+.cpanels{transition:opacity .5s ease}
+.cpanels.dim{opacity:.5}
+.cpanels.dim:hover{opacity:1}
 /* будь-який плеєр — відео, iframe YouTube/Vimeo/сайту — тягнеться на всю сцену */
 .screen .cin-media,.screen video,.screen iframe{position:absolute;inset:0;width:100%;height:100%;
   border:0;object-fit:contain;background:#04060b;display:block}
@@ -1891,6 +1930,10 @@ const CINEMA_JS = `
     st.classList.toggle('warn',big);
     st.textContent=(want.playing?(st.dataset.live||''):(st.dataset.paused||''))
       +(big?' · '+(drift>0?'+':'')+drift.toFixed(1)+'s':'');
+    /* Йде показ — гасимо світло в залі: сцена світиться, решта тьмяніє. */
+    var room=document.getElementById('cin-room'),pan=document.querySelector('.cpanels');
+    if(room)room.classList.toggle('live',!!want.playing);
+    if(pan)pan.classList.toggle('dim',!!want.playing);
   }
 
   if(toggle)toggle.addEventListener('click',function(){
@@ -2128,6 +2171,27 @@ const CINEMA_JS = `
     gateBox.addEventListener('click',function(e){if(e.target===gateBox)close()});
     addEventListener('keydown',function(e){if(e.key==='Escape')close()});
   }
+
+  /* ── Шухляда з налаштуваннями сеансу ──
+     Джерело, зал, права й історія рідко потрібні під час показу,
+     тож виїжджають збоку й так само зникають. */
+  (function(){
+    var drawer=document.getElementById('cin-drawer'),
+        back=document.getElementById('cin-drawer-back'),
+        open=document.getElementById('cin-settings'),
+        shut=document.getElementById('cin-drawer-x');
+    if(!drawer||!open)return;
+    function show(on){
+      drawer.hidden=!on;
+      if(back)back.hidden=!on;
+      open.classList.toggle('on',on);
+      document.body.style.overflow=on?'hidden':'';
+    }
+    open.addEventListener('click',function(){show(drawer.hidden)});
+    if(shut)shut.addEventListener('click',function(){show(false)});
+    if(back)back.addEventListener('click',function(){show(false)});
+    addEventListener('keydown',function(e){if(e.key==='Escape'&&!drawer.hidden)show(false)});
+  })();
 
   function setControl(on){
     if(on===canControl)return;
@@ -2874,7 +2938,11 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
           ${limited && source ? `<span class="tagp warn">${esc(t(lang, 'cin.cueOnly'))}</span>` : ''}
         </div>
       </div>
-      ${channel ? `<div class="vc"><span class="dotlive"></span>${esc(channel.name)}</div>` : ''}
+      <div class="room-r">
+        ${channel ? `<div class="vc"><span class="dotlive"></span>${esc(channel.name)}</div>` : ''}
+        <button class="btn icon" id="cin-settings"
+          title="${esc(t(lang, 'cin.settings'))}" aria-label="${esc(t(lang, 'cin.settings'))}">⚙</button>
+      </div>
     </div>
 
     <div class="stagewrap">
@@ -3012,7 +3080,16 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
       </div>`
     : '';
 
-  const adminBox = `${addBox}${queueBox}${editorsBox}${lockBox}${historyBox}`;
+  // Службове (джерело, зал, права, історія) живе в шухляді збоку —
+  // на самій сторінці лишається екран, черга й глядачі.
+  const drawer = `<aside class="cdrawer" id="cin-drawer" hidden>
+    <div class="cdrawer-h">
+      <b>${esc(t(lang, 'cin.settings'))}</b>
+      <button class="gate-x" id="cin-drawer-x" aria-label="×">×</button>
+    </div>
+    <div class="cdrawer-b">${addBox}${editorsBox}${lockBox}${historyBox}</div>
+  </aside>
+  <div class="cdrawer-back" id="cin-drawer-back" hidden></div>`;
 
   // Зал тимчасово зачинено адміністратором — для решти нічого не показуємо.
   if (!state.allowed) {
@@ -3051,11 +3128,11 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
       </div>`
     : '';
 
-  // Плеєр на всю ширину, а вся службова інформація — під ним рядом карток.
+  // Екран головний, під ним — черга й зал; решта ховається в шухляду.
   return `<div class="clayout">
     ${room}
-    <div class="cpanels">${people}${adminBox}</div>
-  </div>${modal}`;
+    <div class="cpanels">${queueBox}${people}</div>
+  </div>${drawer}${modal}`;
 }
 
 /**
