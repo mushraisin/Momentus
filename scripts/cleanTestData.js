@@ -11,13 +11,18 @@ const TABLES = [
   'users', 'traits', 'reputation', 'activity_daily', 'reputation_snapshots',
   'site_pages', 'site_assets', 'moderation_log', 'role_grants', 'ai_insights',
   'config', 'message_samples', 'gallery_items', 'web_sessions',
+  'punishments', 'warnings', 'staff_actions',
 ];
+
+/** Префікси, з якими тести створюють гільдії. */
+const PREFIXES = ['web-%', 'test-%', 'g-%', 'staff-%'];
+const WHERE = PREFIXES.map(() => 'guild_id LIKE ?').join(' OR ');
 
 let total = 0;
 for (const t of TABLES) {
-  const sql = `DELETE FROM ${t} WHERE guild_id LIKE 'web-%' OR guild_id LIKE 'test-%' OR guild_id LIKE 'g-%'`;
+  const sql = `DELETE FROM ${t} WHERE ${WHERE}`;
   try {
-    const r = await run(sql);
+    const r = await run(sql, PREFIXES);
     const n = Number(r.rowsAffected ?? 0);
     if (n) {
       console.log(`  очищено ${t}: ${n}`);
