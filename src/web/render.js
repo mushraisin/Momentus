@@ -77,8 +77,11 @@ nav{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
 nav a{padding:8px 15px;border-radius:999px;background:rgba(255,255,255,.04);
   border:1px solid var(--line);font-size:14px;transition:.28s cubic-bezier(.22,.9,.3,1)}
 nav a:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.12);transform:translateY(-2px)}
-nav a.active{border-color:rgba(107,124,255,.7);background:rgba(107,124,255,.18);
-  box-shadow:0 0 0 3px rgba(107,124,255,.14)}
+/* поточна сторінка в шапці — той самий вигляд «обрано», що й усюди */
+nav a.active{background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
+  border-color:rgba(255,255,255,.35);
+  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
+nav a.active:hover{background:linear-gradient(180deg,#8b97ff,#6675f5)}
 nav a:active{transform:scale(.96)}
 
 /* ── Загальне шліфування ──
@@ -188,7 +191,8 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
   background:linear-gradient(180deg,#7d8bff,#5b6bf0);border-color:rgba(255,255,255,.35);color:#fff;
   box-shadow:0 0 0 3px rgba(107,124,255,.18)}
 .tabs a.on{box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
-.drop-opt,.qopt,.langmenu a,.pick-row{position:relative;padding-right:26px}
+/* місце під «✓» праворуч; де є власне правило відступів — воно повторює 28px */
+.drop-opt,.qopt,.langmenu a,.pick-row{position:relative;padding-right:28px}
 .drop-opt::after,.qopt::after,.langmenu a::after{content:'✓';position:absolute;right:10px;
   font-size:11px;opacity:0;transition:.2s}
 .drop-opt.on::after,.qopt.on::after,.langmenu a.on::after{opacity:.95}
@@ -215,8 +219,13 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
   margin:-8px 0 0 -8px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
   border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* короткий зелений спалах після вдалої дії */
-.btn.done{background:linear-gradient(180deg,#4fd18b,#37b374)!important;color:#06210f!important}
+/* Підтвердження вдалої дії: кнопка зеленіє, коротко пружинить
+   і показує «Готово» з галочкою — видно й кольором, і словом. */
+.btn.done{background:linear-gradient(180deg,#4fd18b,#37b374)!important;color:#06210f!important;
+  border-color:rgba(255,255,255,.4)!important;box-shadow:0 0 0 3px rgba(79,209,139,.24),
+  0 10px 26px rgba(55,179,116,.35)!important;animation:okPop .45s cubic-bezier(.22,.9,.3,1)}
+.btn.done::after{content:' ✓';font-weight:800}
+@keyframes okPop{0%{transform:scale(.94)}55%{transform:scale(1.04)}100%{transform:none}}
 .viewer .tagp{flex:none}
 .langs{position:relative;margin-left:6px}
 .langs summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
@@ -238,13 +247,18 @@ nav:has(.langs[open]){overflow:visible}
   border-radius:14px;background:rgba(14,18,30,.96);border:1px solid var(--line);
   box-shadow:0 18px 44px rgba(0,0,0,.55);backdrop-filter:blur(10px);
   display:flex;flex-direction:column;gap:2px;animation:menuIn .26s cubic-bezier(.22,.9,.3,1) both}
-.langmenu a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;
+/* праворуч лишаємо місце під «✓», інакше він налазить на назву мови */
+.langmenu a{display:flex;align-items:center;gap:10px;padding:9px 28px 9px 11px;border-radius:10px;
   border:0;background:0;font-size:13px;transition:.2s}
 .langmenu a:hover{background:rgba(107,124,255,.16);transform:none}
 .langmenu a b{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--dim);min-width:22px}
 .langmenu a span{color:var(--text)}
-/* обрана мова — у спільному блоці «обрано / натиснуто» */
-.langmenu a.on b{color:var(--accent)}
+/* обрана мова — у спільному блоці «обрано / натиснуто»;
+   тут лишається тільки колір напису: на акцентній заливці
+   і код мови, і назва мають бути світлими, інакше зливаються */
+.langmenu a.on b{color:rgba(255,255,255,.85)}
+.langmenu a.on span{color:#fff}
+.langmenu a.on:hover{background:linear-gradient(180deg,#7d8bff,#5b6bf0)}
 @keyframes menuIn{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
 
 .me{display:flex;align-items:center;gap:9px;padding:5px 6px 5px 5px;border-radius:999px;
@@ -321,11 +335,16 @@ td.num{text-align:right;font-weight:800}
 .mini{width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-right:10px}
 
 /* ── Галерея ── */
+/* ── Плитка стрічки ──
+   Усі картки однакові, як у відеосервісах: прев'ю рівно 16:9 незалежно від
+   того, що всередині, під ним стала за висотою підпис-панель. Різні
+   пропорції медіа ховаються всередині прев'ю (object-fit: cover),
+   тож сітка виходить рівною, без сходинок і дір. */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
-.item{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
-  animation:fadeUp .5s both;transition:.35s cubic-bezier(.22,.9,.3,1)}
+.item{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;animation:fadeUp .5s both;transition:.35s cubic-bezier(.22,.9,.3,1)}
 .item:hover{transform:translateY(-4px);border-color:rgba(107,124,255,.35)}
-.item .media{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#0b0e16;cursor:zoom-in}
+.item .media{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#05070d;cursor:zoom-in}
 .item video.media{cursor:zoom-in;pointer-events:none}
 .spot-m{cursor:zoom-in}
 .spot-m video.media{pointer-events:none}
@@ -335,11 +354,19 @@ td.num{text-align:right;font-weight:800}
   color:#fff;background:rgba(8,11,19,.7);border:1px solid rgba(255,255,255,.14);
   opacity:0;transform:translateY(4px);transition:.25s;pointer-events:none}
 .item:hover .shot::after{opacity:1;transform:none}
-.item .meta{padding:12px 14px}
-.item .cap{font-size:14px;margin-bottom:8px;word-break:break-word}
-.item .who{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:7px}
-.item .who img{width:20px;height:20px;border-radius:50%}
-.item .who a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+/* Підпис-панель: назва, під нею автор і дата, лайк праворуч —
+   висота стала, тож нижні краї карток стоять на одній лінії. */
+.item .meta{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:4px 10px;padding:12px 14px;align-items:center;flex:1}
+.item .cap{grid-column:1;grid-row:1;font-size:14px;line-height:1.35;font-weight:600;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  min-height:2.7em;margin:0}
+.item .who{grid-column:1;grid-row:2;font-size:12px;color:var(--dim);
+  display:flex;align-items:center;gap:7px;min-width:0}
+.item .who img{width:24px;height:24px;border-radius:50%;flex:none}
+.item .who a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .when{grid-column:1;grid-row:3;font-size:11px;margin:0}
+.item .like{grid-column:2;grid-row:1/span 3;align-self:center;margin-top:0}
 
 /* ── Розкладка галереї: сітка на всю ширину + бічна панель ── */
 .glayout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
@@ -364,9 +391,8 @@ td.num{text-align:right;font-weight:800}
   transition:.3s cubic-bezier(.22,.9,.3,1)}
 .cinelink:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.5)}
 .cinelink span{color:var(--dim);font-size:13px}
-.grid.wide{grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:18px}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:18px}
 .item .shot{position:relative;overflow:hidden}
-.item.tall .media{aspect-ratio:3/4}
 .item .badge{position:absolute;left:10px;top:10px;padding:3px 9px;border-radius:999px;font-size:11px;
   background:rgba(5,7,13,.66);border:1px solid var(--line);backdrop-filter:blur(6px);letter-spacing:.06em}
 .item .when{font-size:11px;color:var(--dim);margin-top:9px;letter-spacing:.04em}
@@ -539,7 +565,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   border-radius:12px;background:rgba(14,18,30,.97);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   animation:menuIn .22s cubic-bezier(.22,.9,.3,1) both}
-.qopt{padding:8px 11px;border:0;border-radius:8px;background:0;color:var(--text);font:inherit;
+.qopt{padding:8px 28px 8px 11px;border:0;border-radius:8px;background:0;color:var(--text);font:inherit;
   font-size:13px;text-align:left;cursor:pointer;transition:.18s}
 .qopt:hover{background:rgba(107,124,255,.16)}
 /* обрана якість / озвучка — у спільному блоці «обрано / натиснуто» */
@@ -688,8 +714,12 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .up input[type=text]:focus,.up input[type=number]:focus{outline:0;border-color:rgba(107,124,255,.6);
   background:rgba(255,255,255,.07);box-shadow:0 0 0 3px rgba(107,124,255,.16)}
 .up input::placeholder{color:var(--dim)}
-.up input[type=file]::file-selector-button{margin-right:12px;padding:8px 14px;border-radius:8px;border:0;
-  background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+/* рідна кнопка вибору файлу — у тому ж стилі, що й решта кнопок сайту */
+.up input[type=file]::file-selector-button{margin-right:12px;padding:8px 14px;border-radius:10px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);
+  font:inherit;font-weight:600;cursor:pointer;transition:.2s}
+.up input[type=file]:hover::file-selector-button{border-color:rgba(107,124,255,.55);
+  background:rgba(107,124,255,.16);color:#fff}
 .btn{display:inline-block;padding:12px 22px;border-radius:12px;background:var(--accent);color:#fff;
   font-weight:700;border:0;font:inherit;cursor:pointer;transition:.3s}
 .btn:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(107,124,255,.4)}
@@ -722,6 +752,10 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .lbf .who img{width:20px;height:20px;border-radius:50%}
 .lbf .who a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .lbf .when{font-size:11px;color:var(--dim);letter-spacing:.04em;flex:none}
+/* усе в підвалі стоїть на одній лінії: у .like є верхній відступ для стрічки,
+   тут він зайвий і збивав кнопку нижче за дату й лічильник */
+.lbf .like{margin:0;align-self:center}
+.lbf>*{align-self:center}
 @media(max-width:760px){.lbox{--stage:46vh;--foot:64px}.lbf{padding:10px 14px;gap:10px}}
 .lbclose{position:absolute;right:18px;top:16px;z-index:2;width:38px;height:38px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;
@@ -2255,9 +2289,12 @@ const MOD_JS = `
           apply.disabled=false;apply.classList.remove('busy');
           if(j.error){fail(({limit:'Перевищено ваш ліміт',rank:'Цей учасник рівний вам або вищий',
             reason:'Причина обовʼязкова',self:'Себе не можна','not found':'Учасника не знайдено'})[j.error]||j.error);return}
-          /* коротко підтверджуємо успіх, і аж потім оновлюємо сторінку */
+          /* Підтверджуємо словом, а не лише кольором: кнопка стає «Готово ✓»
+             і чекає, поки анімація дограє, — тоді оновлюємо сторінку. */
           apply.classList.add('done');
-          setTimeout(function(){location.reload()},450);
+          apply.dataset.was=apply.textContent;
+          apply.textContent=apply.dataset.done||'Готово';
+          setTimeout(function(){location.reload()},700);
         }).catch(function(){
           apply.disabled=false;apply.classList.remove('busy');
           fail('Не вдалося звʼязатися з сервером');
@@ -2647,10 +2684,10 @@ export function galleryPage({
     <a href="/gallery?sort=top" class="${sort === 'top' ? 'on' : ''}">${esc(t(lang, 'gal.sortTop'))}</a>
   </div>`;
 
-  // Плитка різної висоти — сітка виглядає живою й заповнює ширину без дір.
-  const cards = items.map((it, i) => {
-    const tall = it.kind === 'video' || (Number(it.id) % 5 === 0);
-    return `<article class="item${tall ? ' tall' : ''}" data-item="${it.id}"
+  // Усі плитки однакові: прев'ю 16:9 і стала за висотою підпис-панель.
+  // Порожній підпис не «з'їдає» рядок — місце під нього лишається,
+  // інакше сусідні картки виходили б різної висоти.
+  const cards = items.map((it, i) => `<article class="item" data-item="${it.id}"
         style="animation-delay:${Math.min(i * 0.03, 0.5)}s">
       <div class="shot">
         ${mediaTag(it)}
@@ -2658,15 +2695,12 @@ export function galleryPage({
         <span class="badge">${it.kind === 'video' ? '▶' : (it.mime === 'image/gif' ? 'GIF' : '❖')}</span>
       </div>
       <div class="meta">
-        ${it.title ? `<div class="cap">${esc(it.title)}</div>` : ''}
-        <div class="row" style="justify-content:space-between;gap:10px">
-          ${author(it, avatars)}
-          ${likeBtn(it, liked)}
-        </div>
+        <div class="cap">${it.title ? esc(it.title) : ''}</div>
+        ${author(it, avatars)}
         <div class="when">${esc(timeAgo(it.created_at, lang))}</div>
+        ${likeBtn(it, liked)}
       </div>
-    </article>`;
-  }).join('');
+    </article>`).join('');
 
   return `<div class="glayout">
     <div class="gmain">

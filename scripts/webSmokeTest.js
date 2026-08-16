@@ -180,6 +180,36 @@ ok('галерея відображає завантажене разом з а�
 }
 ok('у куті — GitHub і Telegram');
 
+// 9.05 один стиль кнопок на весь сайт
+{
+  const g = await req('/gallery', auth);
+  const GRAD = 'linear-gradient(180deg,#7d8bff,#5b6bf0)';
+  // «обрано» скрізь однакове: шапка, вкладки, мови, пункти меню, якість
+  for (const sel of ['nav a.active', '.tabs a.on', '.langmenu a.on', '.drop-opt.on', '.qopt.on']) {
+    const rule = new RegExp(`${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{]*\\{[^}]*${GRAD.replace(/[()]/g, '\\$&')}`);
+    assert.ok(rule.test(g.body) || g.body.includes(`${sel},`) || g.body.includes(`,${sel}`),
+      `${sel} користується спільним стилем вибору`);
+  }
+  // рідна кнопка вибору файлу не лишилася суцільно фіолетовою
+  assert.ok(!/::file-selector-button\{[^}]*background:var\(--accent\)/.test(g.body),
+    'кнопка файлу в стилі сайту, а не рідна акцентна');
+  // місце під «✓» зарезервоване там, де є власні відступи
+  assert.match(g.body, /\.langmenu a\{[^}]*padding:9px 28px 9px 11px/, 'галочка не налазить на мову');
+  assert.match(g.body, /\.qopt\{padding:8px 28px 8px 11px/, 'галочка не налазить на якість');
+}
+ok('єдиний стиль кнопок і позначки «обрано»');
+
+// 9.06 стрічка: однакові картки з прев’ю 16:9
+{
+  const g = await req('/gallery', auth);
+  assert.match(g.body, /\.item \.media\{width:100%;aspect-ratio:16\/9/, 'прев’ю однакових пропорцій');
+  assert.ok(!/\.item\.tall \.media/.test(g.body), 'різновисоких плиток більше немає');
+  assert.match(g.body, /\.item \.cap\{[^}]*min-height:2\.7em/, 'місце під підпис лишається завжди');
+  assert.match(g.body, /\.item \.meta\{display:grid/, 'підпис-панель сталої розкладки');
+  assert.ok(!/class="item tall"/.test(g.body), 'у розмітці немає високих плиток');
+}
+ok('стрічка: однакові картки, прев’ю 16:9');
+
 // 9.1 велике вікно публікації: клік по плитці розгортає її
 {
   const g = await req('/gallery', auth);
