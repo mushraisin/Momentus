@@ -471,6 +471,12 @@ ok('галерея з Discord-каналу: публікація, звʼязок
   const denied = await jreq('/api/mod/apply', auth, { userId: OWNER_ID, kind: 'text', minutes: 10 });
   assert.equal(denied.status, 403, 'дії теж закриті');
 
+  // на головній кнопки теж немає без прав
+  // (шукаємо саме посилання, бо клас modbtn є ще й у стилях на кожній сторінці)
+  const LINK = 'class="gbtn modbtn" href="/mod"';
+  assert.ok(!(await req('/', auth)).body.includes(LINK), 'на головній кнопки немає');
+  assert.ok((await req('/', adm)).body.includes(LINK), 'адміністратор бачить її на головній');
+
   // адміністратор: кнопка є, сторінка відкривається
   const asAdmin = await req('/gallery', adm);
   assert.ok(asAdmin.body.includes('href="/mod"'), 'кнопка модерації для адміністратора');

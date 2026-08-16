@@ -9,6 +9,7 @@ import * as modals from '../ui/modals.js';
 
 import { configService } from '../services/configService.js';
 import { CONFIG_SCHEMA } from '../config/defaults.js';
+import { LANGS } from '../i18n/index.js';
 import { verificationService } from '../services/verificationService.js';
 import { reputationService } from '../services/reputationService.js';
 import { usersRepo, reputationRepo } from '../database/repositories.js';
@@ -329,8 +330,36 @@ async function adminHandlers(interaction, action, args) {
       return bindHub(interaction, interaction.values?.[0]);
     case 'bindHere':
       return bindHub(interaction, interaction.channelId);
+    // розділ відкривається кнопкою; args[1] — сторінка, якщо полів багато
     case 'group':
-      return safeUpdate(interaction, admin.adminGroup(guild, interaction.values[0]));
+      return safeUpdate(interaction, admin.adminGroup(
+        guild,
+        args[0] ?? interaction.values?.[0],
+        Number(args[1] ?? 0),
+      ));
+
+    // вимикач міняє значення одразу, без вікна вводу
+    case 'toggle': {
+      const [key, group, page] = args;
+      await configService.set(guild.id, key, !configService.get(guild.id, key));
+      return safeUpdate(interaction, admin.adminGroup(guild, group, Number(page ?? 0)));
+    }
+
+    // ролі додаються нативним селектором, а не JSON-ом
+    case 'addRole': {
+      const key = args[0];
+      const roleId = interaction.values?.[0];
+      const current = configService.get(guild.id, key) ?? [];
+      const next = current.includes(roleId) ? current.filter((r) => r !== roleId) : [...current, roleId];
+      await configService.set(guild.id, key, next);
+      return safeUpdate(interaction, admin.adminGroup(guild, CONFIG_SCHEMA[key]?.group));
+    }
+
+    case 'clearRoles': {
+      const key = args[0];
+      await configService.set(guild.id, key, []);
+      return safeUpdate(interaction, admin.adminGroup(guild, CONFIG_SCHEMA[key]?.group));
+    }
     case 'setChannel': {
       // args[0] — ключ конфігурації, значення приходить із нативного селектора
       const key = args[0];
@@ -341,6 +370,15 @@ async function adminHandlers(interaction, action, args) {
     case 'lang':
       await configService.set(guild.id, 'general.locale', interaction.values[0]);
       return safeUpdate(interaction, admin.adminHome(guild));
+
+    // мов дві, тож кнопка просто чергує їх
+    case 'cycleLang': {
+      const codes = Object.keys(LANGS);
+      const now = configService.get(guild.id, 'general.locale') ?? codes[0];
+      const next = codes[(codes.indexOf(now) + 1) % codes.length];
+      await configService.set(guild.id, 'general.locale', next);
+      return safeUpdate(interaction, admin.adminGroup(guild, args[0] || 'general', Number(args[1] ?? 0)));
+    }
     case 'tiers':
       return safeUpdate(interaction, admin.tiersPanel(guild));
 

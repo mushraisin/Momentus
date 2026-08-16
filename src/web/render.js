@@ -146,6 +146,9 @@ nav:has(.langs[open]){overflow:visible}
   background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:17px;font-weight:700;
   transition:.3s cubic-bezier(.22,.9,.3,1)}
 .gbtn:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.14)}
+/* службова кнопка на головній — стриманий червонуватий відтінок */
+.gbtn.modbtn{border-color:rgba(239,83,80,.35);background:rgba(239,83,80,.1)}
+.gbtn.modbtn:hover{border-color:rgba(239,83,80,.65);background:rgba(239,83,80,.2)}
 
 /* ── Картки ── */
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;margin:16px 0;
@@ -1979,7 +1982,7 @@ export function layout({
 }
 
 /** Головна: назва, вхід і галерея. */
-export function landingLayout({ lang = 'uk', session = null, og = null }) {
+export function landingLayout({ lang = 'uk', session = null, og = null, mod = false }) {
   // Залогінений бачить себе в шапці й іде одразу в профіль — жодних сліпих редиректів.
   const chip = session
     ? `<div class="me">
@@ -2007,6 +2010,7 @@ export function landingLayout({ lang = 'uk', session = null, og = null }) {
           ${primary}
           <a class="gbtn" href="/gallery">🖼️ <span>${esc(t(lang, 'landing.gallery'))}</span></a>
           <a class="gbtn" href="/cinema">🎬 <span>${esc(t(lang, 'nav.cinema'))}</span></a>
+          ${mod ? `<a class="gbtn modbtn" href="/mod">🛡️ <span>${esc(t(lang, 'nav.mod'))}</span></a>` : ''}
         </div>
       </section>
     </div>`,

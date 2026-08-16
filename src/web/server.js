@@ -376,6 +376,8 @@ async function handle(req, res) {
     return send(res, 200, 'text/html; charset=utf-8', R.landingLayout({
       lang,
       session,
+      // кнопку модерації показуємо лише тим, хто має доступ
+      mod: isModerator(guild, session),
       og: ogFor(guild, '/', null, 'Профілі, галерея та спільний перегляд'),
     }));
   }

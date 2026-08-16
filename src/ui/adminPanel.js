@@ -39,47 +39,57 @@ export function setupPanel(guild) {
   };
 }
 
-/** Головна адмін-панель. */
+/**
+ * Головна адмін-панель.
+ *
+ * Розділи — кнопками, а не списком: у списку кожен перехід коштує два кліки.
+ * Зверху — стан найважливішого, щоб не лазити по розділах перевіряти,
+ * чи все привʼязано.
+ */
 export async function adminHome(guild) {
   const memberCount = await usersRepo.count(guild.id);
   const tiers = verificationService.tiers(guild.id);
   const bound = tiers.filter((t) => t.roleId).length;
+  const cfg = configService.all(guild.id);
+
+  const chan = (id) => (id ? `<#${id}>` : '`—`');
+  const roles = (ids) => (ids?.length ? ids.map((r) => `<@&${r}>`).join(' ') : '`—`');
 
   const embed = baseEmbed()
     .setColor(COLORS.primary)
     .setTitle('Адміністрування')
+    .setDescription([
+      `**Панель:** ${chan(cfg['general.statsChannelId'])}`,
+      `**Галерея:** ${chan(cfg['gallery.channelId'])} · **сховище:** ${chan(cfg['media.channelId'])}`,
+      `**Кінотеатр:** ${chan(cfg['cinema.voiceChannelId'])}`,
+      `**Лог модерації:** ${chan(cfg['general.modLogChannelId'])}`,
+      `**Модератори:** ${roles(cfg['access.moderatorRoleIds'])}`,
+    ].join('\n'))
     .addFields(
       { name: 'Учасників', value: `\`${memberCount}\``, inline: true },
-      { name: 'Рівнів', value: `\`${tiers.length}\` (привʼязано ${bound})`, inline: true },
+      { name: 'Рівні ролей', value: `\`${bound}/${tiers.length}\``, inline: true },
+      { name: 'Мова', value: `\`${(cfg['general.locale'] ?? 'uk').toUpperCase()}\``, inline: true },
     );
 
-  const lang = configService.get(guild.id, 'general.locale');
+  const sections = Object.entries(GROUP_LABELS);
 
   return {
     embeds: [embed],
     components: [
-      selectRow({
-        id: cid(NS.ADMIN, 'group'),
-        placeholder: 'Розділ…',
-        options: Object.entries(GROUP_LABELS).map(([value, label]) => ({ value, label })),
-      }),
-      selectRow({
-        id: cid(NS.ADMIN, 'lang'),
-        placeholder: 'Мова бота…',
-        options: Object.values(LANGS).map((l) => ({
-          value: l.code,
-          label: `${l.short} — ${l.name}`,
-          default: l.code === lang,
-        })),
-      }),
+      // розділи — по одному кліку
+      ...rows(sections.map(([value, label]) => button({
+        id: cid(NS.ADMIN, 'group', value),
+        label: label.replace(/^\S+\s/, ''),
+        emoji: label.split(' ')[0],
+      }))),
       ...rows([
         button({ id: cid(NS.MOD, 'home'), label: 'Модерація', emoji: '🛡️', style: ButtonStyle.Danger }),
         button({ id: cid(NS.ADMIN, 'tiers'), label: 'Рівні ролей', emoji: '🎖️', style: ButtonStyle.Primary }),
         button({ id: cid(NS.ADMIN, 'site'), label: 'Сайт', emoji: '🌐' }),
-        button({ id: cid(NS.ADMIN, 'deploy'), label: 'Опублікувати панель', emoji: '📢' }),
+        button({ id: cid(NS.ADMIN, 'deploy'), label: 'Опублікувати', emoji: '📢' }),
         button({ id: cid(NS.DEV, 'open'), label: 'Dev', emoji: '🧬' }),
       ]),
-    ],
+    ].slice(0, 5),
   };
 }
 
@@ -216,39 +226,104 @@ export async function sitePanel(guild) {
   return { embeds: [embed], components: componentRows.slice(0, 5) };
 }
 
-/** Список полів обраної групи конфігурації. */
-export function adminGroup(guild, group) {
+/**
+ * Розділ налаштувань.
+ *
+ * Кожен тип поля редагується тим, чим зручно, а не текстом:
+ *   вимикачі — кнопка одразу перемикає (без «true/false» руками);
+ *   канали й ролі — нативні селектори Discord;
+ *   числа й рядки — вікно вводу.
+ * Значення в описі показані по-людськи: ✅/❌, #канал, @роль, «1 день».
+ */
+export function adminGroup(guild, group, page = 0) {
   const cfg = configService.all(guild.id);
-  const fields = configService.groups()[group] ?? [];
+  const fields = (configService.groups()[group] ?? []).filter((f) => f.key !== 'verification.tiers');
 
   const embed = baseEmbed()
     .setColor(COLORS.neutral)
     .setTitle(GROUP_LABELS[group] ?? group)
-    .setDescription(fields.map((f) => {
-      const val = cfg[f.key];
-      const shown = typeof val === 'object' ? '`{…}`' : `\`${val === '' ? '—' : val}\``;
-      return `**${f.label}** → ${shown}`;
-    }).join('\n') || '—');
+    .setDescription(fields.map((f) => `**${f.label}** → ${showValue(f, cfg[f.key])}`).join('\n') || '—');
 
-  // Канали обираємо нативним селектором — вписувати ID руками незручно.
-  // Кожен селектор займає окремий рядок, тому беремо максимум три.
-  const channelFields = fields.filter((f) => f.type === 'channel').slice(0, 3);
-  const channelRows = channelFields.map((f) => channelSelectRow({
-    id: cid(NS.ADMIN, 'setChannel', f.key),
-    placeholder: short(f.label),
-    types: f.key.startsWith('cinema.')
-      ? [ChannelType.GuildVoice, ChannelType.GuildStageVoice]
-      : undefined,
-  }));
+  // Селектори займають цілий рядок, тож лишаємо місце для кнопок і навігації.
+  const pickers = fields.filter((f) => f.type === 'channel' || f.type === 'roles').slice(0, 2);
+  const pickerRows = pickers.map((f) => (f.type === 'channel'
+    ? channelSelectRow({
+      id: cid(NS.ADMIN, 'setChannel', f.key),
+      placeholder: short(f.label),
+      types: f.key.startsWith('cinema.')
+        ? [ChannelType.GuildVoice, ChannelType.GuildStageVoice]
+        : undefined,
+    })
+    : roleSelectRow({ id: cid(NS.ADMIN, 'addRole', f.key), placeholder: short(f.label) })));
 
-  const editButtons = fields
-    .filter((f) => f.key !== 'verification.tiers' && !channelFields.includes(f))
-    .slice(0, 20)
-    .map((f) => button({ id: cid(NS.ADMIN, 'edit', f.key), label: short(f.label) }));
+  // Решта — кнопками. Вимикач міняє значення одразу, інші відкривають вікно.
+  const rest = fields.filter((f) => !pickers.includes(f));
+  const perPage = (4 - pickerRows.length) * 5;                  // рядки під кнопки × 5
+  const pages = Math.max(1, Math.ceil(rest.length / perPage));
+  const p = Math.min(Math.max(0, page), pages - 1);
 
-  const componentRows = [...channelRows, ...rows(editButtons)];
-  componentRows.push(rows([button({ id: cid(NS.ADMIN, 'home'), label: 'Назад', emoji: '↩️' })])[0]);
-  return { embeds: [embed], components: componentRows.slice(0, 5) };
+  const btns = rest.slice(p * perPage, (p + 1) * perPage).map((f) => {
+    // мов лише дві — кнопка їх просто чергує, вікно вводу тут зайве
+    if (f.key === 'general.locale') {
+      const code = String(cfg[f.key] ?? 'uk').toUpperCase();
+      return button({
+        id: cid(NS.ADMIN, 'cycleLang', String(group), String(p)),
+        label: `Мова: ${code}`,
+        emoji: '🌐',
+        style: ButtonStyle.Primary,
+      });
+    }
+    if (f.type === 'bool') {
+      const on = !!cfg[f.key];
+      return button({
+        id: cid(NS.ADMIN, 'toggle', f.key, String(group), String(p)),
+        label: short(f.label),
+        emoji: on ? '✅' : '❌',
+        style: on ? ButtonStyle.Success : ButtonStyle.Secondary,
+      });
+    }
+    return button({ id: cid(NS.ADMIN, 'edit', f.key), label: short(f.label), emoji: '✏️' });
+  });
+
+  const nav = [button({ id: cid(NS.ADMIN, 'home'), label: 'Назад', emoji: '↩️' })];
+  if (pages > 1) {
+    nav.push(
+      button({ id: cid(NS.ADMIN, 'group', group, String(p - 1)), label: '‹', disabled: p === 0 }),
+      button({ id: cid(NS.ADMIN, 'group', group, String(p + 1)), label: '›', disabled: p >= pages - 1 }),
+    );
+    embed.setFooter({ text: `Сторінка ${p + 1} з ${pages}` });
+  }
+  // очистити список ролей — інакше зняти видане нічим
+  for (const f of pickers) {
+    if (f.type === 'roles' && (cfg[f.key] ?? []).length) {
+      nav.push(button({ id: cid(NS.ADMIN, 'clearRoles', f.key), label: 'Очистити', emoji: '🧹' }));
+    }
+  }
+
+  return {
+    embeds: [embed],
+    components: [...pickerRows, ...rows(btns), ...rows(nav)].slice(0, 5),
+  };
+}
+
+/** Значення налаштування людською мовою. */
+function showValue(field, val) {
+  if (field.type === 'bool') return val ? '✅ увімкнено' : '❌ вимкнено';
+  if (field.type === 'channel') return val ? `<#${val}>` : '`—`';
+  if (field.type === 'roles') return (val ?? []).length ? val.map((r) => `<@&${r}>`).join(' ') : '`—`';
+  if (field.type === 'json') return '`{…}`';
+  if (val === '' || val === null || val === undefined) return '`—`';
+  // хвилини й мілісекунди показуємо зрозуміло; «Minutes» буває і в середині ключа
+  if (/Minutes/i.test(field.key) && Number(val) > 0) return `\`${humanMinutes(Number(val))}\``;
+  if (/Ms$/.test(field.key) && Number(val) > 0) return `\`${humanMinutes(Number(val) / 60_000)}\``;
+  return `\`${val}\``;
+}
+
+function humanMinutes(m) {
+  if (m >= 1440) return `${+(m / 1440).toFixed(1)} дн.`;
+  if (m >= 60) return `${+(m / 60).toFixed(1)} год`;
+  if (m >= 1) return `${Math.round(m)} хв`;
+  return `${Math.round(m * 60)} с`;
 }
 
 /** Developer Panel. */
