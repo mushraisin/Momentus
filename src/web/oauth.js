@@ -97,7 +97,8 @@ function cleanupStates() {
 /** URL аватара користувача Discord. */
 export function avatarUrl(userId, avatarHash, size = 128) {
   if (!avatarHash) {
-    const idx = (BigInt(userId) >> 22n) % 6n;
+    // у журналі трапляються службові «айді» на кшталт system — це не snowflake
+    const idx = /^\d+$/.test(String(userId)) ? (BigInt(userId) >> 22n) % 6n : 0n;
     return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
   }
   const ext = avatarHash.startsWith('a_') ? 'gif' : 'png';

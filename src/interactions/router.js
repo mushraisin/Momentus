@@ -442,6 +442,15 @@ async function adminHandlers(interaction, action, args) {
       await configService.set(guild.id, 'gallery.channelId', interaction.values?.[0] ?? '');
       return safeUpdate(interaction, admin.setupPanel(guild, 1));
     }
+    // приватне сховище: сюди бот кладе файли, залиті через сайт
+    case 'bindMedia': {
+      const channelId = interaction.values?.[0];
+      const channel = channelId ? await guild.channels.fetch(channelId).catch(() => null) : null;
+      if (!channel?.isTextBased?.()) return ephemeral(interaction, '⚠️ Це не текстовий канал.');
+
+      await configService.set(guild.id, 'media.channelId', channelId);
+      return safeUpdate(interaction, admin.setupPanel(guild, 1));
+    }
     case 'bindCinema': {
       await configService.set(guild.id, 'cinema.voiceChannelId', interaction.values?.[0] ?? '');
       return safeUpdate(interaction, admin.setupPanel(guild, 1));

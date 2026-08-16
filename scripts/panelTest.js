@@ -109,5 +109,22 @@ assert.ok(text.includes('1 дн.'), `хвилини в людському виг
 assert.ok(text.includes('❌') || text.includes('✅'), 'вимикачі позначені');
 ok('значення читаються без розшифровки');
 
+// 6. майстер первинного налаштування: усі шість каналів обираються
+{
+  const step0 = admin.setupPanel(guild, 0);
+  const step1 = admin.setupPanel(guild, 1);
+  const ids = [...step0.components, ...step1.components]
+    .map((r) => r.toJSON())
+    .flatMap((r) => r.components.map((c) => c.custom_id ?? ''));
+
+  for (const key of ['bindChannel', 'bindAdmin', 'bindModPanel', 'bindGallery', 'bindMedia', 'bindCinema']) {
+    assert.ok(ids.some((id) => id.startsWith(`adm:${key}`)), `у майстрі є ${key}`);
+  }
+  const desc = step0.embeds[0].data.description;
+  assert.ok(desc.includes('Сховище медіа'), 'приватне сховище описане в майстрі');
+  assert.ok(desc.includes('6. Кінотеатр'), 'кроки перенумеровані');
+}
+ok('майстер: шість каналів, зокрема приватне сховище');
+
 console.log(`\n✅ Усі ${passed} перевірок панелі пройдено.`);
 process.exit(0);

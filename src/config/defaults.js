@@ -74,7 +74,7 @@ export const CONFIG_SCHEMA = {
   // ── Галерея та кінотеатр ──────────────────
   // Канал-сховище: бот заливає туди медіа й тримає лише посилання.
   // Місце фактично безлімітне, на відміну від БД чи диска хоста.
-  'media.channelId': { type: 'channel', default: '', label: 'Канал-сховище медіа', group: 'media' },
+  'media.channelId': { type: 'channel', default: '', label: 'Приватне сховище медіа', group: 'media' },
   // Канал-джерело галереї: усе медіа звідси бот пропонує опублікувати на сайті.
   'gallery.channelId': { type: 'channel', default: '', label: 'Канал галереї', group: 'media' },
   'cinema.voiceChannelId': { type: 'channel', default: '', label: 'Голосовий канал кінотеатру', group: 'media' },

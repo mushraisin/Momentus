@@ -134,14 +134,30 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
 .pick-row:hover{background:rgba(107,124,255,.16)}
 .pick-row img{width:24px;height:24px;border-radius:50%;flex:none}
 /* Обраний вид покарання має бути видно з першого погляду:
-   акцентна заливка, світла рамка, кільце й позначка. */
-.up .kindbtn{position:relative;transition:.2s cubic-bezier(.22,.9,.3,1)}
+   акцентна заливка, світла рамка, кільце й позначка.
+   Сітка з однакових комірок — щоб кнопки не стрибали між рядками
+   при виборі, а «✓» має своє місце завжди, лише невидиме. */
+.kindrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.up .kindbtn{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;
+  min-width:0;white-space:nowrap;font-weight:600;transition:.2s cubic-bezier(.22,.9,.3,1)}
+.up .kindbtn .kl{overflow:hidden;text-overflow:ellipsis}
+.up .kindbtn::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
 .up .kindbtn.on{background:linear-gradient(180deg,#7d8bff,#5b6bf0);
-  border-color:rgba(255,255,255,.35);color:#fff;font-weight:700;
+  border-color:rgba(255,255,255,.35);color:#fff;
   box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
-.up .kindbtn.on::after{content:'✓';margin-left:7px;font-size:12px;opacity:.9}
+.up .kindbtn.on::after{opacity:.9}
 .up .kindbtn:not(.on){opacity:.72}
 .up .kindbtn:not(.on):hover{opacity:1}
+
+/* Поле для свого терміну — той самий стиль, що й решта полів вводу.
+   Стрілки-«крутилки» браузера прибираємо: вони псують вигляд. */
+.custom-dur{align-items:center}
+.custom-dur input[type=number]{flex:1 1 90px;min-width:0;-moz-appearance:textfield;appearance:textfield}
+.custom-dur input[type=number]::-webkit-outer-spin-button,
+.custom-dur input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.custom-dur .drop{flex:1 1 120px}
+/* атрибут hidden має перемагати будь-який display із класу */
+[hidden]{display:none!important}
 
 /* Будь-яка кнопка помітно «продавлюється» — стає ясно, що клік зарахований */
 .btn:active:not(:disabled),.act:active:not(:disabled),.kindbtn:active{transform:scale(.96)}
@@ -609,8 +625,12 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .like.on{border-color:rgba(239,83,80,.75);background:rgba(239,83,80,.2);color:#ff8b88}
 .like.on .h{animation:beat .45s}
 .up{display:grid;gap:12px}
-.up input[type=file],.up input[type=text]{width:100%;padding:12px 14px;border-radius:12px;
-  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);font:inherit}
+.up input[type=file],.up input[type=text],.up input[type=number]{width:100%;padding:12px 14px;
+  border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);
+  color:var(--text);font:inherit;transition:.2s}
+.up input[type=text]:focus,.up input[type=number]:focus{outline:0;border-color:rgba(107,124,255,.6);
+  background:rgba(255,255,255,.07);box-shadow:0 0 0 3px rgba(107,124,255,.16)}
+.up input::placeholder{color:var(--dim)}
 .up input[type=file]::file-selector-button{margin-right:12px;padding:8px 14px;border-radius:8px;border:0;
   background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
 .btn{display:inline-block;padding:12px 22px;border-radius:12px;background:var(--accent);color:#fff;
@@ -1992,6 +2012,10 @@ const MOD_JS = `
         b.classList.toggle('on',on);
         b.setAttribute('aria-pressed',on?'true':'false');
       });
+      /* попередження не має строку — ховаємо і вибір терміну, і ручне поле */
+      var dur=document.getElementById('mod-dur'),cus=document.getElementById('mod-custom');
+      if(dur)dur.hidden=kind==='warn';
+      if(cus)cus.hidden=kind==='warn'||!dur||dur.dataset.value!=='custom';
       return;
     }
 
@@ -2767,10 +2791,10 @@ export function modPage({
         <input type="hidden" id="mod-user">
       </div>
 
-      <div class="row" style="gap:8px;flex-wrap:wrap">
+      <div class="kindrow">
         ${['text', 'voice', 'full'].map((k, i) => `<button class="btn ghost sm kindbtn${i === 0 ? ' on' : ''}"
-          data-kind="${k}">${KIND_ICON[k]} ${esc(kinds[k] ?? k)}</button>`).join('')}
-        <button class="btn ghost sm kindbtn" data-kind="warn">⚠️ ${esc(t(lang, 'mod.warn'))}</button>
+          data-kind="${k}">${KIND_ICON[k]} <span class="kl">${esc(kinds[k] ?? k)}</span></button>`).join('')}
+        <button class="btn ghost sm kindbtn" data-kind="warn">⚠️ <span class="kl">${esc(t(lang, 'mod.warn'))}</span></button>
       </div>
 
       ${dropdown(

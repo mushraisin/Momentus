@@ -28,13 +28,7 @@ export function modHome(guild, member) {
   const embed = baseEmbed()
     .setColor(COLORS.warn ?? COLORS.neutral)
     .setTitle('🛡️ Модерація')
-    .setDescription([
-      'Оберіть учасника — далі відкриється список дій.',
-      '',
-      `**Текстовий мут** — не пише в жодному каналі, зокрема в чатах голосових.`,
-      `**Голосовий мут** — не говорить, але лишається в каналі й пише.`,
-      `**Повний мут** — ні писати, ні говорити, ні бути в голосовому.`,
-    ].join('\n'))
+    .setDescription('Панель модерації.')
     .addFields({
       name: 'Ваш ліміт',
       value: limit ? `до ${fmtMinutes(limit)}` : 'без обмежень',

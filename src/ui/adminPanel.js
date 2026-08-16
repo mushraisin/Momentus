@@ -50,7 +50,9 @@ export function setupPanel(guild, page = 0) {
       '-# окремий канал для модераторів *(не обовʼязково)*',
       `**4. Галерея** — ${mark(cfg['gallery.channelId'])}`,
       '-# медіа звідси бот пропонує публікувати на сайті',
-      `**5. Кінотеатр** — ${mark(cfg['cinema.voiceChannelId'])}`,
+      `**5. Сховище медіа** — ${mark(cfg['media.channelId'])}`,
+      '-# приватний канал: сюди лягає все, залите через сайт',
+      `**6. Кінотеатр** — ${mark(cfg['cinema.voiceChannelId'])}`,
       '-# голосовий канал: керувати сеансом можна лише з нього',
     ].join('\n'))
     .setFooter({ text: `${guild.name} · крок ${page + 1} з 2` });
@@ -63,9 +65,12 @@ export function setupPanel(guild, page = 0) {
   ];
   const step1 = [
     channelSelectRow({ id: cid(NS.ADMIN, 'bindGallery'), placeholder: '4 · Канал галереї…' }),
+    // окремий приватний канал-сховище: галерея лишається вітриною,
+    // а файли з сайту лежать тут і звідси ж роздаються посиланнями
+    channelSelectRow({ id: cid(NS.ADMIN, 'bindMedia'), placeholder: '5 · Приватне сховище медіа…' }),
     channelSelectRow({
       id: cid(NS.ADMIN, 'bindCinema'),
-      placeholder: '5 · Голосовий канал кінотеатру…',
+      placeholder: '6 · Голосовий канал кінотеатру…',
       types: [ChannelType.GuildVoice, ChannelType.GuildStageVoice],
     }),
   ];

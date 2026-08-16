@@ -511,8 +511,21 @@ async function handleUpload(req, res, guild, session, lang) {
   };
   const mb = (file.data.length / 1048576).toFixed(2);
 
-  // 0) Якщо галерея прив'язана до каналу — бот сам кидає файл туди.
-  // Так усе медіа лежить в одному місці, звідки б його не надіслали.
+  // 0) Приватний канал-сховище: усе, залите через сайт, лягає туди.
+  // Місця фактично безліміт, а канал закритий — це не вітрина, а склад.
+  if (discordStore.configured(guild.id)) {
+    try {
+      const name = safeName(title ?? kind, extFor(file.mime));
+      const { key, url, expires } = await discordStore.put(guild, file.data, name);
+      await galleryRepo.add({ ...base, storage: 'discord', objectKey: key, url, urlExpires: expires });
+      log.info(`Галерея → сховище: ${session.username}, ${kind}, ${mb} MB`);
+      return back(null);
+    } catch (err) {
+      log.warn('Заливка в канал-сховище не вдалася — пробую далі', err.message);
+    }
+  }
+
+  // 1) Сховища немає — тоді запасний варіант: канал галереї.
   if (galleryChannelId(guild.id)) {
     try {
       const { key, url, expires } = await postToChannel(guild, {
@@ -526,19 +539,6 @@ async function handleUpload(req, res, guild, session, lang) {
       return back(null);
     } catch (err) {
       log.warn('Не вдалося покласти файл у канал галереї — пробую далі', err.message);
-    }
-  }
-
-  // 1) Discord-канал-сховище — місця фактично безліміт.
-  if (discordStore.configured(guild.id)) {
-    try {
-      const name = safeName(title ?? kind, extFor(file.mime));
-      const { key, url, expires } = await discordStore.put(guild, file.data, name);
-      await galleryRepo.add({ ...base, storage: 'discord', objectKey: key, url, urlExpires: expires });
-      log.info(`Галерея → Discord: ${session.username}, ${kind}, ${mb} MB`);
-      return back(null);
-    } catch (err) {
-      log.warn('Заливка в канал-сховище не вдалася — пробую далі', err.message);
     }
   }
 

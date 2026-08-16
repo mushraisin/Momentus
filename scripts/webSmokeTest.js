@@ -512,8 +512,35 @@ ok('галерея з Discord-каналу: публікація, звʼязок
   // не можна карати того, хто рівний або вищий за правами
   const self = await jreq('/api/mod/apply', adm, { userId: OWNER_ID, kind: 'text', minutes: 10 });
   assert.equal(self.status, 400, 'себе — ні');
+
+  // поле свого терміну не має світитися разом зі списком —
+  // клас .row робив display:flex поверх атрибута hidden
+  assert.match(modPage.body, /class="row custom-dur" id="mod-custom" hidden/, 'ручне поле сховане');
+  assert.match(modPage.body, /\[hidden\]\{display:none!important\}/, 'hidden перемагає display із класу');
+  assert.match(modPage.body, /\.up input\[type=number\]/, 'поле числа має стиль сайту');
+
+  // кнопки видів покарання стоять сіткою — при виборі нічого не стрибає
+  assert.match(modPage.body, /class="kindrow"/, 'кнопки в сітці');
+  assert.match(modPage.body, /\.kindrow\{display:grid/, 'сітка фіксує місця кнопок');
+  assert.match(modPage.body, /\.up \.kindbtn::after\{content:'✓';font-size:12px;opacity:0/,
+    'місце під «✓» зарезервоване завжди');
 }
 ok('панель модерації на сайті: кнопка й сторінка лише для модераторів');
+
+// 17.8 журнал із системними записами — сторінка не має падати в 500
+{
+  const { warnRepo: wr } = await import('../src/database/repositories.js');
+  await wr.add(G, U, { reason: 'тест', moderatorId: 'system' });
+  const { modRepo: mr } = await import('../src/database/repositories.js');
+  await mr.add({ guildId: G, userId: U, moderatorId: 'system', action: 'warn', reason: 'тест', result: 'applied' });
+
+  const page = await req('/mod', adm);
+  assert.equal(page.status, 200, 'сторінка з системними записами відкривається');
+  assert.ok(page.body.includes('embed/avatars/'), 'для «system» підставлено типову аватарку');
+
+  await wr.clear(G, U);
+}
+ok('журнал із записами від системи не ламає сторінку');
 
 // 18. порядок черги, автоперехід і список редакторів
 {
