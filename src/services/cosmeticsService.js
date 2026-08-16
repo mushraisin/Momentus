@@ -183,18 +183,45 @@ export const cosmeticsService = {
   },
 
   async setPrice(guildId, id, value) {
-    if (!BY_PACK.has(id)) return false;
+    return this.setPrices(guildId, { [id]: value });
+  },
+
+  /**
+   * Зберегти одразу кілька цін.
+   *
+   * Важливо саме однією дією: коли кожну ціну писали окремим запитом,
+   * усі вони читали ту саму мапу й перезаписували одна одну — доїжджала
+   * лише остання. Тому правки збираємо й пишемо разом.
+   */
+  async setPrices(guildId, values = {}) {
     const map = { ...(configService.get(guildId, 'shop.prices') ?? {}) };
-    map[id] = Math.max(0, Math.round(Number(value) || 0));
+    let touched = 0;
+    for (const [id, value] of Object.entries(values)) {
+      if (!BY_PACK.has(id)) continue;
+      const n = Math.max(0, Math.round(Number(value) || 0));
+      map[id] = n;
+      touched++;
+    }
+    if (!touched) return false;
     await configService.set(guildId, 'shop.prices', map);
     return true;
   },
 
   /** Поставити або зняти позначку «лише для бустерів». */
   async setBoosterOnly(guildId, id, value) {
-    if (!BY_PACK.has(id)) return false;
+    return this.setBoosterFlags(guildId, { [id]: value });
+  },
+
+  /** Те саме пачкою — з тієї ж причини, що й ціни. */
+  async setBoosterFlags(guildId, values = {}) {
     const map = { ...(configService.get(guildId, 'shop.booster') ?? {}) };
-    map[id] = !!value;
+    let touched = 0;
+    for (const [id, value] of Object.entries(values)) {
+      if (!BY_PACK.has(id)) continue;
+      map[id] = !!value;
+      touched++;
+    }
+    if (!touched) return false;
     await configService.set(guildId, 'shop.booster', map);
     return true;
   },
@@ -206,6 +233,10 @@ export const cosmeticsService = {
    */
   isBooster(guildId, member) {
     if (!member) return false;
+    // власник і ті, хто керує сервером, мають ті самі можливості, що й бустери:
+    // інакше вони не можуть ані перевірити вітрину, ані щось на неї виставити
+    if (member.id === OWNER_ID) return true;
+    if (member.permissions?.has?.('ManageGuild')) return true;
     if (member.premiumSince || member.premiumSinceTimestamp) return true;
     const roles = configService.get(guildId, 'general.boosterRoleIds') ?? [];
     return roles.some((id) => member.roles?.cache?.has(id));

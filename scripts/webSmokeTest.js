@@ -1009,6 +1009,24 @@ ok('профіль: загальне число й графік динаміки
   assert.ok(shopAdm.body.includes('id="sh-openprices"'), 'відкривається однією кнопкою');
   assert.ok(!shopAdm.body.includes('sh-setprice'), 'поля цін більше не на картках');
 
+  // у вікні видно саму річ і її категорію, а не лише назву
+  assert.ok(shopAdm.body.includes('class="sh-pv"'), 'у рядку є зразок речі');
+  assert.match(shopAdm.body, /<span class="sh-pn">\s*<b>[^<]+<\/b>\s*<i>[^<]+<\/i>/,
+    'назва разом із категорією');
+  assert.ok(shopAdm.body.includes('class="sh-pgroup"'), 'рядки згруповані за категоріями');
+
+  // Кілька цін зберігаються одним запитом — окремі запити перезаписували
+  // мапу одне одному, і доїжджала лише остання правка.
+  const many = { 'grad.aurora': 111, 'accent.mint': 222, 'frame.spin': 333, 'card.dense': 444 };
+  assert.equal((await jreq('/api/shop/prices', auth, { prices: many })).status, 403,
+    'масову зміну теж закрито для звичайних');
+  assert.equal((await jreq('/api/shop/prices', adm, { prices: many })).status, 200, 'адміністратор зберігає');
+
+  const afterAll = await req('/shop', adm);
+  for (const [id, price] of Object.entries(many)) {
+    assert.ok(afterAll.body.includes(`${price} ✨FP`), `ціна ${id} доїхала (${price})`);
+  }
+
   // позначка «лише для бустерів» ставиться й знімається
   assert.equal((await jreq('/api/shop/flag', auth, { item: 'grad.aurora', booster: true })).status, 403,
     'звичайний учасник позначку не поставить');

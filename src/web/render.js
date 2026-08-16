@@ -1085,12 +1085,29 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-my input:focus{outline:0;border-color:rgba(107,124,255,.6)}
 
 /* вікно цін: список у стовпчик, кнопка 💜 поруч із кожним */
-.sh-pricewin{width:min(560px,94vw)}
-.sh-pricelist{max-height:56vh;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:8px}
+/* Вікно цін: у рядку видно саму річ, її категорію й ціну — без цього
+   правиш наосліп, бо назви самі по собі мало що кажуть. */
+.sh-pricewin{width:min(640px,94vw)}
+.sh-pricelist{max-height:60vh;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:14px}
+.sh-pgroup{display:flex;flex-direction:column;gap:8px}
 .sh-prow{display:flex;align-items:center;gap:10px}
-.sh-pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
-.sh-prow input{width:110px;flex:none;padding:8px 11px;border-radius:10px;font:inherit;font-size:13px;
-  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+.sh-pv{width:46px;height:32px;flex:none;border-radius:9px;overflow:hidden;display:grid;
+  border:1px solid var(--line)}
+.sh-pv i{display:block;width:100%;height:100%}
+.sh-pv i.im{background:center/cover no-repeat}
+.sh-pv i.ac{background:radial-gradient(circle at 40% 35%,var(--c),#0a0d16 74%)}
+.sh-pv i.fr{background:#0a0d16;position:relative}
+.sh-pv i.fr::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;
+  margin:-8px 0 0 -8px;border-radius:50%;border:2px solid var(--c);box-shadow:0 0 8px var(--c)}
+.sh-pv i.cd{border:1px solid;border-radius:6px;margin:4px}
+.sh-pv i.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
+  background-size:300% 300%;animation:flow 9s ease-in-out infinite}
+.sh-pn{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sh-pn b{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-pn i{font-style:normal;font-size:11px;color:var(--dim);letter-spacing:.04em}
+.sh-pfp{flex:none;font-size:13px;color:var(--dim)}
+.sh-prow input{width:96px;flex:none;padding:8px 11px;border-radius:10px;font:inherit;font-size:13px;
+  text-align:right;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
 .sh-flag{flex:none;padding:7px 11px;opacity:.45}
 .sh-flag.on{opacity:1;background:rgba(155,107,255,.2);border-color:rgba(155,107,255,.5)}
 .sh-openprices{margin-left:auto}
@@ -2887,24 +2904,34 @@ const SHOP_JS = `
       return;
     }
 
-    /* зберегти всі ціни одним рухом */
+    /* Зберігаємо всі ціни ОДНИМ запитом: коли їх слали окремо, кожен
+       перезаписував спільну мапу, і доїжджала лише остання правка. */
     var save=e.target.closest('.sh-saveprices');
     if(save){
       var rows=[].slice.call(document.querySelectorAll('.sh-prow'));
+      var prices={},flags={};
+      rows.forEach(function(r){
+        prices[r.dataset.item]=r.querySelector('input').value;
+        flags[r.dataset.item]=r.querySelector('.sh-flag').classList.contains('on');
+      });
       save.disabled=true;
-      Promise.all(rows.map(function(r){
-        return post('/api/shop/price',{item:r.dataset.item,price:r.querySelector('input').value})
-          .then(function(j){
-            if(j.error)return;
-            var card=document.querySelector('.sh-card[data-id="'+r.dataset.item+'"]');
-            if(!card)return;
-            var p=card.querySelector('.sh-p');
-            if(p)p.textContent=j.price?j.price+' ✨FP':'безкоштовно';
-            var b=card.querySelector('.sh-buy');
-            if(b)b.textContent=j.price?j.price+' ✨':'Взяти';
-          });
-      })).then(function(){
-        save.disabled=false;save.classList.add('done');
+      post('/api/shop/prices',{prices:prices,booster:flags}).then(function(j){
+        save.disabled=false;
+        if(j.error){fail(j.error);return}
+        (j.items||[]).forEach(function(it){
+          var card=document.querySelector('.sh-card[data-id="'+it.id+'"]');
+          if(!card)return;
+          var p=card.querySelector('.sh-p');
+          if(p)p.textContent=it.price?it.price+' ✨FP':'безкоштовно';
+          var b=card.querySelector('.sh-buy');
+          if(b)b.textContent=it.price?it.price+' ✨':'Взяти';
+          var badge=card.querySelector('.sh-badge');
+          if(it.booster&&!badge){
+            var s=document.createElement('span');s.className='sh-badge';s.textContent='💜';
+            card.insertBefore(s,card.querySelector('.sh-b'));
+          }else if(!it.booster&&badge)badge.remove();
+        });
+        save.classList.add('done');
         setTimeout(function(){save.classList.remove('done')},900);
       });
       return;
@@ -4467,18 +4494,38 @@ export function shopPage({
     </a>`).join('')}
   </aside>`;
 
-  // Ціни й позначки правляться в окремому вікні — на картках це виглядало брудно.
+  // Ціни й позначки правляться в окремому вікні. У кожному рядку видно саму
+  // річ, а не лише назву: інакше не зрозуміло, чому саме міняєш ціну.
+  const priceRow = (p) => {
+    const cat = categories.find((c) => c.id === p.category);
+    const sample = p.pack ? p.items[0] : p;
+    return `<div class="sh-prow" data-item="${esc(p.id)}">
+      <span class="sh-pv">${swatchOne(sample)}</span>
+      <span class="sh-pn">
+        <b>${esc(p.name)}</b>
+        <i>${esc(cat?.name ?? p.category)}${p.pack ? ` · ${p.items.length} ${esc(t(lang, 'shop.inPack'))}` : ''}</i>
+      </span>
+      <input type="number" min="0" max="99999" value="${p.price}"
+        aria-label="${esc(t(lang, 'shop.price'))}">
+      <span class="sh-pfp">✨</span>
+      <button class="btn ghost sm sh-flag${p.booster ? ' on' : ''}" data-item="${esc(p.id)}"
+        title="${esc(t(lang, 'shop.boosterOnly'))}">💜</button>
+    </div>`;
+  };
+
   const priceWin = admin
     ? `<div class="pv-back" id="sh-prices" hidden><div class="pv sh-pricewin">
         <div class="pv-h"><b>${esc(t(lang, 'shop.prices'))}</b>
           <button class="gate-x sh-pricex" aria-label="×">×</button></div>
         <div class="sh-pricelist">
-          ${items.map((p) => `<div class="sh-prow" data-item="${esc(p.id)}">
-            <span class="sh-pn">${esc(p.name)}</span>
-            <input type="number" min="0" max="99999" value="${p.price}" aria-label="${esc(t(lang, 'shop.price'))}">
-            <button class="btn ghost sm sh-flag${p.booster ? ' on' : ''}" data-item="${esc(p.id)}"
-              title="${esc(t(lang, 'shop.boosterOnly'))}">💜</button>
-          </div>`).join('')}
+          ${categories.filter((c) => c.id !== 'custom').map((c) => {
+    const list = items.filter((i) => i.category === c.id);
+    if (!list.length) return '';
+    return `<div class="sh-pgroup">
+              <div class="sh-gt">${esc(c.name)}</div>
+              ${list.map(priceRow).join('')}
+            </div>`;
+  }).join('')}
         </div>
         <div class="pv-f">
           <span class="hint">${esc(t(lang, 'shop.pricesHint'))}</span>

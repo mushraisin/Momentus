@@ -704,6 +704,20 @@ async function shopApi(req, res, guild, session, action) {
     return json(res, 200, { ok: true, booster: cosmeticsService.boosterOnly(guild.id, itemId) });
   }
 
+  // Усі ціни одним запитом: окремі запити перезаписували мапу одне одному,
+  // і доїжджала лише остання правка.
+  if (action === 'prices') {
+    if (!isAdmin(guild, session)) return json(res, 403, { error: 'forbidden' });
+    await cosmeticsService.setPrices(guild.id, body.prices ?? {});
+    if (body.booster) await cosmeticsService.setBoosterFlags(guild.id, body.booster);
+
+    const catalog = cosmeticsService.catalog(guild.id);
+    return json(res, 200, {
+      ok: true,
+      items: catalog.map((p) => ({ id: p.id, price: p.price, booster: p.booster })),
+    });
+  }
+
   return json(res, 404, { error: 'unknown' });
 }
 
