@@ -829,6 +829,109 @@ export const warnRepo = {
 };
 
 // ─────────────────────────────────────────────
+//  КОСМЕТИКА: ГАМАНЕЦЬ, ПОКУПКИ, ВИГЛЯД ПРОФІЛЮ
+// ─────────────────────────────────────────────
+export const walletRepo = {
+  async get(guildId, userId) {
+    const row = await get('SELECT * FROM wallets WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    if (!row) return { balance: 0, earned: 0, lastGrant: null };
+    return { balance: num(row.balance), earned: num(row.earned), lastGrant: row.last_grant ?? null };
+  },
+
+  /** Нарахувати. day — щоб не видати двічі за той самий день. */
+  async add(guildId, userId, amount, day = null) {
+    await run(`
+      INSERT INTO wallets (guild_id, user_id, balance, earned, last_grant)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id, user_id) DO UPDATE SET
+        balance = balance + excluded.balance,
+        earned = earned + excluded.earned,
+        last_grant = COALESCE(excluded.last_grant, wallets.last_grant)
+    `, [guildId, userId, amount, Math.max(0, amount), day]);
+    return this.get(guildId, userId);
+  },
+
+  /** Списати. Повертає false, якщо не вистачає — без від'ємних балансів. */
+  async spend(guildId, userId, amount) {
+    const w = await this.get(guildId, userId);
+    if (w.balance < amount) return false;
+    await run(
+      'UPDATE wallets SET balance = balance - ? WHERE guild_id = ? AND user_id = ? AND balance >= ?',
+      [amount, guildId, userId, amount],
+    );
+    return true;
+  },
+
+  top(guildId, limit = 20) {
+    return all(
+      'SELECT user_id, balance FROM wallets WHERE guild_id = ? ORDER BY balance DESC LIMIT ?',
+      [guildId, limit],
+    );
+  },
+};
+
+export const itemsRepo = {
+  async owned(guildId, userId) {
+    const rows = await all('SELECT item_id FROM user_items WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    return rows.map((r) => r.item_id);
+  },
+
+  async has(guildId, userId, itemId) {
+    const row = await get(
+      'SELECT 1 AS x FROM user_items WHERE guild_id = ? AND user_id = ? AND item_id = ?',
+      [guildId, userId, itemId],
+    );
+    return !!row;
+  },
+
+  give(guildId, userId, itemId, price = 0) {
+    return run(`
+      INSERT INTO user_items (guild_id, user_id, item_id, price, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id, user_id, item_id) DO NOTHING
+    `, [guildId, userId, itemId, price, Date.now()]);
+  },
+};
+
+export const prefsRepo = {
+  async get(guildId, userId) {
+    const row = await get('SELECT * FROM profile_prefs WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    if (!row) return { about: '', banner: null, accent: null, background: null, layout: null };
+    return {
+      about: row.about ?? '',
+      banner: row.banner ?? null,
+      accent: row.accent ?? null,
+      background: row.background ?? null,
+      layout: safeJson(row.layout) ?? null,
+    };
+  },
+
+  /** Пишемо лише передані поля — решта лишається як була. */
+  async save(guildId, userId, patch) {
+    const cur = await this.get(guildId, userId);
+    const next = {
+      about: patch.about ?? cur.about,
+      banner: patch.banner === undefined ? cur.banner : patch.banner,
+      accent: patch.accent === undefined ? cur.accent : patch.accent,
+      background: patch.background === undefined ? cur.background : patch.background,
+      layout: patch.layout === undefined ? cur.layout : patch.layout,
+    };
+    await run(`
+      INSERT INTO profile_prefs (guild_id, user_id, about, banner, accent, background, layout, updated_at)
+      VALUES (@g, @u, @about, @banner, @accent, @background, @layout, @now)
+      ON CONFLICT(guild_id, user_id) DO UPDATE SET
+        about=excluded.about, banner=excluded.banner, accent=excluded.accent,
+        background=excluded.background, layout=excluded.layout, updated_at=excluded.updated_at
+    `, {
+      g: guildId, u: userId, about: next.about ?? '', banner: next.banner,
+      accent: next.accent, background: next.background,
+      layout: next.layout ? JSON.stringify(next.layout) : null, now: Date.now(),
+    });
+    return next;
+  },
+};
+
+// ─────────────────────────────────────────────
 //  ДІЇ ПЕРСОНАЛУ (нагляд)
 // ─────────────────────────────────────────────
 export const staffRepo = {

@@ -545,11 +545,16 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   filter:blur(58px) saturate(1.7);transform:translateZ(0);
   transition:opacity .9s ease}
 .room.live .ambient{opacity:.62}
-/* у повному екрані світло має де розійтися — робимо його ширшим і живішим */
-.room:fullscreen .ambient,.room:-webkit-full-screen .ambient{
-  left:-10%;right:-10%;top:-8%;bottom:-12%;width:120%;height:120%;
-  filter:blur(76px) saturate(1.8);border-radius:0}
-.room:fullscreen.live .ambient,.room.fs.live .ambient{opacity:.55}
+/* У повному екрані сцена займає весь екран, тож світлу нема куди вийти
+   за її межі. Робимо саму сцену прозорою: чорні поля навколо кадру
+   перестають бути глухими, і крізь них видно те саме світло. */
+.room.fs .ambient,.room:fullscreen .ambient,.room:-webkit-full-screen .ambient{
+  left:0;right:0;top:0;bottom:0;width:100%;height:100%;
+  filter:blur(90px) saturate(1.75);border-radius:0}
+.room.fs.live .ambient,.room:fullscreen.live .ambient{opacity:.7}
+.room.fs .screen,.room:fullscreen .screen,.room:-webkit-full-screen .screen{background:transparent}
+.room.fs .screen .cin-media,.room:fullscreen .screen .cin-media,
+.room:-webkit-full-screen .screen .cin-media{background:transparent}
 /* коли кадр узяти неможливо (чужа рамка, захищений потік) — лишається
    рівне акцентне сяйво, тож порожнеча однаково не чорна */
 .stagewrap.noframe::before{opacity:1}
@@ -892,6 +897,86 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   .wrap.wide{max-width:1720px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── Оформлення сторінки учасника ── */
+.pf-head{position:relative;overflow:hidden}
+.pf-head.withbanner{padding-top:0}
+.pf-banner{position:relative;margin:-22px -22px 18px;height:180px;overflow:hidden}
+.pf-banner img{width:100%;height:100%;object-fit:cover;display:block;
+  animation:fadeIn .8s both;transform:scale(1.02)}
+/* знизу банер розчиняється в картці — інакше різкий стик виглядає грубо */
+.pf-banner::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.15) 0%,rgba(0,0,0,0) 40%,var(--card) 100%)}
+@media(max-width:600px){.pf-banner{height:130px}}
+
+.pf-aboutbox .pane-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pf-text{white-space:pre-wrap;line-height:1.6}
+.pf-edit{display:none;width:100%;min-height:110px;margin-top:10px;padding:12px 14px;
+  border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);
+  color:var(--text);font:inherit;font-size:14px;resize:vertical;transition:.2s}
+.pf-edit:focus{outline:0;border-color:rgba(107,124,255,.6);box-shadow:0 0 0 3px rgba(107,124,255,.16)}
+.pf-aboutbox.editing .pf-text{display:none}
+.pf-aboutbox.editing .pf-edit{display:block}
+
+.pf-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.pf-shot{height:64px;border-radius:12px;border:1px solid var(--line);cursor:pointer;
+  background:rgba(255,255,255,.05) center/cover no-repeat;color:var(--dim);
+  font:inherit;font-size:12px;transition:.25s cubic-bezier(.22,.9,.3,1)}
+.pf-shot:hover{transform:translateY(-2px);border-color:rgba(107,124,255,.55)}
+.pf-shot.on{border-color:rgba(107,124,255,.8);box-shadow:0 0 0 3px rgba(107,124,255,.22)}
+.pf-shot:active{transform:scale(.96)}
+
+/* ── Магазин косметики ──
+   Кожна річ показує саму себе, а не іконку: колір є колір, градієнт є
+   градієнт. Замкнені набори видно всім — щоб було зрозуміло, заради
+   чого бустити сервер. */
+.shop{display:flex;flex-direction:column;gap:26px}
+.sh-wallet{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  background:linear-gradient(135deg,rgba(107,124,255,.14),rgba(155,107,255,.07)),var(--card)}
+.sh-bal{display:flex;align-items:baseline;gap:8px}
+.sh-bal b{font-size:34px;font-weight:800;letter-spacing:-.02em;
+  background:linear-gradient(180deg,#fff,#b9c2ff);-webkit-background-clip:text;
+  background-clip:text;color:transparent}
+.sh-bal span{color:var(--dim);font-size:13px;letter-spacing:.1em}
+.sh-coin{font-size:24px;animation:coin 3.5s ease-in-out infinite;transform-origin:center}
+@keyframes coin{0%,88%,100%{transform:rotate(0) scale(1)}92%{transform:rotate(-12deg) scale(1.12)}96%{transform:rotate(10deg) scale(1.08)}}
+.sh-wallet .hint{margin-left:auto;text-align:right;max-width:320px}
+.sh-boost{width:100%;padding:9px 14px;border-radius:12px;font-size:13px;color:var(--dim);
+  background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.sh-boost.on{color:#d9b8ff;background:rgba(155,107,255,.14);border-color:rgba(155,107,255,.35)}
+
+.sh-sec{animation:fadeUp .5s both}
+.sh-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px}
+.sh-h h2{margin:0 0 2px;font-size:19px;letter-spacing:-.01em}
+.tagp.good{border-color:rgba(67,196,123,.45);background:rgba(67,196,123,.14);color:#7fe0a4}
+.sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:14px}
+
+.sh-card{position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;
+  border-radius:16px;background:var(--card);border:1px solid var(--line);
+  animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
+.sh-card:hover{transform:translateY(-4px);border-color:rgba(107,124,255,.4);
+  box-shadow:0 16px 40px rgba(0,0,0,.45)}
+.sh-card.worn{border-color:rgba(107,124,255,.6);box-shadow:0 0 0 3px rgba(107,124,255,.16)}
+.sh-card.locked{opacity:.62}
+.sh-card.locked:hover{opacity:.85;transform:none;box-shadow:none}
+/* прев'ю самої речі */
+.sh-prev{display:block;height:84px;border-radius:12px;border:1px solid rgba(255,255,255,.1);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.5);transition:.35s}
+.sh-card:hover .sh-prev{transform:scale(1.02)}
+.sh-prev.accent{background:radial-gradient(circle at 30% 30%,var(--c),#0a0d16 72%)}
+.sh-prev.feat{display:flex;align-items:center;justify-content:center;font-size:30px;
+  background:rgba(255,255,255,.04)}
+.sh-b{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sh-n{font-weight:700;font-size:14px}
+.sh-p{font-size:12px;color:var(--dim);white-space:nowrap}
+.sh-a{display:flex}
+.sh-a .btn{width:100%;text-align:center;padding:9px 12px;font-size:13px}
+.sh-have{width:100%;text-align:center;padding:9px 12px;font-size:13px;color:var(--good)}
+/* коротка іскра після вдалої покупки */
+.sh-card.bought{animation:bought .7s cubic-bezier(.22,.9,.3,1)}
+@keyframes bought{0%{box-shadow:0 0 0 0 rgba(107,124,255,.55)}
+  60%{box-shadow:0 0 0 14px rgba(107,124,255,0)}100%{box-shadow:0 0 0 0 rgba(107,124,255,0)}}
+@media(max-width:560px){.sh-wallet .hint{margin-left:0;text-align:left}}
 
 /* ── Графік репутації на профілі ── */
 .chartbox{padding:18px 20px 14px}
@@ -2444,6 +2529,85 @@ const CINEMA_JS = `
 `;
 
 /** Панель модерації: усі перевірки на сервері, тут лише зручність. */
+/**
+ * Магазин: покупка й одягання без перезавантаження сторінки.
+ * Кожна дія одразу видно на самій картці — і в балансі згори.
+ */
+const SHOP_JS = `
+(function(){
+  var err=document.getElementById('sh-err');
+  function fail(t){if(!err)return;err.textContent=t;err.hidden=!t;
+    if(t)setTimeout(function(){err.hidden=true},4000)}
+
+  function post(url,item){
+    return fetch(url,{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({item:item})}).then(function(r){return r.json()}).catch(function(){return{error:'net'}});
+  }
+
+  document.addEventListener('click',function(e){
+    var buy=e.target.closest('.sh-buy');
+    if(buy){
+      var card=buy.closest('.sh-card');
+      buy.disabled=true;buy.classList.add('busy');
+      post('/api/shop/buy',buy.dataset.item).then(function(j){
+        buy.disabled=false;buy.classList.remove('busy');
+        if(j.error){
+          fail(({funds:'Не вистачає FP',booster:'Це відкривається бустерам сервера',
+            owned:'Уже ваше'})[j.error]||j.error);
+          return;
+        }
+        var bal=document.getElementById('sh-balance');
+        if(bal&&typeof j.balance==='number')bal.textContent=j.balance;
+        card.classList.add('bought');
+        setTimeout(function(){location.reload()},650);
+      });
+      return;
+    }
+
+    var eq=e.target.closest('.sh-equip');
+    if(eq){
+      var worn=eq.classList.contains('on');
+      eq.disabled=true;
+      /* повторний клік по одягненому — знімаємо оформлення */
+      post('/api/shop/equip',worn?'':eq.dataset.item).then(function(j){
+        eq.disabled=false;
+        if(j.error){fail(j.error);return}
+        location.reload();
+      });
+    }
+  });
+})();
+`;
+
+/** Профіль: опис і банер редагуються прямо на сторінці. */
+const PROFILE_JS = `
+(function(){
+  var box=document.getElementById('pf-about'),edit=document.getElementById('pf-edit');
+  if(edit&&box)edit.addEventListener('click',function(){
+    var open=box.classList.toggle('editing');
+    edit.textContent=edit.dataset[open?'save':'edit'];
+    if(open){var ta=box.querySelector('textarea');if(ta)ta.focus();return}
+
+    var ta=box.querySelector('textarea');
+    fetch('/api/profile',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({about:ta?ta.value:''})})
+      .then(function(r){return r.json()}).then(function(j){
+        if(j.error)return;
+        location.reload();
+      }).catch(function(){});
+  });
+
+  /* банер обирається з власних публікацій */
+  var pick=document.getElementById('pf-banner');
+  if(pick)pick.addEventListener('click',function(e){
+    var b=e.target.closest('.pf-shot');if(!b)return;
+    fetch('/api/profile',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({banner:b.dataset.item||0})})
+      .then(function(r){return r.json()}).then(function(){location.reload()}).catch(function(){});
+  });
+})();
+`;
+
 const MOD_JS = `
 (function(){
   var kind='text',err=document.getElementById('mod-err');
@@ -2740,6 +2904,8 @@ export function layout({
       page === 'cinema' ? PLAYERS_JS : '',
       page === 'cinema' ? CINEMA_JS : '',
       page === 'mod' ? MOD_JS : '',
+      page === 'shop' ? SHOP_JS : '',
+      page === 'me' ? PROFILE_JS : '',
     ].filter(Boolean).join('\n'),
     // Смуга навігації йде на всю ширину вікна, а її вміст тримається тієї ж
     // сітки, що й сторінка. На головній її немає — там своя обкладинка.
@@ -2827,8 +2993,57 @@ export function leaderboardPage(rows, lang = 'uk') {
     <tbody>${body}</tbody></table></div>`;
 }
 
-export function profilePage(profile, { username, avatar, roleName, roleColor, rank, lang = 'uk' }) {
-  const accent = roleColor || '#6b7cff';
+export function profilePage(profile, {
+  username, avatar, roleName, roleColor, rank, lang = 'uk',
+  look = {}, mine = false, can = {}, shots = [],
+}) {
+  // Обраний акцент важить більше за колір ролі: це свідомий вибір людини.
+  const accent = look.accent || roleColor || '#6b7cff';
+
+  // Фон сторінки. Зорі й дим лишаються — просто лягають поверх обраного
+  // кольору й трохи притлумлюються, щоб не забивати його.
+  const bg = look.background;
+  const bgCss = bg
+    ? (bg.type === 'gradient'
+      ? `linear-gradient(${bg.angle ?? 160}deg,${bg.from},${bg.to})`
+      : bg.color)
+    : null;
+  const skin = bgCss
+    ? `<style>.bg{background:${esc(bgCss)}}#fog{opacity:.34;mix-blend-mode:screen}
+        #stars{opacity:.7}</style>`
+    : '';
+
+  const banner = look.banner
+    ? `<div class="pf-banner"><img src="/media/${esc(look.banner)}" alt=""></div>`
+    : '';
+
+  // Опис показуємо, якщо він є; редагувати може лише власник із доступом.
+  const aboutText = String(look.about ?? '').trim();
+  const about = (aboutText || (mine && can.about))
+    ? `<div class="card pane rise pf-aboutbox" id="pf-about">
+        <div class="pane-h">${esc(t(lang, 'profile.about'))}
+          ${mine && can.about ? `<button class="btn ghost sm" id="pf-edit"
+            data-edit="${esc(t(lang, 'profile.edit'))}"
+            data-save="${esc(t(lang, 'profile.save'))}">${esc(t(lang, 'profile.edit'))}</button>` : ''}
+        </div>
+        <div class="pf-text">${aboutText ? esc(aboutText) : `<span class="muted">—</span>`}</div>
+        ${mine && can.about ? `<textarea class="pf-edit" maxlength="400"
+          placeholder="${esc(t(lang, 'profile.aboutEdit'))}">${esc(aboutText)}</textarea>` : ''}
+      </div>`
+    : '';
+
+  // Банер обирається зі своїх же публікацій — чужі картинки сюди не потраплять.
+  const bannerPick = mine && can.banner && shots.length
+    ? `<div class="card pane rise" id="pf-banner">
+        <div class="pane-h">${esc(t(lang, 'profile.banner'))}</div>
+        <div class="hint" style="margin-bottom:10px">${esc(t(lang, 'profile.bannerPick'))}</div>
+        <div class="pf-shots">
+          <button class="pf-shot none" data-item="0">${esc(t(lang, 'profile.bannerNone'))}</button>
+          ${shots.map((s) => `<button class="pf-shot${String(look.banner) === String(s.id) ? ' on' : ''}"
+            data-item="${s.id}" style="background-image:url(/media/${s.id})"></button>`).join('')}
+        </div>
+      </div>`
+    : '';
   // Розклад по категоріях більше не показуємо: назовні йде саме загальне
   // число, а як воно рухалося — видно з графіка нижче.
 
@@ -2839,8 +3054,9 @@ export function profilePage(profile, { username, avatar, roleName, roleColor, ra
     [fmt(profile.activeDays), t(lang, 'profile.activeDays')],
   ].map(([b, s], i) => `<div class="tile" style="animation-delay:${(0.1 + i * 0.06).toFixed(2)}s"><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join('');
 
-  return `
-  <div class="card rise">
+  return `${skin}
+  <div class="card rise pf-head${banner ? ' withbanner' : ''}">
+    ${banner}
     <div class="row">
       <img class="avatar" src="${esc(avatar)}" alt="" style="border-color:${esc(accent)}">
       <div>
@@ -2852,7 +3068,9 @@ export function profilePage(profile, { username, avatar, roleName, roleColor, ra
     </div>
     <div class="tiles">${tiles}</div>
   </div>
-  ${scoreChart(profile, { lang, accent })}`;
+  ${about}
+  ${scoreChart(profile, { lang, accent })}
+  ${bannerPick}`;
 }
 
 /**
@@ -3393,6 +3611,103 @@ export function dropdown(id, options, label = '') {
         data-value="${esc(v)}">${esc(l)}</button>`).join('')}
     </div>
   </details>`;
+}
+
+/**
+ * Магазин косметики.
+ *
+ * Каталог розбитий по наборах; кожна річ — картка з живим прев'ю самого
+ * оформлення, а не з іконкою. Бустерські набори видно всім (щоб було видно,
+ * заради чого бустити), але кнопка в них замкнена.
+ */
+export function shopPage({
+  items = [], owned = [], equipped = {}, booster = false,
+  balance = 0, earned = 0, lang = 'uk',
+}) {
+  const has = new Set(owned);
+
+  const PACKS = [
+    ['solid', t(lang, 'shop.packSolid'), t(lang, 'shop.packSolidHint')],
+    ['gradient', t(lang, 'shop.packGradient'), t(lang, 'shop.packGradientHint')],
+    ['accent', t(lang, 'shop.packAccent'), t(lang, 'shop.packAccentHint')],
+    ['profile', t(lang, 'shop.packProfile'), t(lang, 'shop.packProfileHint')],
+  ];
+
+  /** Живе прев'ю: сама річ, а не її опис. */
+  const preview = (it) => {
+    if (it.kind === 'background' && it.value.type === 'solid') {
+      return `<span class="sh-prev" style="background:${esc(it.value.color)}"></span>`;
+    }
+    if (it.kind === 'background' && it.value.type === 'gradient') {
+      return `<span class="sh-prev" style="background:linear-gradient(${it.value.angle}deg,${esc(it.value.from)},${esc(it.value.to)})"></span>`;
+    }
+    if (it.kind === 'accent') {
+      return `<span class="sh-prev accent" style="--c:${esc(it.value.color)}"></span>`;
+    }
+    return `<span class="sh-prev feat">${it.value.feature === 'banner' ? '🖼' : '✎'}</span>`;
+  };
+
+  const card = (it, i) => {
+    const mine = has.has(it.id);
+    const worn = equipped.background === it.id
+      || (it.kind === 'accent' && equipped.accent === it.value.color);
+    const locked = it.booster && !booster;
+
+    const action = locked
+      ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
+      : mine
+        ? (it.kind === 'feature'
+          ? `<span class="sh-have">✓ ${esc(t(lang, 'shop.owned'))}</span>`
+          : `<button class="btn ghost sm sh-equip${worn ? ' on pick-el' : ''}" data-item="${esc(it.id)}">
+              ${worn ? esc(t(lang, 'shop.worn')) : esc(t(lang, 'shop.wear'))}</button>`)
+        : `<button class="btn sm sh-buy" data-item="${esc(it.id)}" data-price="${it.price}">
+            ${it.price ? `${it.price} ✨` : esc(t(lang, 'shop.take'))}</button>`;
+
+    return `<article class="sh-card${locked ? ' locked' : ''}${worn ? ' worn' : ''}"
+        data-id="${esc(it.id)}" style="animation-delay:${Math.min(i * 0.04, 0.4)}s">
+      ${preview(it)}
+      <div class="sh-b">
+        <div class="sh-n">${esc(it.name)}</div>
+        <div class="sh-p">${it.price ? `${it.price} ✨FP` : esc(t(lang, 'shop.free'))}</div>
+      </div>
+      <div class="sh-a">${action}</div>
+    </article>`;
+  };
+
+  const sections = PACKS.map(([pack, title, hint]) => {
+    const list = items.filter((i) => i.pack === pack);
+    if (!list.length) return '';
+    const need = list.some((i) => i.booster);
+    return `<section class="sh-sec">
+      <div class="sh-h">
+        <div>
+          <h2>${esc(title)}</h2>
+          <div class="hint">${esc(hint)}</div>
+        </div>
+        ${need ? `<span class="tagp${booster ? ' good' : ''}">${booster
+          ? `✓ ${esc(t(lang, 'shop.youBoost'))}`
+          : `🔒 ${esc(t(lang, 'shop.forBoosters'))}`}</span>` : ''}
+      </div>
+      <div class="sh-grid">${list.map(card).join('')}</div>
+    </section>`;
+  }).join('');
+
+  return `<div class="shop">
+    <div class="card pane sh-wallet rise">
+      <div class="sh-bal">
+        <span class="sh-coin">✨</span>
+        <b id="sh-balance">${fmt(balance)}</b>
+        <span>FP</span>
+      </div>
+      <div class="hint">${esc(t(lang, 'shop.earned', { n: fmt(earned) }))}</div>
+      <div class="hint">${esc(t(lang, 'shop.howEarn'))}</div>
+      ${booster
+        ? `<div class="sh-boost on">💜 ${esc(t(lang, 'shop.boosterOn'))}</div>`
+        : `<div class="sh-boost">${esc(t(lang, 'shop.boosterOff'))}</div>`}
+    </div>
+    ${sections}
+    <div class="err" id="sh-err" hidden></div>
+  </div>`;
 }
 
 export function modPage({

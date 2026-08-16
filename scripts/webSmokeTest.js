@@ -877,6 +877,14 @@ ok('субтитри: вибір доріжки та вимкнення');
   assert.match(c.body, /wrap\.classList\.add\('noframe'\)/, 'є запасний варіант без кадру');
   assert.match(c.body, /dead=true;clearInterval\(timer\)/, 'після SecurityError більше не пробуємо');
   assert.match(c.body, /prefers-reduced-motion: reduce/, 'системне «менше руху» враховано');
+
+  // у повному екрані сцена займає весь екран, тож світлу нема куди вийти
+  // за її межі — робимо саму сцену прозорою, і воно світить крізь чорні поля
+  assert.match(c.body, /\.room\.fs \.screen,[^{]*\{background:transparent\}/,
+    'у повному екрані сцена прозора');
+  assert.match(c.body, /\.room\.fs \.ambient[^{]*\{\s*left:0;right:0;top:0;bottom:0/,
+    'світло розтягується на весь екран');
+  assert.match(c.body, /\.room\.fs\.live \.ambient,[^{]*\{opacity:\.7\}/, 'і світить помітніше');
 }
 ok('світло залу підхоплює кольори кадру');
 
@@ -907,6 +915,82 @@ ok('світло залу підхоплює кольори кадру');
   assert.ok(lo <= Math.min(...vals) && hi >= Math.max(...vals), 'усі точки вміщаються');
 }
 ok('профіль: загальне число й графік динаміки замість категорій');
+
+// 21. магазин косметики: ✨FP, безкоштовний набір і гейт для бустерів
+{
+  const shop = await req('/shop', auth);
+  assert.equal(shop.status, 200, 'сторінка магазину відкривається');
+  assert.ok(shop.body.includes('sh-balance'), 'баланс FP на видноті');
+  for (const pack of ['Однотонні фони', 'Градієнти', 'Акцентні кольори', 'Оформлення профілю']) {
+    assert.ok(shop.body.includes(pack), `набір «${pack}» показано`);
+  }
+  // однотонні — безкоштовні й доступні всім; бустерські видно, але замкнені
+  assert.ok((shop.body.match(/class="sh-card"/g) ?? []).length >= 8, 'безкоштовний набір цілий');
+  assert.ok(shop.body.includes('sh-card locked'), 'бустерські набори видно, але замкнені');
+  assert.ok(shop.body.includes('Лише бустерам'), 'зрозуміло, чому замкнено');
+  assert.ok(!shop.body.includes('<select'), 'жодних нативних select');
+
+  // анонім у магазин не заходить
+  assert.equal((await req('/shop')).status, 302, 'без входу — на сторінку входу');
+
+  // взяти безкоштовне, вдруге — вже своє
+  const take = await jreq('/api/shop/buy', auth, { item: 'solid.dusk' });
+  assert.equal(take.status, 200, 'безкоштовне береться');
+  assert.equal((await jreq('/api/shop/buy', auth, { item: 'solid.dusk' })).status, 400, 'двічі не візьмеш');
+
+  // платне без грошей — відмова; бустерське без бусту — теж
+  const poor = await jreq('/api/shop/buy', auth, { item: 'feat.about' });
+  assert.equal(JSON.parse(poor.body).error, 'funds', 'без FP не купиш');
+  const noBoost = await jreq('/api/shop/buy', auth, { item: 'grad.aurora' });
+  assert.equal(JSON.parse(noBoost.body).error, 'booster', 'бустерське закрите');
+
+  // одягнути можна лише своє
+  assert.equal((await jreq('/api/shop/equip', auth, { item: 'solid.dusk' })).status, 200, 'своє одягається');
+  assert.equal((await jreq('/api/shop/equip', auth, { item: 'grad.ember' })).status, 400, 'чуже — ні');
+
+  // фон ліг на сторінку, але зорі й дим лишились
+  const me = await req('/me', auth);
+  assert.match(me.body, /\.bg\{background:#150f22\}/, 'обраний фон застосовано');
+  assert.ok(me.body.includes('id="stars"') && me.body.includes('id="fog"'), 'зорі й дим на місці');
+  assert.match(me.body, /#fog\{opacity:\.34/, 'дим притлумлено, щоб не забивав колір');
+
+  // зняти оформлення
+  assert.equal((await jreq('/api/shop/equip', auth, { item: '' })).status, 200, 'оформлення знімається');
+  assert.ok(!/\.bg\{background:#150f22\}/.test((await req('/me', auth)).body), 'фон повернувся до типового');
+}
+ok('магазин: ✨FP, безкоштовні фони всім, решта — бустерам');
+
+// 22. персоналізація профілю: опис і банер лише з власним доступом
+{
+  const { itemsRepo } = await import('../src/database/repositories.js');
+
+  // без покупки — редагувати нічого
+  assert.equal((await jreq('/api/profile', auth, { about: 'привіт' })).status, 403, 'опис замкнено');
+
+  await itemsRepo.give(G, U, 'feat.about', 0);
+  const saved = await jreq('/api/profile', auth, { about: 'Люблю довгі прогулянки <script>' });
+  assert.equal(saved.status, 200, 'з доступом опис зберігається');
+
+  const me = await req('/me', auth);
+  assert.ok(me.body.includes('Люблю довгі прогулянки'), 'опис видно на сторінці');
+  assert.ok(!me.body.includes('<script>Л') && me.body.includes('&lt;script&gt;'), 'текст екрановано');
+  assert.ok(me.body.includes('pf-edit'), 'власник бачить кнопку редагування');
+
+  // банер — лише зі своїх публікацій
+  await itemsRepo.give(G, U, 'feat.banner', 0);
+  const own = (await import('../src/database/repositories.js')).galleryRepo;
+  const mineItems = await own.list(G, { limit: 1, userId: U });
+  if (mineItems.length) {
+    assert.equal((await jreq('/api/profile', auth, { banner: mineItems[0].id })).status, 200, 'свій банер можна');
+    assert.ok((await req('/me', auth)).body.includes('pf-banner'), 'банер на сторінці');
+  }
+  assert.equal((await jreq('/api/profile', auth, { banner: 999999 })).status, 400, 'чужу публікацію — ні');
+
+  // чужий профіль редагувати не можна
+  const other = await req(`/u/${OWNER_ID}`, auth);
+  assert.ok(!other.body.includes('id="pf-edit"'), 'на чужій сторінці кнопки редагування немає');
+}
+ok('профіль: опис і банер редагує лише власник із доступом');
 
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });

@@ -163,6 +163,40 @@ CREATE TABLE IF NOT EXISTS warnings (
 );
 CREATE INDEX IF NOT EXISTS idx_warn_user ON warnings (guild_id, user_id, expires_at);
 
+-- ── Косметика: гаманець, покупки й вигляд профілю ──
+-- Валюта ✨FP нараховується за активність; куплене лишається назавжди,
+-- навіть якщо людина перестала бустити сервер.
+CREATE TABLE IF NOT EXISTS wallets (
+  guild_id   TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  balance    INTEGER NOT NULL DEFAULT 0,
+  earned     INTEGER NOT NULL DEFAULT 0,
+  last_grant TEXT,
+  PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_items (
+  guild_id   TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  item_id    TEXT NOT NULL,
+  price      INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id, item_id)
+);
+
+-- Вигляд сторінки учасника: банер, опис, обране оформлення.
+CREATE TABLE IF NOT EXISTS profile_prefs (
+  guild_id   TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  about      TEXT,
+  banner     TEXT,
+  accent     TEXT,
+  background TEXT,
+  layout     TEXT,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
+
 -- Дії персоналу з нативними правами Discord: відключення з голосового,
 -- серверні мути, кіки, бани. Потрібні лише для нагляду, тож живуть недовго.
 CREATE TABLE IF NOT EXISTS staff_actions (

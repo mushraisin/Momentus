@@ -5,8 +5,9 @@ import { profileService } from '../services/profileService.js';
 import { verificationService } from '../services/verificationService.js';
 import {
   reputationRepo, sitePagesRepo, siteAssetsRepo, sessionsRepo, galleryRepo,
-  cinemaRepo, cinemaQueueRepo, cinemaLogRepo,
+  cinemaRepo, cinemaQueueRepo, cinemaLogRepo, prefsRepo,
 } from '../database/repositories.js';
+import { cosmeticsService } from '../services/cosmeticsService.js';
 import { oauth, avatarUrl } from './oauth.js';
 import { profileCard } from '../ui/cards.js';
 import { parseMultipart, kindOf } from './multipart.js';
@@ -335,6 +336,21 @@ async function handle(req, res) {
     return modApi(req, res, guild, session, path.slice(9));
   }
 
+  // ── магазин косметики ──
+  if (path === '/shop') {
+    if (!session) {
+      res.writeHead(302, { Location: '/login?next=%2Fshop' });
+      return res.end();
+    }
+    return renderShop(res, guild, session, lang, path);
+  }
+  if (path.startsWith('/api/shop/') && req.method === 'POST') {
+    return shopApi(req, res, guild, session, path.slice(10));
+  }
+  if (path === '/api/profile' && req.method === 'POST') {
+    return profileApi(req, res, guild, session);
+  }
+
   // ── пошук учасників для вибору (без вписування ID) ──
   if (path === '/api/members') {
     if (!isModerator(guild, session)) return json(res, 403, { error: 'forbidden' });
@@ -559,6 +575,90 @@ async function handleUpload(req, res, guild, session, lang) {
   await galleryRepo.add({ ...base, storage: 'db', content: file.data.toString('base64') });
   log.info(`Галерея → БД: ${session.username}, ${kind}, ${mb} MB`);
   return back(null);
+}
+
+// ─────────────────────────────────────────────
+//  Магазин косметики
+// ─────────────────────────────────────────────
+async function renderShop(res, guild, session, lang, path) {
+  const member = guild.members.cache.get(session.user_id)
+    ?? await guild.members.fetch(session.user_id).catch(() => null);
+
+  const wallet = await cosmeticsService.wallet(guild.id, session.user_id);
+  const owned = await cosmeticsService.owned(guild.id, session.user_id);
+  const prefs = await prefsRepo.get(guild.id, session.user_id);
+
+  const body = R.shopPage({
+    items: cosmeticsService.CATALOG,
+    owned,
+    equipped: { background: prefs.background, accent: prefs.accent },
+    booster: cosmeticsService.isBooster(member),
+    balance: wallet.balance,
+    earned: wallet.earned,
+    lang,
+  });
+  return html(res, 200, guild, session, lang, path, t(lang, 'shop.title'), body, false, 'shop');
+}
+
+async function shopApi(req, res, guild, session, action) {
+  if (!session) return json(res, 401, { error: 'auth' });
+  // Учасника може не бути в кеші — це не привід відмовляти:
+  // без нього просто вважаємо, що бусту немає.
+  const member = guild.members.cache.get(session.user_id)
+    ?? await guild.members.fetch(session.user_id).catch(() => null);
+
+  const body = await readJson(req).catch(() => ({}));
+  const itemId = String(body.item ?? '').slice(0, 60);
+
+  if (action === 'buy') {
+    const r = await cosmeticsService.buy(guild.id, session.user_id, member, itemId);
+    if (!r.ok) return json(res, 400, { error: r.reason });
+    return json(res, 200, { ok: true, balance: r.balance });
+  }
+
+  if (action === 'equip') {
+    const saved = await cosmeticsService.equip(guild.id, session.user_id, itemId || null);
+    if (saved === null) return json(res, 400, { error: 'not owned' });
+    return json(res, 200, { ok: true });
+  }
+
+  return json(res, 404, { error: 'unknown' });
+}
+
+/** Редагування власної сторінки: опис, банер, скидання оформлення. */
+async function profileApi(req, res, guild, session) {
+  if (!session) return json(res, 401, { error: 'auth' });
+  const member = guild.members.cache.get(session.user_id)
+    ?? await guild.members.fetch(session.user_id).catch(() => null);
+
+  const body = await readJson(req).catch(() => ({}));
+  const patch = {};
+
+  if (body.about !== undefined) {
+    if (!await cosmeticsService.canUse(guild.id, session.user_id, 'about')) {
+      return json(res, 403, { error: 'locked' });
+    }
+    patch.about = String(body.about).slice(0, 400);
+  }
+
+  if (body.banner !== undefined) {
+    if (!await cosmeticsService.canUse(guild.id, session.user_id, 'banner')) {
+      return json(res, 403, { error: 'locked' });
+    }
+    // банер беремо лише з власних публікацій — чужі картинки сюди не потрапляють
+    const id = Number(body.banner);
+    if (!id) patch.banner = null;
+    else {
+      const item = await galleryRepo.meta(id);
+      if (!item || item.guild_id !== guild.id || item.user_id !== session.user_id) {
+        return json(res, 400, { error: 'not yours' });
+      }
+      patch.banner = String(id);
+    }
+  }
+
+  const saved = await prefsRepo.save(guild.id, session.user_id, patch);
+  return json(res, 200, { ok: true, prefs: saved });
 }
 
 // ─────────────────────────────────────────────
@@ -1204,9 +1304,26 @@ async function renderProfile(res, guild, session, lang, path, userId) {
     publicUrl() ? `${publicUrl()}/og/u/${userId}` : undefined,
   );
 
+  // Оформлення сторінки: обраний фон, акцент, банер і опис.
+  // Дивиться його кожен, хто відкрив профіль, а не лише сам власник.
+  const look = await cosmeticsService.look(guild.id, userId);
+  const mine = session?.user_id === userId;
+  const can = mine
+    ? {
+      about: await cosmeticsService.canUse(guild.id, session.user_id, 'about'),
+      banner: await cosmeticsService.canUse(guild.id, session.user_id, 'banner'),
+    }
+    : { about: false, banner: false };
+  // для вибору банера показуємо власні публікації
+  const shots = mine && can.banner
+    ? (await galleryRepo.list(guild.id, { limit: 12, userId })).map((g) => ({ id: g.id, kind: g.kind }))
+    : [];
+
   return html(res, 200, guild, session, lang, path, username,
-    R.profilePage(profile, { username, avatar, roleName, roleColor, rank, lang }),
-    false, null, og);
+    R.profilePage(profile, {
+      username, avatar, roleName, roleColor, rank, lang, look, mine, can, shots,
+    }),
+    false, mine ? 'me' : null, og);
 }
 
 async function topRows(guild, limit) {
@@ -1249,6 +1366,8 @@ async function html(res, code, guild, session, lang, path, title, body, gallery 
     ...(configService.get(guild.id, 'cinema.enabled')
       ? [{ href: '/cinema', label: t(lang, 'nav.cinema'), active: path === '/cinema' }]
       : []),
+    // магазин косметики — лише для тих, хто зайшов: анонімам купувати нічого
+    ...(session ? [{ href: '/shop', label: `✨ ${t(lang, 'nav.shop')}`, active: path === '/shop' }] : []),
     ...pages.map((p) => ({ href: `/${p.slug}`, label: p.title, active: path === `/${p.slug}` })),
     // окремої кнопки «Профіль» немає — до нього ведуть аватар і нік у шапці
     // кнопку модерації бачать лише ті, кому вона доступна

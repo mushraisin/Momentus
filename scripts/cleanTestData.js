@@ -12,6 +12,7 @@ const TABLES = [
   'site_pages', 'site_assets', 'moderation_log', 'role_grants', 'ai_insights',
   'config', 'message_samples', 'gallery_items', 'web_sessions',
   'punishments', 'warnings', 'staff_actions',
+  'wallets', 'user_items', 'profile_prefs',
 ];
 
 /** Префікси, з якими тести створюють гільдії. */

@@ -3,6 +3,7 @@ import { backupService } from './backupService.js';
 import { reputationRepo, warnRepo, staffRepo } from '../database/repositories.js';
 import { pipeline } from './analysisPipeline.js';
 import { punishmentService } from './punishmentService.js';
+import { cosmeticsService } from './cosmeticsService.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('scheduler');
@@ -42,7 +43,13 @@ async function runDaily(client) {
     const guildIds = [...client.guilds.cache.keys()];
     for (const guildId of guildIds) {
       const rows = await reputationRepo.leaderboard(guildId, 5000);
-      for (const r of rows) await reputationService.snapshot(guildId, r.user_id);
+      let fp = 0;
+      for (const r of rows) {
+        await reputationService.snapshot(guildId, r.user_id);
+        // ✨FP за вчорашню активність; повторний виклик за той самий день нічого не додасть
+        fp += await cosmeticsService.grantDaily(guildId, r.user_id).catch(() => 0);
+      }
+      if (fp) log.info(`Нараховано ${fp} FP у ${guildId}`);
     }
     await backupService.run();
     await backupService.purgeOldData(guildIds);
