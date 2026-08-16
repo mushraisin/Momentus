@@ -19,6 +19,14 @@ const commands = [
   { name: 'Профіль репутації', type: ApplicationCommandType.User },
   { name: 'Модерувати', type: ApplicationCommandType.User },
   { name: 'Панель адміністратора', type: ApplicationCommandType.User },
+  // Єдина slash-команда: нею власник викликає майстер налаштування
+  // в тому каналі, де її ввів. Решта функціоналу лишається на кнопках.
+  {
+    name: 'налаштування',
+    description: 'Надіслати майстер налаштування бота в цей канал',
+    type: ApplicationCommandType.ChatInput,
+    dm_permission: false,
+  },
 ];
 
 const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);

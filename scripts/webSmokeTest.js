@@ -526,9 +526,19 @@ ok('панель модерації на сайті: кнопка й сторі�
   const cur = JSON.parse((await req('/api/cinema/state', adm)).body).source;
   const first = JSON.parse((await jreq('/api/cinema/next', adm, { current: cur })).body);
   assert.equal(first.source, 'CCCcccDDD22', 'увімкнулось перше з черги');
+  assert.equal(first.playing, true, 'перехід у черзі не зупиняє сеанс');
+  // позиція рахується «наживо», тож звіряємо з допуском, а не з нулем
+  assert.ok(first.positionMs < 2000, `нове відео з початку (${first.positionMs} мс)`);
   const again = JSON.parse((await jreq('/api/cinema/next', adm, { current: cur })).body);
   assert.equal(again.source, 'CCCcccDDD22', 'повторний виклик нічого не перескочив');
   assert.equal(again.queue.length, 1, 'у черзі лишився один запис');
+
+  // черга скінчилась — сеанс завершується, а не висить чорним екраном
+  const cinPageEnd = await req('/cinema', adm);
+  assert.ok(cinPageEnd.body.includes("post('stop')"), 'кінець без черги завершує сеанс');
+  await jreq('/api/cinema/stop', adm);
+  const stopped = JSON.parse((await req('/api/cinema/state', adm)).body);
+  assert.equal(stopped.source, null, 'сеанс завершено');
 
   // список тих, кому видані права — навіть якщо їх немає в каналі
   await jreq('/api/cinema/grant', adm, { userId: '999888777666555444' });

@@ -880,7 +880,11 @@ async function cinemaAction(req, res, guild, session, action) {
     };
   };
 
-  const start = (item) => cinemaRepo.save(guild.id, {
+  /**
+   * @param {boolean} autoplay Перехід із черги не має зупиняти сеанс —
+   *   наступне відео просто починає грати далі.
+   */
+  const start = (item, autoplay = false) => cinemaRepo.save(guild.id, {
     source: item.source,
     provider: item.provider,
     syncMode: item.syncMode,
@@ -888,7 +892,7 @@ async function cinemaAction(req, res, guild, session, action) {
     variants: item.variants ?? [],
     pageUrl: item.pageUrl ?? null,
     title: item.title ?? null,
-    playing: false,
+    playing: autoplay,
     positionMs: 0,
     updatedBy: session.user_id,
   });
@@ -984,7 +988,8 @@ async function cinemaAction(req, res, guild, session, action) {
         ? (await cinemaQueueRepo.list(guild.id, 50)).find((x) => x.id === Number(body.id))
         : await cinemaQueueRepo.first(guild.id);
       if (!item) return json(res, 404, { error: 'empty' });
-      await start(item);
+      // сеанс не переривається: наступне з черги одразу грає далі
+      await start(item, true);
       await cinemaQueueRepo.remove(guild.id, item.id);
       await note('next', item.title ?? item.provider);
       break;

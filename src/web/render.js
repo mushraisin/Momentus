@@ -1327,8 +1327,14 @@ const CINEMA_JS = `
        керує сеансом; сервер додатково відкидає повторні виклики за полем
        current, тож двоє редакторів не перескочать через один ролик. */
     if(player.onEnded)player.onEnded(function(){
-      if(!canEdit||!queueLen)return;
-      post('next',{current:cfg.src}).then(function(j){if(j&&!j.error)location.reload()});
+      if(!canEdit)return;
+      /* є що далі — вмикаємо наступне; черга порожня — сеанс завершується,
+         щоб зал не лишався з чорним екраном і застиглим часом */
+      if(queueLen){
+        post('next',{current:cfg.src}).then(function(j){if(j&&!j.error)location.reload()});
+      }else{
+        post('stop').then(function(j){if(j&&!j.error)location.reload()});
+      }
     });
 
     /* Аудіодоріжки зі стріму — окремий випадок озвучок, підставляємо їх у те саме меню */

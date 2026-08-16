@@ -15,6 +15,7 @@ export const NS = {
   ADMIN: 'adm',
   DEV: 'dev',
   GAL: 'gal',
+  MOD: 'mod',
 };
 
 /** Рівні доступу. */

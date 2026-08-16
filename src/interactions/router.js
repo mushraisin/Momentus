@@ -36,8 +36,10 @@ async function ephemeral(interaction, payload) {
 /** Головна точка входу для всіх interactionCreate. */
 export async function routeInteraction(interaction) {
   try {
-    if (interaction.isButton() || interaction.isStringSelectMenu()
-      || interaction.isChannelSelectMenu() || interaction.isRoleSelectMenu()) {
+    // Усі види селекторів — інакше нативний вибір учасника мовчки не працює.
+    if (interaction.isButton() || interaction.isAnySelectMenu?.()
+      || interaction.isStringSelectMenu() || interaction.isChannelSelectMenu()
+      || interaction.isRoleSelectMenu() || interaction.isUserSelectMenu?.()) {
       return await handleComponent(interaction);
     }
     if (interaction.isModalSubmit()) {
@@ -46,11 +48,35 @@ export async function routeInteraction(interaction) {
     if (interaction.isUserContextMenuCommand()) {
       return await handleContextMenu(interaction);
     }
+    if (interaction.isChatInputCommand()) {
+      return await handleSlash(interaction);
+    }
   } catch (err) {
     log.error('Помилка обробки взаємодії', err);
     try {
       await ephemeral(interaction, '⚠️ Сталася помилка.');
     } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Єдина slash-команда — майстер налаштування. Доступна лише власнику:
+ * решта отримує коротку відмову, яку бачать тільки вони.
+ */
+async function handleSlash(interaction) {
+  if (interaction.commandName !== 'налаштування') return;
+
+  if (!accessService.isOwner(interaction.user.id)) {
+    return ephemeral(interaction, '⛔ Ця команда лише для власника бота.');
+  }
+  if (!interaction.guild) return ephemeral(interaction, '⚠️ Тільки на сервері.');
+
+  try {
+    // майстер зʼявляється саме там, де команду ввели
+    await interaction.channel.send(admin.setupPanel(interaction.guild));
+    return ephemeral(interaction, '✅ Майстер налаштування нижче.');
+  } catch (err) {
+    return ephemeral(interaction, `⚠️ Не вдалося надіслати: ${err.message}`);
   }
 }
 
