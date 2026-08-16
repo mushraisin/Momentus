@@ -2,6 +2,7 @@ import { PermissionFlagsBits, ChannelType } from 'discord.js';
 import { punishRepo, modRepo, warnRepo, reputationRepo } from '../database/repositories.js';
 import { reputationService } from './reputationService.js';
 import { configService } from './configService.js';
+import { OWNER_ID } from '../config/constants.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('mod');
@@ -152,6 +153,69 @@ export const punishmentService = {
     });
 
     return { kind, until };
+  },
+
+  /**
+   * Чи має право саме цей учасник зняти саме це покарання.
+   *
+   * Правило просте: знімає той, чия роль вища за роль того, хто видав.
+   * Своє покарання можна зняти завжди, автоматичне (від системи) — будь-кому
+   * з доступом до панелі, а власника ієрархія не стосується.
+   *
+   * @returns {Promise<{ok:boolean, why:string|null}>}
+   */
+  async canLift(guild, member, punishment) {
+    if (!member) return { ok: false, why: 'Немає доступу.' };
+    if (member.id === OWNER_ID) return { ok: true, why: null };
+
+    const issuerId = punishment?.moderatorId ?? punishment?.moderator_id ?? null;
+    if (!issuerId || issuerId === 'system') return { ok: true, why: null };
+    if (issuerId === member.id) return { ok: true, why: null };
+
+    const issuer = guild.members.cache.get(issuerId)
+      ?? await guild.members.fetch(issuerId).catch(() => null);
+    if (!issuer) return { ok: true, why: null };                  // видав той, кого вже немає
+    if (issuer.id === OWNER_ID) {
+      return { ok: false, why: 'Це покарання видав власник — зняти може лише він.' };
+    }
+
+    const mine = member.roles?.highest?.position ?? 0;
+    const theirs = issuer.roles?.highest?.position ?? 0;
+    if (mine > theirs) return { ok: true, why: null };
+    return {
+      ok: false,
+      why: `Зняти може лише той, чия роль вища за роль ${issuer.displayName ?? 'модератора'}.`,
+    };
+  },
+
+  /**
+   * Повернути покарання, яке зняли повз систему.
+   * Строк лишається тим самим — час, який людина «вкрала», не дарується.
+   */
+  async restore(guild, member, punishment) {
+    const { kind, until, reason } = punishment;
+    if (kind === 'full') {
+      const left = until ? until - Date.now() : MAX_TIMEOUT_MS;
+      if (left <= 0) return false;
+      await member.timeout(Math.min(left, MAX_TIMEOUT_MS), 'Повернуто: знято повз систему');
+    } else {
+      const role = await this.ensureRole(guild, kind);
+      if (!role) return false;
+      await member.roles.add(role, 'Повернуто: знято повз систему');
+      if (kind === 'voice' && member.voice?.channelId) {
+        await member.voice.setMute(true, 'Повернуто').catch(() => {});
+      }
+    }
+
+    await punishRepo.set({
+      guildId: guild.id, userId: member.id, kind, until, reason,
+      moderatorId: punishment.moderatorId ?? 'system',
+    });
+    await modRepo.add({
+      guildId: guild.id, userId: member.id, moderatorId: 'system',
+      action: `mute.${kind}`, reason, result: 'restored',
+    }).catch(() => {});
+    return true;
   },
 
   /** Зняти покарання (одне або всі). */

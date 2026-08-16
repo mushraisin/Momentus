@@ -2012,7 +2012,8 @@ const MOD_JS = `
       fetch('/api/mod/lift',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({userId:lift.dataset.user,kind:lift.dataset.kind})})
         .then(function(r){return r.json()}).then(function(j){
-          if(j.error){fail(j.error);return}
+          /* ієрархія: пояснення приходить із сервера готовим текстом */
+          if(j.error){fail(j.message||j.error);return}
           location.reload();
         }).catch(function(){});
       return;

@@ -617,7 +617,17 @@ async function modApi(req, res, guild, session, action) {
   if (accessService.level(target) >= level) return json(res, 403, { error: 'rank' });
 
   if (action === 'lift') {
-    await punishmentService.lift(guild, targetId, String(body.kind ?? 'all'), session.user_id);
+    // знімає той, чия роль вища за роль того, хто видав
+    const me = guild.members.cache.get(session.user_id)
+      ?? await guild.members.fetch(session.user_id).catch(() => null);
+    const kind = String(body.kind ?? 'all');
+    const list = await punishmentService.forUser(guild.id, targetId);
+    for (const p of (kind === 'all' ? list : list.filter((x) => x.kind === kind))) {
+      const { ok, why } = await punishmentService.canLift(guild, me, p);
+      if (!ok) return json(res, 403, { error: 'hierarchy', message: why });
+    }
+
+    await punishmentService.lift(guild, targetId, kind, session.user_id);
     await punishmentService.notify(guild, {
       target: target.user, moderator: session.user_id, kind: body.kind === 'all' ? 'full' : body.kind, lifted: true,
     });

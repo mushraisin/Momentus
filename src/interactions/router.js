@@ -249,6 +249,14 @@ async function modHandlers(interaction, action, args) {
       const guard = await canModerate(interaction, targetId);
       if (guard) return ephemeral(interaction, guard);
 
+      // знімає той, чия роль вища за роль того, хто видав
+      const list = await punishmentService.forUser(guild.id, targetId);
+      const toLift = (kind && kind !== 'all') ? list.filter((p) => p.kind === kind) : list;
+      for (const p of toLift) {
+        const { ok, why } = await punishmentService.canLift(guild, interaction.member, p);
+        if (!ok) return ephemeral(interaction, `⛔ ${why}`);
+      }
+
       await punishmentService.lift(guild, targetId, kind ?? 'all', interaction.user.id);
       const target = await guild.members.fetch(targetId).catch(() => null);
       if (target) {

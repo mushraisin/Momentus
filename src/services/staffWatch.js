@@ -1,6 +1,6 @@
 import { staffRepo, modRepo, usersRepo } from '../database/repositories.js';
 import { configService } from './configService.js';
-import { punishmentService } from './punishmentService.js';
+import { punishmentService, KIND_LABEL } from './punishmentService.js';
 import { OWNER_ID } from '../config/constants.js';
 import { createLogger } from '../core/logger.js';
 
@@ -31,6 +31,7 @@ export const ACTION_WEIGHT = {
   kick: 5,
   ban: 6,
   'message.bulkDelete': 3,
+  'punish.lift': 4,          // зняття покарання повз систему
 };
 
 export const ACTION_LABEL = {
@@ -42,6 +43,7 @@ export const ACTION_LABEL = {
   kick: 'виганяння',
   ban: 'бан',
   'message.bulkDelete': 'масове видалення повідомлень',
+  'punish.lift': 'зняття покарання повз систему',
 };
 
 /** Щоб не сипати попередженнями чергою — одне на модератора за вікно. */
@@ -142,6 +144,71 @@ export const staffWatch = {
 
     log.info(`Авто-попередження ${moderatorId}: ${reason}`);
     return { count: warnCount, score: round(score), reason, auto };
+  },
+
+  /**
+   * Покарання зняли повз бота — просто в Discord.
+   *
+   * Знімати можна лише через панель чи сайт: там працює ієрархія
+   * (знімає той, чия роль вища за роль того, хто видав). Тому таке зняття
+   * ми відкочуємо: покарання повертається з тим самим строком, а той,
+   * хто його зняв, отримує попередження.
+   *
+   * Винятки (власник, ролі поза наглядом) не караються — для них це
+   * рахується як звичайне зняття, запис просто прибирається.
+   *
+   * @returns {Promise<null|{restored:boolean, warned:boolean, kind:string}>}
+   */
+  async unauthorizedLift(guild, { moderatorId, targetId, kind }) {
+    if (!moderatorId || !targetId) return null;
+    if (moderatorId === guild.client?.user?.id) return null;      // це зняв сам бот
+    if (moderatorId === targetId) return null;                    // сам себе не звільнить
+
+    const list = await punishmentService.forUser(guild.id, targetId).catch(() => []);
+    const p = list.find((x) => x.kind === kind && (!x.until || x.until > Date.now()));
+    if (!p) return null;                                          // ми такого не видавали
+
+    const mod = guild.members.cache.get(moderatorId)
+      ?? await guild.members.fetch(moderatorId).catch(() => null);
+    const target = guild.members.cache.get(targetId)
+      ?? await guild.members.fetch(targetId).catch(() => null);
+
+    // винятки знімають як хочуть — просто закриваємо запис
+    if (this.exempt(guild.id, mod)) {
+      await punishmentService.lift(guild, targetId, kind, moderatorId).catch(() => {});
+      return { restored: false, warned: false, kind };
+    }
+    if (!target) return null;
+
+    const restored = await punishmentService.restore(guild, target, p).catch(() => false);
+
+    const reason = `Зняв ${KIND_LABEL[kind] ?? kind} повз систему модерації`;
+    const note = `кому: <@${targetId}> · видав: ${p.moderatorId === 'system' ? 'Система' : `<@${p.moderatorId}>`}`
+      + (restored ? ' · покарання повернуто' : '');
+
+    let warned = false;
+    if (mod) {
+      const { auto } = await punishmentService.warn(guild, mod, { reason, moderatorId: 'system' });
+      warned = true;
+      await punishmentService.notify(guild, {
+        target: mod.user, moderator: 'system', kind: 'warn', reason, note,
+      }).catch(() => {});
+      if (auto) {
+        await punishmentService.notify(guild, {
+          target: mod.user, moderator: 'system', kind: 'full',
+          minutes: auto.minutes, reason: 'Три попередження',
+        }).catch(() => {});
+      }
+    }
+
+    await staffRepo.add(guild.id, { moderatorId, targetId, action: 'punish.lift', weight: ACTION_WEIGHT['punish.lift'] });
+    await modRepo.add({
+      guildId: guild.id, userId: moderatorId, moderatorId: 'system',
+      action: 'staff.lift', reason, result: restored ? 'restored' : 'applied', note,
+    }).catch(() => {});
+
+    log.info(`${moderatorId} зняв ${kind} з ${targetId} повз систему — повернуто`);
+    return { restored, warned, kind };
   },
 
   /** Скільки «наробив» модератор за вікно — для панелі. */

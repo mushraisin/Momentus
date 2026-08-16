@@ -178,5 +178,82 @@ assert.ok(src.includes('GuildAuditLogEntryCreate'), 'слухаємо журна
 assert.ok(src.includes('staffWatch.record'), 'дії передаються в нагляд');
 ok(`розбір журналу аудиту: ${cases.length - 1} видів подій`);
 
+// 11. зняття покарання повз систему: повертаємо й попереджаємо
+const { punishmentService } = await import('../src/services/punishmentService.js');
+const G5 = `${G}-lift`;
+await configService.load(G5);
+await configService.set(G5, 'general.modLogChannelId', 'log-1');
+await configService.set(G5, 'moderation.staffWatch', true);
+
+const applied = { roles: [], timeouts: [] };
+const victim = {
+  ...mkMember(VICTIM),
+  roles: { cache: new Map(), add: async (r) => applied.roles.push(r.id ?? r), remove: async () => {} },
+  timeout: async (ms) => applied.timeouts.push(ms),
+};
+const guild5 = {
+  ...guild,
+  id: G5,
+  members: { cache: new Map([[STAFF, members.get(STAFF)], [VICTIM, victim]]), fetch: async (id) => (id === VICTIM ? victim : members.get(id) ?? null) },
+};
+
+await punishmentService.apply(guild5, victim, {
+  kind: 'text', minutes: 120, reason: 'спам', moderatorId: '999000999000999000',
+});
+applied.roles.length = 0;
+
+const rollback = await staffWatch.unauthorizedLift(guild5, {
+  moderatorId: STAFF, targetId: VICTIM, kind: 'text',
+});
+assert.ok(rollback?.restored, 'покарання повернуто');
+assert.ok(applied.roles.length >= 1, 'роль мута начеплено назад');
+const back = await punishmentService.forUser(G5, VICTIM);
+assert.ok(back.some((p) => p.kind === 'text'), 'запис про покарання лишився чинним');
+assert.equal((await warnRepo.active(G5, STAFF)).length, 1, 'той, хто зняв, отримав попередження');
+const liftLog = sent.filter((p) => p.embeds?.[0]?.description?.includes('повз систему')).pop();
+assert.ok(liftLog, 'у лог-канал прийшло пояснення');
+assert.match(liftLog.embeds[0].description, /покарання повернуто/, 'сказано, що повернули');
+ok('зняття повз систему → покарання назад + попередження');
+
+// 12. те саме від винятку — приймаємо як звичайне зняття
+const G6 = `${G}-lift-boss`;
+await configService.load(G6);
+await configService.set(G6, 'moderation.staffExemptRoles', ['role-boss']);
+const guild6 = { ...guild5, id: G6 };
+await punishmentService.apply(guild6, victim, {
+  kind: 'text', minutes: 60, reason: 'спам', moderatorId: '999000999000999000',
+});
+const byBoss = await staffWatch.unauthorizedLift(guild6, {
+  moderatorId: BOSS, targetId: VICTIM, kind: 'text',
+});
+assert.equal(byBoss?.restored, false, 'винятку не відкочуємо');
+assert.equal((await warnRepo.active(G6, BOSS)).length, 0, 'і не попереджаємо');
+assert.equal((await punishmentService.forUser(G6, VICTIM)).length, 0, 'запис прибрано');
+ok('виняток знімає вручну — без відкоту й попередження');
+
+// 13. ієрархія: знімає лише той, чия роль вища за роль того, хто видав
+const withRole = (id, pos) => ({
+  id,
+  displayName: `Роль ${pos}`,
+  roles: { highest: { position: pos }, cache: new Map() },
+});
+const low = withRole('low-1', 3);
+const high = withRole('high-1', 9);
+const hier = new Map([[low.id, low], [high.id, high]]);
+const guild7 = { ...guild, id: G5, members: { cache: hier, fetch: async (id) => hier.get(id) ?? null } };
+const pun = { kind: 'text', until: Date.now() + 60_000, moderatorId: high.id };
+
+assert.equal((await punishmentService.canLift(guild7, low, pun)).ok, false, 'нижчий не знімає чуже');
+assert.equal((await punishmentService.canLift(guild7, high, pun)).ok, true, 'свій знімає завжди');
+assert.equal((await punishmentService.canLift(guild7, high, { ...pun, moderatorId: low.id })).ok, true,
+  'вища роль знімає покарання нижчої');
+assert.equal((await punishmentService.canLift(guild7, low, { ...pun, moderatorId: 'system' })).ok, true,
+  'автоматичне знімає будь-хто з доступом');
+assert.equal((await punishmentService.canLift(guild7, low, { ...pun, moderatorId: 'gone-1' })).ok, true,
+  'якщо того, хто видав, уже немає — знімається');
+const why = (await punishmentService.canLift(guild7, low, pun)).why;
+assert.match(why, /роль вища/, 'відмова пояснює причину');
+ok('ієрархія зняття: тільки роль вища за ту, що видала');
+
 console.log(`\n✅ Усі ${passed} перевірок нагляду за персоналом пройдено.`);
 process.exit(0);

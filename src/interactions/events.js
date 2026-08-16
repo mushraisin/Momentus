@@ -99,6 +99,14 @@ export function registerEvents(client) {
   client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {
     try {
       const executorId = entry.executorId ?? 'unknown';
+
+      // 0) покарання зняли прямо в Discord — повертаємо й попереджаємо
+      for (const kind of readLift(entry, guild)) {
+        await staffWatch.unauthorizedLift(guild, {
+          moderatorId: executorId, targetId: entry.targetId, kind,
+        }).catch((e) => log.warn('відкат зняття впав', e.message));
+      }
+
       const seen = readAudit(entry);
       if (!seen) return;
       const { action, punishment, count } = seen;
@@ -170,6 +178,33 @@ function readAudit(entry) {
     default:
       return null;
   }
+}
+
+/**
+ * Які покарання бота зняли прямо в Discord, повз панель.
+ *
+ * Timeout видно як обнулення `communication_disabled_until`, службові мути —
+ * як зняття ролі. Хто зняв, ми беремо з того самого запису.
+ *
+ * @returns {string[]} види покарань: full | text | voice
+ */
+function readLift(entry, guild) {
+  const out = [];
+
+  if (entry.action === AuditLogEvent.MemberUpdate) {
+    const t = entry.changes?.find((c) => c.key === 'communication_disabled_until');
+    if (t && (t.new == null || new Date(t.new).getTime() <= Date.now())) out.push('full');
+  }
+
+  if (entry.action === AuditLogEvent.MemberRoleUpdate) {
+    const removed = entry.changes?.find((c) => c.key === '$remove')?.new ?? [];
+    for (const kind of ['text', 'voice']) {
+      const roleId = configService.get(guild.id, `moderation.${kind}MuteRoleId`);
+      if (roleId && removed.some((r) => (r?.id ?? r) === roleId)) out.push(kind);
+    }
+  }
+
+  return out;
 }
 
 /** Надіслати первинне налаштування, якщо канал панелі ще не привʼязано. */
