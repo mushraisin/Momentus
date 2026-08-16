@@ -146,9 +146,11 @@ nav:has(.langs[open]){overflow:visible}
   background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:17px;font-weight:700;
   transition:.3s cubic-bezier(.22,.9,.3,1)}
 .gbtn:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.14)}
-/* службова кнопка на головній — стриманий червонуватий відтінок */
-.gbtn.modbtn{border-color:rgba(239,83,80,.35);background:rgba(239,83,80,.1)}
-.gbtn.modbtn:hover{border-color:rgba(239,83,80,.65);background:rgba(239,83,80,.2)}
+/* службова кнопка поруч із чипом профілю — того ж розміру, іншого відтінку */
+.me.modchip{border-color:rgba(239,83,80,.35);background:rgba(239,83,80,.1);
+  padding:5px 13px 5px 11px;transition:.28s cubic-bezier(.22,.9,.3,1)}
+.me.modchip:hover{border-color:rgba(239,83,80,.65);background:rgba(239,83,80,.2);transform:translateY(-2px)}
+.me.modchip .mi{font-size:14px;line-height:1}
 
 /* ── Картки ── */
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;margin:16px 0;
@@ -1992,6 +1994,13 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
       </div>`
     : '';
 
+  // Службова кнопка стоїть поруч із чипом профілю в куті, а не серед головних.
+  const modChip = mod
+    ? `<a class="me modchip" href="/mod" title="${esc(t(lang, 'nav.mod'))}">
+        <span class="mi">🛡️</span><span>${esc(t(lang, 'nav.mod'))}</span>
+      </a>`
+    : '';
+
   const primary = session
     ? `<a class="dbtn" href="/me">${DISCORD_ICON}<span>${esc(t(lang, 'landing.profile'))}</span></a>`
     : `<a class="dbtn" href="/login?next=/">${DISCORD_ICON}<span>${esc(t(lang, 'landing.login'))}</span></a>`;
@@ -2000,7 +2009,7 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
     title: 'Моментус',
     meta: og ? metaTags(og) : '',
     content: `<div class="wrap">
-      <header><span></span><nav>${chip}${langSwitch(lang, '/')}</nav></header>
+      <header><span></span><nav>${chip}${modChip}${langSwitch(lang, '/')}</nav></header>
       <section class="hero">
         <h1 class="logo" aria-label="Моментус">${letters('МОМЕНТУС')}</h1>
         <div class="hline"></div>
@@ -2010,7 +2019,6 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
           ${primary}
           <a class="gbtn" href="/gallery">🖼️ <span>${esc(t(lang, 'landing.gallery'))}</span></a>
           <a class="gbtn" href="/cinema">🎬 <span>${esc(t(lang, 'nav.cinema'))}</span></a>
-          ${mod ? `<a class="gbtn modbtn" href="/mod">🛡️ <span>${esc(t(lang, 'nav.mod'))}</span></a>` : ''}
         </div>
       </section>
     </div>`,

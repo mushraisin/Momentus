@@ -473,9 +473,15 @@ ok('галерея з Discord-каналу: публікація, звʼязок
 
   // на головній кнопки теж немає без прав
   // (шукаємо саме посилання, бо клас modbtn є ще й у стилях на кожній сторінці)
-  const LINK = 'class="gbtn modbtn" href="/mod"';
-  assert.ok(!(await req('/', auth)).body.includes(LINK), 'на головній кнопки немає');
-  assert.ok((await req('/', adm)).body.includes(LINK), 'адміністратор бачить її на головній');
+  // (шукаємо саме посилання, бо клас modchip є ще й у стилях на кожній сторінці)
+  const LINK = 'class="me modchip" href="/mod"';
+  const memberHome = await req('/', auth);
+  const adminHome = await req('/', adm);
+  assert.ok(!memberHome.body.includes(LINK), 'на головній кнопки немає');
+  assert.ok(adminHome.body.includes(LINK), 'адміністратор бачить її на головній');
+  // саме поруч із чипом профілю, а не серед головних кнопок
+  assert.ok(adminHome.body.indexOf(LINK) < adminHome.body.indexOf('class="cta"'), 'кнопка в шапці, біля профілю');
+  assert.ok(!adminHome.body.includes('gbtn modbtn'), 'серед головних кнопок її немає');
 
   // адміністратор: кнопка є, сторінка відкривається
   const asAdmin = await req('/gallery', adm);
