@@ -63,6 +63,13 @@ const DICT = {
     'profile.msg30': 'за 30 днів',
     'profile.voice': 'у голосових',
     'profile.activeDays': 'активних днів',
+    'profile.trend': 'Динаміка репутації',
+    'profile.trendSoon': 'Даних для графіка ще замало — зʼявиться за кілька днів.',
+    'profile.week': 'за тиждень',
+    'profile.month': 'за місяць',
+    'profile.today': 'сьогодні',
+    'profile.daysShort': 'дн.',
+    'profile.points': 'точок',
 
     // ── рейтинг ──
     'top.title': 'Рейтинг',
@@ -239,6 +246,13 @@ const DICT = {
     'profile.msg30': 'last 30 days',
     'profile.voice': 'voice',
     'profile.activeDays': 'active days',
+    'profile.trend': 'Reputation over time',
+    'profile.trendSoon': 'Not enough data yet — the chart appears in a few days.',
+    'profile.week': 'this week',
+    'profile.month': 'this month',
+    'profile.today': 'today',
+    'profile.daysShort': 'd',
+    'profile.points': 'points',
 
     'top.title': 'Leaderboard',
     'top.member': 'Member',

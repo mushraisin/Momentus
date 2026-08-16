@@ -861,6 +861,53 @@ ok('кінотеатр: налаштування в шухляді, атмосф
 }
 ok('субтитри: вибір доріжки та вимкнення');
 
+// 19.5 живе світло від кадру
+{
+  const c = await req('/cinema', adm);
+  assert.ok(c.body.includes('id="cin-ambient"'), 'полотно світла є');
+  assert.match(c.body, /<canvas class="ambient"[^>]*width="32" height="18"/, 'кадр беремо зменшеним');
+  assert.match(c.body, /\.ambient\{[^}]*filter:blur\(58px\) saturate\(1\.7\)/, 'кадр розмивається до плям');
+  assert.match(c.body, /\.ambient\{[^}]*pointer-events:none/, 'світло не ловить кліки');
+  assert.match(c.body, /\.room:fullscreen \.ambient/, 'у повному екрані світло ширше');
+
+  // кадр малюється лише коли є що малювати
+  assert.match(c.body, /if\(document\.hidden\|\|video\.paused\|\|video\.readyState<2\)return/,
+    'на паузі й у схованій вкладці не тратимо кадри');
+  // чужа рамка або потік без CORS — тихий відкат до рівного сяйва
+  assert.match(c.body, /wrap\.classList\.add\('noframe'\)/, 'є запасний варіант без кадру');
+  assert.match(c.body, /dead=true;clearInterval\(timer\)/, 'після SecurityError більше не пробуємо');
+  assert.match(c.body, /prefers-reduced-motion: reduce/, 'системне «менше руху» враховано');
+}
+ok('світло залу підхоплює кольори кадру');
+
+// 20. профіль: тільки загальне число + графік динаміки
+{
+  const { snapshotRepo } = await import('../src/database/repositories.js');
+  const vals = [420, 435, 428, 455, 470, 462, 488];
+  for (let i = 0; i < vals.length; i++) {
+    const day = new Date(Date.now() - (vals.length - 1 - i) * 86400_000).toISOString().slice(0, 10);
+    await snapshotRepo.take(G, U, { ai_score: vals[i] }, day);
+  }
+
+  const p = await req('/me', auth);
+  assert.equal(p.status, 200);
+  assert.ok(!p.body.includes('class="cat"'), 'розкладу по категоріях більше немає');
+  assert.match(p.body, /class="score"><b>\d+</, 'загальне число лишилось');
+
+  assert.ok(p.body.includes('class="chart"'), 'графік намальовано');
+  assert.match(p.body, /<path class="chline" d="M[\d.]+ [\d.]+ L/, 'лінія має точки');
+  assert.ok(p.body.includes('class="chdot"'), 'остання точка позначена');
+  assert.ok(p.body.includes('сьогодні'), 'підказка на останній точці');
+  assert.ok(p.body.includes('dchip'), 'зміни за тиждень і місяць');
+
+  // шкала не від нуля, інакше рух на кілька десятків виглядав би прямою
+  const foot = p.body.slice(p.body.indexOf('class="chfoot"'), p.body.indexOf('class="chfoot"') + 260);
+  const [lo, hi] = [...foot.matchAll(/<span>(\d+)<\/span>/g)].map((m) => Number(m[1]));
+  assert.ok(lo > 0 && hi > lo, `межі шкали по даних: ${lo}…${hi}`);
+  assert.ok(lo <= Math.min(...vals) && hi >= Math.max(...vals), 'усі точки вміщаються');
+}
+ok('профіль: загальне число й графік динаміки замість категорій');
+
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
 assert.equal(gone.status, 200);

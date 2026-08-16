@@ -93,12 +93,24 @@ export const reputationService = {
       peer: round1(peer),
     };
 
+    // Свіжий темп: тиждень проти місячної норми. Саме він робить число
+    // живим — категорії згладжені довгими вікнами й самі майже не рухаються.
+    // У таблиці reputation під нього колонки немає, тож тримаємо окремо
+    // й передаємо в розрахунок разом з рештою контексту.
+    const messages7d = await activityRepo.sumSince(guildId, userId, 7, 'messages');
+    const voice7d = await activityRepo.sumSince(guildId, userId, 7, 'voice_minutes');
+    const momentum = round1(momentumScore({ messages7d, messages30d, voice7d, voice30d }));
+
     rep.ai_score = computeAiScore(rep, weights, {
       samples: t.samples ?? 0,
       activeDays,
       daysOnServer,
+      momentum,
     });
     await reputationRepo.save(guildId, userId, rep);
+    // Знімок — на кожному перерахунку: точка за сьогодні просто оновлюється,
+    // тож графік на профілі завжди закінчується поточним значенням.
+    await snapshotRepo.take(guildId, userId, { ...rep, momentum }).catch(() => {});
     bus.emitSafe(EVENTS.REPUTATION_UPDATED, { guildId, userId, rep });
     return rep;
   },
@@ -116,6 +128,27 @@ export const reputationService = {
 // ─────────────────────────────────────────────
 //  Складові оцінок
 // ─────────────────────────────────────────────
+
+/**
+ * ТЕМП (0..100, 50 — «як зазвичай»).
+ *
+ * Порівнюємо останній тиждень із власною місячною нормою тієї ж людини,
+ * а не з чужою. Пише більше й сидить у голосових більше, ніж зазвичай, —
+ * темп вище 50; зник на тиждень — нижче. Саме ця складова щодня рухає
+ * підсумкове число, бо решта категорій згладжена довгими вікнами.
+ */
+function momentumScore({ messages7d = 0, messages30d = 0, voice7d = 0, voice30d = 0 }) {
+  const part = (recent, month) => {
+    const norm = month / 30 * 7;                       // скільки «мало б бути» за тиждень
+    if (norm < 1 && recent < 1) return 0.5;            // немає з чим порівнювати
+    if (norm < 1) return 0.8;                          // почав із нуля — це зростання
+    const ratio = recent / norm;                       // 1 — рівно як завжди
+    return clamp(0.5 + Math.log2(clamp(ratio, 0.25, 4)) / 4, 0, 1);
+  };
+  const msg = part(messages7d, messages30d);
+  const voice = part(voice7d, voice30d);
+  return clamp((msg * 0.7 + voice * 0.3) * 100, 0, 100);
+}
 
 function activityScore({ messages30d, voice30d, activeDays, daysOnServer }) {
   const msgPart = scale(messages30d, 400) * 0.5;         // 400 повідомл/міс = 100%
@@ -266,6 +299,11 @@ function computeAiScore(rep, weights, ctx = {}) {
     nl(rep.conflict, weights.conflict ?? 1.1) * 0.6;
 
   let score = (base * 10) - penalty * 3.2;
+
+  // Свіжий темп зсуває підсумок у межах ±60 балів: число реагує на цей
+  // тиждень, але не переписує репутацію, зароблену місяцями.
+  const momentum = typeof ctx.momentum === 'number' ? ctx.momentum : 50;
+  score += (momentum - 50) / 50 * 60;
 
   // 3) стелі: не можна мати високий рейтинг з поганою поведінкою
   if (rep.toxicity > 25) score = Math.min(score, 700);

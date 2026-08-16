@@ -1,4 +1,5 @@
-import { REPUTATION_CATEGORIES } from '../config/constants.js';
+// Розклад по категоріях зі сторінки прибрано — назовні лишається
+// саме загальне число, тож і константи категорій тут більше не потрібні.
 import { avatarUrl } from './oauth.js';
 import { t, LANGS } from '../i18n/index.js';
 import { PROVIDER_LABEL } from './providers.js';
@@ -534,6 +535,24 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 /* ── Завіса на паузі: пояснює, що коїться, замість чорного екрана ── */
 .stagewrap{position:relative;display:flex;flex-direction:column;min-height:0}
 .stagewrap>.screen{flex:1 1 auto;min-height:0}
+
+/* ── Живе світло від кадру ──
+   Полотно 32×18 із кадром, розтягнуте на всю сцену й розмите до плям:
+   темні сцени світять тьмяно, яскраві — заливають зал своїм кольором.
+   Лежить під екраном і не ловить кліки. */
+.ambient{position:absolute;left:-6%;right:-6%;top:-4%;bottom:-10%;width:112%;height:114%;
+  z-index:0;pointer-events:none;opacity:0;border-radius:50%;
+  filter:blur(58px) saturate(1.7);transform:translateZ(0);
+  transition:opacity .9s ease}
+.room.live .ambient{opacity:.62}
+/* у повному екрані світло має де розійтися — робимо його ширшим і живішим */
+.room:fullscreen .ambient,.room:-webkit-full-screen .ambient{
+  left:-10%;right:-10%;top:-8%;bottom:-12%;width:120%;height:120%;
+  filter:blur(76px) saturate(1.8);border-radius:0}
+.room:fullscreen.live .ambient,.room.fs.live .ambient{opacity:.55}
+/* коли кадр узяти неможливо (чужа рамка, захищений потік) — лишається
+   рівне акцентне сяйво, тож порожнеча однаково не чорна */
+.stagewrap.noframe::before{opacity:1}
 .curtain{position:absolute;inset:0;z-index:3;border-radius:14px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;
   background:rgba(4,6,11,.94);animation:fadeIn .25s both}
@@ -873,6 +892,30 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   .wrap.wide{max-width:1720px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── Графік репутації на профілі ── */
+.chartbox{padding:18px 20px 14px}
+.chartbox .pane-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.dchips{display:flex;gap:8px}
+.dchip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;
+  font-size:12px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.dchip b{font-size:13px;color:var(--text)}
+.dchip.up b{color:var(--good)}
+.dchip.down b{color:var(--bad)}
+.chart{width:100%;height:200px;display:block;margin:14px 0 4px;overflow:visible}
+.chline{stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;
+  filter:drop-shadow(0 4px 14px rgba(107,124,255,.45));
+  stroke-dasharray:2400;stroke-dashoffset:2400;animation:draw 1.4s cubic-bezier(.22,.9,.3,1) .15s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.charea{opacity:0;animation:fadeIn .8s .5s forwards}
+.chdot{animation:pop .5s 1.2s both;filter:drop-shadow(0 0 10px rgba(107,124,255,.8))}
+/* крапки під курсором: невидимі, поки не наведеш */
+.hp circle{fill:#fff;opacity:0;transition:opacity .15s;pointer-events:none}
+.hp:hover circle{opacity:1}
+.hp rect{cursor:crosshair}
+.chfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  font-size:11px;color:var(--dim);letter-spacing:.04em}
+.chart-empty{padding:34px 0 30px;text-align:center}
 
 /* ─────────────────────────────────────────────
    СПІЛЬНА МОВА «ОБРАНО / НАТИСНУТО»
@@ -1868,7 +1911,49 @@ const CINEMA_JS = `
       var w=expected()/1000;
       if(Math.abs(cur-w)>1.6){applying=true;player.seek(w);setTimeout(function(){applying=false},300)}
     });
+    startAmbient(player);
     setInterval(tick,250);
+  }
+
+  /**
+   * Живе світло від кадру.
+   *
+   * Раз на пів секунди зменшуємо поточний кадр до 32×18 і кладемо на полотно
+   * під сценою; далі CSS розмиває його до кольорових плям. Виходить те саме,
+   * що й «навколишнє світло» у відеосервісах, тільки без жодних бібліотек.
+   *
+   * Коли кадр узяти не можна — чужа рамка або потік без CORS (полотно тоді
+   * «псується» й кидає SecurityError) — тихо лишаємо рівне акцентне сяйво.
+   */
+  function startAmbient(player){
+    var cv=document.getElementById('cin-ambient'),wrap=document.querySelector('.stagewrap');
+    if(!cv||!wrap)return;
+    var video=player&&player.el&&player.el.tagName==='VIDEO'?player.el:null;
+    if(!video){wrap.classList.add('noframe');return}
+
+    var ctx=null;
+    try{ ctx=cv.getContext('2d',{willReadFrequently:false}) }catch(e){}
+    if(!ctx){wrap.classList.add('noframe');return}
+
+    /* повага до системного «менше руху»: світло стоїть, а не пульсує */
+    var still=matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var timer=null,dead=false;
+
+    function draw(){
+      if(dead)return;
+      /* невидима вкладка або пауза — не тратимо кадри намарно */
+      if(document.hidden||video.paused||video.readyState<2)return;
+      try{
+        ctx.drawImage(video,0,0,cv.width,cv.height);
+      }catch(e){
+        /* потік з чужого домену без CORS — полотно зіпсоване, більше не пробуємо */
+        dead=true;clearInterval(timer);wrap.classList.add('noframe');cv.remove();
+      }
+    }
+
+    draw();
+    timer=setInterval(draw,still?2000:500);
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)draw()});
   }
 
   function tick(){
@@ -2725,14 +2810,6 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
 // ─────────────────────────────────────────────
 //  Сторінки
 // ─────────────────────────────────────────────
-function levelColor(v) {
-  if (v >= 80) return 'var(--good)';
-  if (v >= 60) return '#7ec96a';
-  if (v >= 40) return 'var(--mid)';
-  if (v >= 20) return '#ef8b4a';
-  return 'var(--bad)';
-}
-
 export function leaderboardPage(rows, lang = 'uk') {
   if (!rows.length) return `<div class="card empty rise">${esc(t(lang, 'top.empty'))}</div>`;
   const medals = ['🥇', '🥈', '🥉'];
@@ -2752,17 +2829,8 @@ export function leaderboardPage(rows, lang = 'uk') {
 
 export function profilePage(profile, { username, avatar, roleName, roleColor, rank, lang = 'uk' }) {
   const accent = roleColor || '#6b7cff';
-  const cats = REPUTATION_CATEGORIES.map((c) => {
-    const value = profile.rep[c.key] ?? 0;
-    return { label: c.inverted ? `${c.label} ↓` : c.label, value, level: c.inverted ? 100 - value : value };
-  });
-
-  const catsHtml = cats.map((c, i) => `
-    <div class="cat" style="animation-delay:${(i * 0.04).toFixed(2)}s">
-      <div>${esc(c.label)}</div>
-      <div class="bar"><i style="width:${c.level}%;background:${levelColor(c.level)};animation-delay:${(0.2 + i * 0.05).toFixed(2)}s"></i></div>
-      <div class="val">${Math.round(c.value)}</div>
-    </div>`).join('');
+  // Розклад по категоріях більше не показуємо: назовні йде саме загальне
+  // число, а як воно рухалося — видно з графіка нижче.
 
   const tiles = [
     [fmt(profile.totalMessages), t(lang, 'profile.messages')],
@@ -2784,7 +2852,88 @@ export function profilePage(profile, { username, avatar, roleName, roleColor, ra
     </div>
     <div class="tiles">${tiles}</div>
   </div>
-  <div class="card rise">${catsHtml}</div>`;
+  ${scoreChart(profile, { lang, accent })}`;
+}
+
+/**
+ * Графік загальної репутації.
+ *
+ * Малюємо самі, без бібліотек: площа під лінією, сама лінія, крапка на
+ * останньому значенні й підказки при наведенні. Шкала не від нуля, а по
+ * фактичному діапазону з запасом — інакше рух у 30–40 балів виглядав би
+ * рівною лінією й графік не мав би сенсу.
+ */
+function scoreChart(profile, { lang = 'uk', accent = '#6b7cff' } = {}) {
+  const pts = (profile.scoreHistory ?? []).filter((n) => Number.isFinite(n));
+  const dW = profile.scoreDeltaWeek ?? 0;
+  const dM = profile.scoreDeltaMonth ?? 0;
+
+  const deltaChip = (v, label) => {
+    const cls = v > 0 ? 'up' : (v < 0 ? 'down' : '');
+    const sign = v > 0 ? '+' : '';
+    return `<span class="dchip ${cls}"><b>${sign}${Math.round(v)}</b>${esc(label)}</span>`;
+  };
+  const head = `<div class="pane-h">${esc(t(lang, 'profile.trend'))}
+    <span class="dchips">${deltaChip(dW, t(lang, 'profile.week'))}${deltaChip(dM, t(lang, 'profile.month'))}</span>
+  </div>`;
+
+  // Менше двох точок — малювати нічого; чесно кажемо, що дані ще збираються.
+  if (pts.length < 2) {
+    return `<div class="card pane rise chartbox">${head}
+      <div class="muted chart-empty">${esc(t(lang, 'profile.trendSoon'))}</div>
+    </div>`;
+  }
+
+  const W = 720;
+  const H = 200;
+  const PAD = 14;
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  // запас у 8% діапазону згори й знизу, щоб лінія не липла до країв
+  const span = Math.max(24, (max - min) * 1.16);
+  const mid = (max + min) / 2;
+  const lo = Math.max(0, mid - span / 2);
+  const hi = Math.min(1000, mid + span / 2);
+
+  const x = (i) => PAD + (W - PAD * 2) * (pts.length === 1 ? 0.5 : i / (pts.length - 1));
+  const y = (v) => PAD + (H - PAD * 2) * (1 - (v - lo) / (hi - lo || 1));
+
+  const line = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(pts.length - 1).toFixed(1)} ${H - PAD} L${x(0).toFixed(1)} ${H - PAD} Z`;
+  const last = pts.at(-1);
+
+  // невидимі смужки для підказок: наводиш будь-де — бачиш значення
+  const hovers = pts.map((v, i) => {
+    const w = (W - PAD * 2) / pts.length;
+    const daysAgo = pts.length - 1 - i;
+    const when = daysAgo === 0 ? t(lang, 'profile.today') : `−${daysAgo} ${t(lang, 'profile.daysShort')}`;
+    return `<g class="hp"><rect x="${(PAD + w * i).toFixed(1)}" y="0" width="${w.toFixed(1)}" height="${H}"
+        fill="transparent"></rect>
+      <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4"></circle>
+      <title>${v} · ${esc(when)}</title></g>`;
+  }).join('');
+
+  return `<div class="card pane rise chartbox">${head}
+    <svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+      aria-label="${esc(t(lang, 'profile.trend'))}">
+      <defs>
+        <linearGradient id="chg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${esc(accent)}" stop-opacity=".35"/>
+          <stop offset="100%" stop-color="${esc(accent)}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path class="charea" d="${area}" fill="url(#chg)"></path>
+      <path class="chline" d="${line}" fill="none" stroke="${esc(accent)}"></path>
+      <circle class="chdot" cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="5"
+        fill="${esc(accent)}"></circle>
+      ${hovers}
+    </svg>
+    <div class="chfoot">
+      <span>${Math.round(lo)}</span>
+      <span class="hint">${pts.length} ${esc(t(lang, 'profile.points'))}</span>
+      <span>${Math.round(hi)}</span>
+    </div>
+  </div>`;
 }
 
 /** Один медіа-елемент (спільний для стрічки й для «кліпів дня/місяця»). */
@@ -3024,6 +3173,9 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     </div>
 
     <div class="stagewrap">
+    <!-- Полотно живого світла: сюди щосекунди лягає зменшений кадр,
+         розмитий до кольорових плям. Порожнє й невидиме, поки нема що показувати. -->
+    <canvas class="ambient" id="cin-ambient" width="32" height="18" aria-hidden="true"></canvas>
     <div class="curtain" id="cin-curtain" hidden>
       <div class="curtain-i">⏸</div>
       <div class="curtain-t">${esc(t(lang, 'cin.paused'))}</div>
