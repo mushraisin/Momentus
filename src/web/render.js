@@ -743,14 +743,16 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 }
 
 /* ── Посилання на репозиторій у куті ── */
-.gh{position:fixed;right:16px;bottom:14px;z-index:35;width:36px;height:36px;
+.ghbar{position:fixed;right:16px;bottom:14px;z-index:35;display:flex;gap:8px}
+.gh{width:36px;height:36px;
   display:flex;align-items:center;justify-content:center;border-radius:50%;
   color:var(--dim);background:rgba(255,255,255,.04);border:1px solid var(--line);
   backdrop-filter:blur(8px);opacity:.6;transition:.3s cubic-bezier(.22,.9,.3,1)}
 .gh svg{width:17px;height:17px;display:block}
 .gh:hover{opacity:1;color:#fff;transform:translateY(-2px);
   border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.16)}
-@media(max-width:640px){.gh{width:32px;height:32px;right:12px;bottom:12px}}
+.gh:active{transform:scale(.94)}
+@media(max-width:640px){.ghbar{right:12px;bottom:12px;gap:6px}.gh{width:32px;height:32px}}
 
 .muted{color:var(--dim)}
 .empty{padding:52px;text-align:center;color:var(--dim)}
@@ -2268,10 +2270,17 @@ const MOD_JS = `
 const BACKGROUND = `<div class="bg"><canvas id="fog"></canvas><canvas id="stars"></canvas></div>`;
 
 /** Посилання на репозиторій — тихо сидить у куті на всіх сторінках. */
-const GITHUB = `<a class="gh" href="https://github.com/mushraisin?tab=repositories"
-  target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub">
-  <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-</a>`;
+/** Посилання автора в куті: репозиторій і Telegram, поруч одне з одним. */
+const LINKS = `<div class="ghbar">
+  <a class="gh" href="https://github.com/mushraisin?tab=repositories"
+    target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+  </a>
+  <a class="gh" href="https://t.me/mushbarry"
+    target="_blank" rel="noopener noreferrer" title="Telegram" aria-label="Telegram">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M14.9 2.1a.85.85 0 0 0-.87-.13L1.42 6.83c-.68.26-.65 1.24.04 1.46l3.2 1.02 1.19 3.72c.1.31.38.52.7.53.33 0 .62-.19.74-.49l1.02-2.6 3.06 2.25c.44.32 1.07.09 1.2-.44l2.02-9.2a.86.86 0 0 0-.29-.98ZM6.16 9.02 12.4 4.6 6.9 10.5l-.24 1.86-.5-3.34Z"/></svg>
+  </a>
+</div>`;
 
 /**
  * Іконка вкладки: темний квадрат із світним трикутником «пуск».
@@ -2348,7 +2357,7 @@ ${hasCustomCss ? '<link rel="stylesheet" href="/custom.css">' : ''}
 </head><body>
 ${BACKGROUND}
 ${content}
-${GITHUB}
+${LINKS}
 <script>${BG_JS}</script>
 ${extraJs ? `<script>${extraJs}</script>` : ''}
 </body></html>`;

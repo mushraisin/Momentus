@@ -166,6 +166,20 @@ assert.ok(gal.body.includes(AVATAR), 'аватар автора під публ�
 assert.equal(items[0].avatar, AVATAR, 'аватар збережено разом із публікацією');
 ok('галерея відображає завантажене разом з аватаром автора');
 
+// 9.0 посилання автора в куті: репозиторій і Telegram
+{
+  const g = await req('/gallery');
+  assert.ok(g.body.includes('class="ghbar"'), 'кут із посиланнями є');
+  assert.ok(g.body.includes('https://github.com/mushraisin?tab=repositories'), 'GitHub на місці');
+  assert.ok(g.body.includes('https://t.me/mushbarry'), 'Telegram поруч');
+  assert.equal((g.body.match(/class="gh"/g) ?? []).length, 2, 'дві іконки, однакові на вигляд');
+  // обидві відкриваються в новій вкладці й не течуть реферером
+  assert.equal((g.body.match(/rel="noopener noreferrer"/g) ?? []).length >= 2, true, 'безпечні посилання');
+  const home = await req('/');
+  assert.ok(home.body.includes('https://t.me/mushbarry'), 'на головній теж');
+}
+ok('у куті — GitHub і Telegram');
+
 // 9.1 велике вікно публікації: клік по плитці розгортає її
 {
   const g = await req('/gallery', auth);
