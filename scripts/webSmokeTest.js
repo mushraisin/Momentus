@@ -223,6 +223,11 @@ assert.equal(locked.canControl, false, 'керування замкнене по
 const denyPlay = await jreq('/api/cinema/play', auth);
 assert.equal(denyPlay.status, 403, 'пуск поза каналом відхилено');
 
+// адміністратор керує залом і поза каналом — інакше не запустити сеанс,
+// поки всі ще збираються
+const admOut = JSON.parse((await req('/api/cinema/state', adm)).body);
+assert.equal(admOut.canControl, true, 'адміністратор керує без входу в канал');
+
 voiceMembers.set(U, { id: U, displayName: 'Тестовий', user: { displayAvatarURL: () => '/a.png' } });
 const st1 = JSON.parse((await req('/api/cinema/state', auth)).body);
 assert.equal(st1.canControl, true, 'у каналі — керування є');
@@ -287,6 +292,25 @@ ok('пуск/пауза — усім у залі, перемотка — лиш�
   // гучність і вибір якості в панелі
   assert.ok(cinPage.body.includes('id="cin-volrange"'), 'регулятор гучності');
   assert.ok(cinPage.body.includes('id="cin-qual"'), 'вибір якості');
+
+  // прев'ю посилань: без тегів Discord показує голий текст
+  const home = await req('/');
+  assert.ok(home.body.includes('property="og:title"'), 'og:title на головній');
+  assert.ok(home.body.includes('property="og:image"') || !process.env.WEB_PUBLIC_URL, 'og:image');
+  const prof = await req(`/u/${U}`);
+  assert.ok(prof.body.includes('property="og:title"'), 'og:title у профілі');
+  assert.ok(prof.body.includes('Рейтинг'), 'опис із рейтингом');
+  assert.ok(prof.body.includes('twitter:card'), 'теги для інших месенджерів');
+
+  // картка профілю для прев'ю малюється тим самим рендером, що й у Discord
+  const ogImg = await req(`/og/u/${U}`);
+  assert.equal(ogImg.status, 200, 'картинка прев\'ю віддається');
+  assert.ok(ogImg.type.includes('image/png'), 'PNG');
+
+  // маніфест — сайт можна поставити як застосунок
+  const man = await req('/manifest.webmanifest');
+  assert.equal(man.status, 200);
+  assert.ok(JSON.parse(man.body).start_url === '/', 'маніфест валідний');
 
   // іконка вкладки
   const fav = await req('/favicon.svg');
@@ -433,6 +457,35 @@ ok('черга, права на сеанс, тимчасове закриття 
   await configService.set(G, 'gallery.channelId', '');
 }
 ok('галерея з Discord-каналу: публікація, звʼязок із повідомленням, видалення');
+
+// 17.7 панель модерації на сайті
+{
+  // звичайний учасник: ні кнопки, ні сторінки, ні дій
+  const asMember = await req('/gallery', auth);
+  assert.ok(!asMember.body.includes('href="/mod"'), 'кнопки модерації немає');
+
+  const page = await req('/mod', auth);
+  assert.equal(page.status, 403, 'прямим посиланням не зайти');
+  assert.ok(page.body.includes('лише для модераторів'), 'зрозуміла відмова');
+
+  const denied = await jreq('/api/mod/apply', auth, { userId: OWNER_ID, kind: 'text', minutes: 10 });
+  assert.equal(denied.status, 403, 'дії теж закриті');
+
+  // адміністратор: кнопка є, сторінка відкривається
+  const asAdmin = await req('/gallery', adm);
+  assert.ok(asAdmin.body.includes('href="/mod"'), 'кнопка модерації для адміністратора');
+  assert.ok(asAdmin.body.includes('apart'), 'кнопка стоїть окремо від основних');
+
+  const modPage = await req('/mod', adm);
+  assert.equal(modPage.status, 200);
+  assert.ok(modPage.body.includes('mod-apply'), 'форма покарання');
+  assert.ok(modPage.body.includes('mod-user'), 'поле учасника');
+
+  // не можна карати того, хто рівний або вищий за правами
+  const self = await jreq('/api/mod/apply', adm, { userId: OWNER_ID, kind: 'text', minutes: 10 });
+  assert.equal(self.status, 400, 'себе — ні');
+}
+ok('панель модерації на сайті: кнопка й сторінка лише для модераторів');
 
 // 18. порядок черги, автоперехід і список редакторів
 {

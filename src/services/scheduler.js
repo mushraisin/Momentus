@@ -2,6 +2,7 @@ import { reputationService } from './reputationService.js';
 import { backupService } from './backupService.js';
 import { reputationRepo } from '../database/repositories.js';
 import { pipeline } from './analysisPipeline.js';
+import { punishmentService } from './punishmentService.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('scheduler');
@@ -10,6 +11,11 @@ const log = createLogger('scheduler');
 export function startScheduler(client) {
   // Флаш черги аналізу кожні 30 сек — на випадок неповних пакетів.
   setInterval(() => pipeline.flushAll(), 30_000);
+
+  // Покарання з терміном знімаються самі — раз на хвилину звіряємо час.
+  setInterval(() => {
+    punishmentService.liftExpired(client).catch(() => {});
+  }, 60_000);
 
   // Щоденні знімки та бекап — раз на добу.
   setInterval(() => runDaily(client), 24 * 3600_000);

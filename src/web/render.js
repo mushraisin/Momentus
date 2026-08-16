@@ -69,6 +69,22 @@ nav a{padding:8px 15px;border-radius:999px;background:rgba(255,255,255,.04);
   border:1px solid var(--line);font-size:14px;transition:.28s cubic-bezier(.22,.9,.3,1)}
 nav a:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.12);transform:translateY(-2px)}
 nav a.active{border-color:rgba(107,124,255,.7);background:rgba(107,124,255,.18)}
+/* службова кнопка (модерація) — окремо від основних, із розділювачем */
+nav a.apart{margin-left:10px;padding-left:15px;border-color:rgba(239,83,80,.35);
+  background:rgba(239,83,80,.1);position:relative}
+nav a.apart::before{content:'';position:absolute;left:-6px;top:50%;transform:translateY(-50%);
+  width:1px;height:18px;background:var(--line)}
+nav a.apart:hover{border-color:rgba(239,83,80,.65);background:rgba(239,83,80,.2)}
+nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26)}
+
+/* сітка панелі модерації */
+.modgrid{margin-top:0}
+.modgrid .log{max-height:420px}
+.modgrid .viewers{max-height:420px}
+.modgrid select{padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.05);
+  border:1px solid var(--line);color:var(--text);font:inherit}
+.kindbtn.on{background:rgba(107,124,255,.22);border-color:rgba(107,124,255,.6);color:#fff}
+.viewer .tagp{flex:none}
 .langs{position:relative;margin-left:6px}
 .langs summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
   padding:8px 13px;border-radius:999px;background:rgba(255,255,255,.04);
@@ -225,9 +241,9 @@ td.num{text-align:right;font-weight:800}
 .cpanels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
   gap:14px;align-items:stretch;margin-top:20px}
 .cpanels .pane{margin:0;display:flex;flex-direction:column;min-height:150px}
-.cpanels .addbox{grid-column:span 2}
+.cpanels .addbox,.cpanels .queuebox{grid-column:span 2}
 .cpanels .hist{grid-column:1/-1;min-height:0}
-@media(max-width:820px){.cpanels .addbox{grid-column:span 1}}
+@media(max-width:820px){.cpanels .addbox,.cpanels .queuebox{grid-column:span 1}}
 
 /* Форма додавання: поля поруч, а не стовпчиком на пів екрана */
 .addbox .up{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
@@ -410,7 +426,11 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .qn{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;
   border-radius:50%;background:rgba(255,255,255,.06);font-size:11px;color:var(--dim);font-weight:700}
 .qitem:first-child .qn{background:rgba(107,124,255,.25);color:#fff}
-.qbody{min-width:0;flex:1}
+/* Назва завжди має пріоритет: на вузькій картці кнопки переносяться нижче,
+   а не з'їдають підпис до трьох літер. */
+.qitem{flex-wrap:wrap}
+.qbody{min-width:0;flex:1 1 150px}
+.qitem .act{margin-left:0}
 .qt{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qa{font-size:11px;color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qitem .act{width:26px;height:26px;font-size:11px;border-radius:8px;opacity:.6}
@@ -1779,6 +1799,50 @@ const CINEMA_JS = `
 })();
 `;
 
+/** Панель модерації: усі перевірки на сервері, тут лише зручність. */
+const MOD_JS = `
+(function(){
+  var kind='text',err=document.getElementById('mod-err');
+  function fail(t){if(!err)return;err.textContent=t;err.hidden=!t}
+
+  document.addEventListener('click',function(e){
+    var k=e.target.closest('.kindbtn');
+    if(k){
+      kind=k.dataset.kind;
+      document.querySelectorAll('.kindbtn').forEach(function(b){b.classList.toggle('on',b===k)});
+      return;
+    }
+
+    var lift=e.target.closest('.mod-lift');
+    if(lift){
+      fetch('/api/mod/lift',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({userId:lift.dataset.user,kind:lift.dataset.kind})})
+        .then(function(r){return r.json()}).then(function(j){
+          if(j.error){fail(j.error);return}
+          location.reload();
+        }).catch(function(){});
+      return;
+    }
+
+    if(e.target.closest('#mod-apply')){
+      var user=(document.getElementById('mod-user').value||'').replace(/[^0-9]/g,'');
+      if(!user){fail('ID учасника');return}
+      fail('');
+      fetch('/api/mod/apply',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({
+          userId:user,kind:kind,
+          minutes:Number(document.getElementById('mod-dur').value||0),
+          reason:document.getElementById('mod-reason').value||''
+        })}).then(function(r){return r.json()}).then(function(j){
+          if(j.error){fail(({limit:'Перевищено ваш ліміт',rank:'Цей учасник рівний вам або вищий',
+            reason:'Причина обовʼязкова',self:'Себе не можна','not found':'Учасника не знайдено'})[j.error]||j.error);return}
+          location.reload();
+        }).catch(function(){});
+    }
+  });
+})();
+`;
+
 const BACKGROUND = `<div class="bg"><canvas id="fog"></canvas><canvas id="stars"></canvas></div>`;
 
 /** Посилання на репозиторій — тихо сидить у куті на всіх сторінках. */
@@ -1823,7 +1887,30 @@ function letters(word) {
     .join('');
 }
 
-function shell({ title, content, hasCustomCss, extraJs = '' }) {
+/**
+ * Теги для прев'ю посилань. Без них Discord показує голий текст замість картки,
+ * а це найпомітніша дрібниця, коли посиланням діляться в чаті.
+ */
+function metaTags({ title, description, image, url, type = 'website' }) {
+  const tags = [
+    ['og:site_name', 'Моментус'],
+    ['og:type', type],
+    ['og:title', title],
+    ['og:description', description],
+    ['og:url', url],
+    ['og:image', image],
+    ['twitter:card', image ? 'summary_large_image' : 'summary'],
+    ['twitter:title', title],
+    ['twitter:description', description],
+    ['twitter:image', image],
+  ];
+  return tags
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<meta property="${k}" content="${esc(v)}">`)
+    .join('\n');
+}
+
+function shell({ title, content, hasCustomCss, extraJs = '', meta = '' }) {
   return `<!doctype html>
 <html lang="uk"><head>
 <meta charset="utf-8">
@@ -1831,7 +1918,9 @@ function shell({ title, content, hasCustomCss, extraJs = '' }) {
 <meta name="theme-color" content="#05070d">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
+<link rel="manifest" href="/manifest.webmanifest">
 <title>${esc(title)}</title>
+${meta}
 <style>${BASE_CSS}</style>
 ${hasCustomCss ? '<link rel="stylesheet" href="/custom.css">' : ''}
 </head><body>
@@ -1845,10 +1934,11 @@ ${extraJs ? `<script>${extraJs}</script>` : ''}
 
 export function layout({
   title, guildName, body, nav = [], session, hasCustomCss,
-  lang = 'uk', path = '/', gallery = false, page = null,
+  lang = 'uk', path = '/', gallery = false, page = null, og = null,
 }) {
+  // apart — кнопка стоїть окремо від основних, з розділювачем
   const navHtml = nav
-    .map((n) => `<a href="${esc(n.href)}"${n.active ? ' class="active"' : ''}>${esc(n.label)}</a>`)
+    .map((n) => `<a href="${esc(n.href)}" class="${[n.active ? 'active' : '', n.apart ? 'apart' : ''].filter(Boolean).join(' ')}">${esc(n.label)}</a>`)
     .join('');
 
   const auth = session
@@ -1865,10 +1955,12 @@ export function layout({
   return shell({
     title,
     hasCustomCss,
+    meta: og ? metaTags(og) : '',
     extraJs: [
       gallery ? GALLERY_JS : '',
       page === 'cinema' ? PLAYERS_JS : '',
       page === 'cinema' ? CINEMA_JS : '',
+      page === 'mod' ? MOD_JS : '',
     ].filter(Boolean).join('\n'),
     // Смуга навігації йде на всю ширину вікна, а її вміст тримається тієї ж
     // сітки, що й сторінка. На головній її немає — там своя обкладинка.
@@ -1887,7 +1979,7 @@ export function layout({
 }
 
 /** Головна: назва, вхід і галерея. */
-export function landingLayout({ lang = 'uk', session = null }) {
+export function landingLayout({ lang = 'uk', session = null, og = null }) {
   // Залогінений бачить себе в шапці й іде одразу в профіль — жодних сліпих редиректів.
   const chip = session
     ? `<div class="me">
@@ -1903,6 +1995,7 @@ export function landingLayout({ lang = 'uk', session = null }) {
 
   return shell({
     title: 'Моментус',
+    meta: og ? metaTags(og) : '',
     content: `<div class="wrap">
       <header><span></span><nav>${chip}${langSwitch(lang, '/')}</nav></header>
       <section class="hero">
@@ -2303,7 +2396,7 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     </div>
   </div>`;
 
-  const queueBox = `<div class="card pane">
+  const queueBox = `<div class="card pane queuebox">
     <div class="pane-h">${esc(t(lang, 'cin.queue'))} · <b id="cin-qcount">${(state.queue ?? []).length}</b>
       ${admin && (state.queue ?? []).length ? `<button class="act" id="cin-qclear"
         title="${esc(t(lang, 'cin.queueClear'))}">🧹</button>` : ''}</div>
@@ -2393,6 +2486,108 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     ${room}
     <div class="cpanels">${people}${adminBox}</div>
   </div>${modal}`;
+}
+
+/**
+ * Панель модерації на сайті. Показується лише тим, хто має доступ, —
+ * і сторінка, і дії перевіряються на сервері, а не тільки схованою кнопкою.
+ */
+export function modPage({ active = [], journal = [], who = {}, lang = 'uk', limitMinutes = 0, kinds = {} }) {
+  const name = (id) => esc(who[id]?.name ?? id);
+  const face = (id) => esc(who[id]?.avatar ?? avatarUrl(id, null, 64));
+
+  const KIND_ICON = { text: '💬', voice: '🔊', full: '⛔' };
+
+  const durations = [
+    [10, '10 хв'], [60, '1 год'], [360, '6 год'],
+    [1440, '1 день'], [10080, 'тиждень'], [0, 'до зняття'],
+  ].filter(([m]) => !limitMinutes || (m && m <= limitMinutes));
+
+  const form = `<div class="card pane">
+    <div class="pane-h">${esc(t(lang, 'mod.apply'))}</div>
+    <div class="up">
+      <input type="text" id="mod-user" placeholder="${esc(t(lang, 'mod.userId'))}">
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        ${['text', 'voice', 'full'].map((k, i) => `<button class="btn ghost sm kindbtn${i === 0 ? ' on' : ''}"
+          data-kind="${k}">${KIND_ICON[k]} ${esc(kinds[k] ?? k)}</button>`).join('')}
+      </div>
+      <select id="mod-dur">
+        ${durations.map(([m, l]) => `<option value="${m}">${esc(l)}</option>`).join('')}
+      </select>
+      <input type="text" id="mod-reason" placeholder="${esc(t(lang, 'mod.reason'))}">
+      <button class="btn" id="mod-apply">${esc(t(lang, 'mod.applyBtn'))}</button>
+      <div class="hint">${limitMinutes
+        ? esc(t(lang, 'mod.limit', { time: limitMinutes >= 1440 ? `${Math.round(limitMinutes / 1440)} дн.` : `${limitMinutes} хв` }))
+        : esc(t(lang, 'mod.noLimit'))}</div>
+      <div class="err" id="mod-err" hidden></div>
+    </div>
+  </div>`;
+
+  const activeBox = `<div class="card pane">
+    <div class="pane-h">${esc(t(lang, 'mod.active'))} · <b>${active.length}</b></div>
+    <div class="viewers">
+      ${active.length ? active.map((p) => `<div class="viewer" data-user="${esc(p.userId)}">
+        <img src="${face(p.userId)}" alt="">
+        <span class="vname">${name(p.userId)}</span>
+        <span class="tagp">${KIND_ICON[p.kind] ?? ''} ${esc(kinds[p.kind] ?? p.kind)}</span>
+        <span class="hint">${p.until ? esc(leftText(p.until, lang)) : esc(t(lang, 'mod.untilLift'))}</span>
+        <button class="act danger mod-lift" data-user="${esc(p.userId)}" data-kind="${esc(p.kind)}"
+          title="${esc(t(lang, 'mod.lift'))}">✕</button>
+      </div>`).join('') : `<div class="muted">${esc(t(lang, 'mod.nobody'))}</div>`}
+    </div>
+  </div>`;
+
+  const rowsHtml = journal.map((j) => {
+    const when = new Date(Number(j.created_at));
+    const sys = j.moderator_id === 'system';
+    return `<div class="logrow">
+      <span class="li">${actIcon(j.action)}</span>
+      <span class="lu">${name(j.user_id)}</span>
+      <span class="la">${esc(actText(j.action, lang))}</span>
+      ${j.duration_ms ? `<span class="ld">${esc(durText(j.duration_ms))}</span>` : ''}
+      ${j.reason ? `<span class="ld">${esc(String(j.reason).slice(0, 60))}</span>` : ''}
+      <span class="la">· ${sys ? esc(t(lang, 'mod.system')) : name(j.moderator_id)}</span>
+      <span class="lt">${when.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}
+        ${when.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>
+    </div>`;
+  }).join('');
+
+  const journalBox = `<div class="card pane">
+    <div class="pane-h">${esc(t(lang, 'mod.journal'))} · <b>${journal.length}</b></div>
+    <div class="log">${rowsHtml || `<div class="muted">${esc(t(lang, 'mod.empty'))}</div>`}</div>
+  </div>`;
+
+  return `<div class="cpanels modgrid">${form}${activeBox}${journalBox}</div>`;
+}
+
+function actIcon(a) {
+  if (a.startsWith('mute.')) return { 'mute.text': '💬', 'mute.voice': '🔊', 'mute.full': '⛔' }[a] ?? '🔇';
+  return { unmute: '✅', warn: '⚠️', kick: '👢', ban: '🔨' }[a] ?? '•';
+}
+
+function actText(a, lang) {
+  const map = {
+    'mute.text': 'текстовий мут', 'mute.voice': 'голосовий мут', 'mute.full': 'повний мут',
+    unmute: 'знято', warn: 'попередження', kick: 'кік', ban: 'бан',
+  };
+  const en = {
+    'mute.text': 'text mute', 'mute.voice': 'voice mute', 'mute.full': 'full mute',
+    unmute: 'lifted', warn: 'warning', kick: 'kick', ban: 'ban',
+  };
+  return (lang === 'en' ? en : map)[a] ?? a;
+}
+
+function durText(ms) {
+  const m = Math.round(Number(ms) / 60_000);
+  if (m >= 1440) return `${Math.round(m / 1440)} дн.`;
+  if (m >= 60) return `${Math.round(m / 60)} год`;
+  return `${m} хв`;
+}
+
+function leftText(until, lang) {
+  const m = Math.max(0, Math.round((until - Date.now()) / 60_000));
+  const val = m >= 1440 ? `${Math.round(m / 1440)} дн.` : (m >= 60 ? `${Math.round(m / 60)} год` : `${m} хв`);
+  return lang === 'en' ? `${val} left` : `ще ${val}`;
 }
 
 export function customPage(page) {

@@ -38,9 +38,8 @@ startPresence(client);
 await пауза(300);
 const live = текст();
 assert.ok(live.startsWith('Аватар · '), `назва у статусі, отримали: ${live}`);
-assert.ok(live.endsWith(' | Кінотеатр'), 'позначка кінотеатру');
-assert.ok(/· \d+:\d{2} \| /.test(live), 'час у статусі');
-const secs = Number(live.split('|')[0].trim().split(':').at(-1));
+assert.ok(/· \d+:\d{2}$/.test(live), 'час у статусі, без зайвих підписів');
+const secs = Number(live.split(':').at(-1));
 assert.ok(secs >= 5 && secs <= 8, `час іде від збереженої позиції (2:0X), отримали ${live}`);
 ok(`під час показу: «${live}»`);
 
@@ -53,7 +52,7 @@ stopPresence();
 startPresence(client);
 await пауза(300);
 assert.ok(текст().length <= 128, `вкладаємось у ліміт: ${текст().length}`);
-assert.ok(текст().endsWith(' | Кінотеатр'), 'позначка лишається навіть при обрізанні');
+
 ok(`довга назва обрізається (${текст().length} символів)`);
 
 // 3. пауза позначається окремо
@@ -64,7 +63,7 @@ await cinemaRepo.save(G, {
 stopPresence();
 startPresence(client);
 await пауза(300);
-assert.equal(текст(), '⏸ Аватар · 1:02:05 | Кінотеатр', 'пауза, години й позначка залу');
+assert.equal(текст(), '⏸ Аватар · 1:02:05', 'пауза й години');
 ok(`на паузі: «${текст()}»`);
 
 // 4. однаковий текст не шлють двічі — інакше Discord обріже за лімітом

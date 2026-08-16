@@ -1,7 +1,7 @@
 import {
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
   StringSelectMenuBuilder, StringSelectMenuOptionBuilder,
-  ChannelSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType,
+  ChannelSelectMenuBuilder, RoleSelectMenuBuilder, UserSelectMenuBuilder, ChannelType,
 } from 'discord.js';
 
 /**
@@ -69,6 +69,16 @@ export function channelSelectRow({ id, placeholder, types = [ChannelType.GuildTe
     .setChannelTypes(types)
     .setMinValues(1)
     .setMaxValues(1);
+  return new ActionRowBuilder().addComponents(menu);
+}
+
+/** Нативний селектор учасника — щоб не шукати ID вручну. */
+export function userSelectRow({ id, placeholder, max = 1 }) {
+  const menu = new UserSelectMenuBuilder()
+    .setCustomId(id)
+    .setPlaceholder(placeholder)
+    .setMinValues(1)
+    .setMaxValues(max);
   return new ActionRowBuilder().addComponents(menu);
 }
 

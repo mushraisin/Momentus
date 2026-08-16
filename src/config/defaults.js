@@ -50,6 +50,14 @@ export const CONFIG_SCHEMA = {
   'moderation.requireReason': { type: 'bool', default: true, label: 'Причина обовʼязкова', group: 'moderation' },
   'moderation.defaultTimeoutMinutes': { type: 'int', default: 60, label: 'Timeout за замовчуванням (хв)', group: 'moderation' },
   'moderation.dmOnPunish': { type: 'bool', default: true, label: 'Повідомляти користувача в ЛС', group: 'moderation' },
+  // Ліміти покарань за рівнем доступу. 0 — без обмежень.
+  'moderation.maxMinutesModerator': { type: 'int', default: 1440, label: 'Ліміт мута для модератора (хв)', group: 'moderation' },
+  'moderation.maxMinutesAdmin': { type: 'int', default: 0, label: 'Ліміт мута для адміністратора (хв)', group: 'moderation' },
+  'moderation.allowKickModerator': { type: 'bool', default: false, label: 'Модератор може кікати', group: 'moderation' },
+  'moderation.allowBanModerator': { type: 'bool', default: false, label: 'Модератор може банити', group: 'moderation' },
+  // Службові ролі мутів — бот створює й запам'ятовує їх сам.
+  'moderation.textMuteRoleId': { type: 'string', default: '', label: 'Роль текстового мута', group: 'moderation' },
+  'moderation.voiceMuteRoleId': { type: 'string', default: '', label: 'Роль голосового мута', group: 'moderation' },
 
   // ── Галерея та кінотеатр ──────────────────
   // Канал-сховище: бот заливає туди медіа й тримає лише посилання.

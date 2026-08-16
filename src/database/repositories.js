@@ -224,6 +224,11 @@ export const modRepo = {
     return all('SELECT * FROM moderation_log WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?', [guildId, userId, limit]);
   },
 
+  /** Останні дії по всій гільдії — для журналу аудиту. */
+  recent(guildId, limit = 50) {
+    return all('SELECT * FROM moderation_log WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?', [guildId, limit]);
+  },
+
   stats(guildId, userId) {
     return get(`
       SELECT
@@ -711,6 +716,61 @@ export const cinemaLogRepo = {
       [guildId, Date.now() - keepDays * 86400_000]);
   },
 };
+
+// ─────────────────────────────────────────────
+//  ЧИННІ ПОКАРАННЯ
+// ─────────────────────────────────────────────
+export const punishRepo = {
+  /** Поставити або продовжити покарання. */
+  set({ guildId, userId, kind, until, reason, moderatorId }) {
+    return run(`
+      INSERT INTO punishments (guild_id, user_id, kind, until, reason, moderator_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id, user_id, kind) DO UPDATE SET
+        until = excluded.until, reason = excluded.reason,
+        moderator_id = excluded.moderator_id, created_at = excluded.created_at
+    `, [guildId, userId, kind, until ?? null, reason ?? null, moderatorId, Date.now()]);
+  },
+
+  remove(guildId, userId, kind) {
+    return run('DELETE FROM punishments WHERE guild_id = ? AND user_id = ? AND kind = ?', [guildId, userId, kind]);
+  },
+
+  removeAll(guildId, userId) {
+    return run('DELETE FROM punishments WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+  },
+
+  async forUser(guildId, userId) {
+    const rows = await all('SELECT * FROM punishments WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+    return rows.map(shapePunish);
+  },
+
+  async active(guildId, limit = 50) {
+    const rows = await all(
+      'SELECT * FROM punishments WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?',
+      [guildId, limit],
+    );
+    return rows.map(shapePunish);
+  },
+
+  /** Ті, чий час вийшов — їх треба зняти. */
+  async expired(now = Date.now()) {
+    const rows = await all('SELECT * FROM punishments WHERE until IS NOT NULL AND until <= ?', [now]);
+    return rows.map(shapePunish);
+  },
+};
+
+function shapePunish(row) {
+  return {
+    guildId: row.guild_id,
+    userId: row.user_id,
+    kind: row.kind,
+    until: row.until == null ? null : num(row.until),
+    reason: row.reason ?? null,
+    moderatorId: row.moderator_id,
+    createdAt: num(row.created_at),
+  };
+}
 
 export const sessionsRepo = {
   create({ token, guildId, userId, username, avatar, ttlMs }) {

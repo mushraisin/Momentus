@@ -71,10 +71,9 @@ async function tick(client) {
     return apply(client, null, ActivityType.Watching);
   }
 
-  // «| Кінотеатр» у кінці — щоб було зрозуміло, що це сеанс на сайті,
-  // а не просто якийсь підпис. Довгу назву ріжемо, бо ліміт Discord — 128.
+  // Лише назва й час: довший підпис не вміщається в рядок статусу.
   const at = fmt(livePosition(state));
-  const suffix = ` · ${at} | ${ROOM_LABEL}`;
+  const suffix = ` · ${at}`;
   const title = trim(state.title ?? 'відео', 128 - suffix.length - 2);
   const text = `${state.playing ? '' : '⏸ '}${title}${suffix}`;
 

@@ -21,6 +21,28 @@ function input({ id, label, value = '', style = TextInputStyle.Short, required =
 }
 
 /** Редагування довільного поля конфігурації. */
+/**
+ * Причина покарання. Термін і вид уже обрані — тут лише текст,
+ * бо саме він потрапляє в журнал і в лист покараному.
+ */
+export function reasonModal(targetId, kind, minutes) {
+  const title = {
+    text: 'Текстовий мут', voice: 'Голосовий мут', full: 'Повний мут',
+    warn: 'Попередження', kick: 'Кік',
+  }[kind] ?? 'Покарання';
+
+  return new ModalBuilder()
+    .setCustomId(cid(NS.MOD, 'reason', targetId, kind, String(minutes ?? 0)))
+    .setTitle(title.slice(0, 45))
+    .addComponents(input({
+      id: 'reason',
+      label: 'Причина',
+      style: TextInputStyle.Paragraph,
+      placeholder: 'Її побачить учасник і журнал модерації',
+      required: false,
+    }));
+}
+
 export function configModal(guildId, key) {
   const schema = CONFIG_SCHEMA[key];
   if (!schema) return null;

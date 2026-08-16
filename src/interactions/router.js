@@ -15,6 +15,9 @@ import { usersRepo, reputationRepo } from '../database/repositories.js';
 import { caches } from '../core/cache.js';
 import { bgQueue } from '../core/queue.js';
 import { publishFrom } from '../services/galleryWatcher.js';
+import * as mod from '../ui/modPanel.js';
+import { punishmentService } from '../services/punishmentService.js';
+import { modRepo } from '../database/repositories.js';
 
 const log = createLogger('router');
 
@@ -72,6 +75,8 @@ async function handleComponent(interaction) {
       return runVerification(interaction);
     case NS.GAL:
       return galleryHandlers(interaction, action, args);
+    case NS.MOD:
+      return modHandlers(interaction, action, args);
     case NS.ADMIN:
       return adminHandlers(interaction, action, args);
     case NS.DEV:
@@ -149,6 +154,167 @@ async function galleryHandlers(interaction, action, args) {
     interaction.deleteReply().catch(() => {});
   }, 30_000);
   return undefined;
+}
+
+/**
+ * Панель модерації. Доступ — від модератора; терміни обмежені рівнем доступу,
+ * і перевірка стоїть саме тут, на сервері, а не лише в списку варіантів.
+ */
+async function modHandlers(interaction, action, args) {
+  const check = accessService.require(interaction.member, ACCESS.MODERATOR);
+  if (!check.ok) return ephemeral(interaction, check.message);
+
+  const guild = interaction.guild;
+  const level = accessService.level(interaction.member);
+
+  switch (action) {
+    case 'home':
+      return safeUpdate(interaction, mod.modHome(guild, interaction.member));
+
+    case 'pick':
+    case 'pickAgain': {
+      const targetId = action === 'pick' ? interaction.values?.[0] : args[0];
+      if (!targetId) return ephemeral(interaction, 'Не обрано учасника.');
+      return safeUpdate(interaction, await mod.modTarget(guild, targetId, interaction.member));
+    }
+
+    case 'active':
+      return safeUpdate(interaction, await mod.modActive(guild));
+
+    case 'ask': {
+      const [targetId, kind] = args;
+      const guard = await canModerate(interaction, targetId);
+      if (guard) return ephemeral(interaction, guard);
+      return safeUpdate(interaction, mod.modDuration(guild, targetId, kind, interaction.member));
+    }
+
+    // Термін обрано — питаємо причину окремим вікном.
+    case 'dur': {
+      const [targetId, kind] = args;
+      const minutes = Number(interaction.values?.[0] ?? 0);
+      if (!punishmentService.withinLimit(guild.id, level, minutes)) {
+        return ephemeral(interaction, 'Цей термін перевищує ваш ліміт.');
+      }
+      return interaction.showModal(modals.reasonModal(targetId, kind, minutes));
+    }
+
+    case 'lift': {
+      const [targetId, kind] = args;
+      const guard = await canModerate(interaction, targetId);
+      if (guard) return ephemeral(interaction, guard);
+
+      await punishmentService.lift(guild, targetId, kind ?? 'all', interaction.user.id);
+      const target = await guild.members.fetch(targetId).catch(() => null);
+      if (target) {
+        await punishmentService.notify(guild, {
+          target: target.user, moderator: interaction.user.id, kind: kind === 'all' ? 'full' : kind, lifted: true,
+        });
+      }
+      return safeUpdate(interaction, await mod.modTarget(guild, targetId, interaction.member));
+    }
+
+    case 'warn': {
+      const guard = await canModerate(interaction, args[0]);
+      if (guard) return ephemeral(interaction, guard);
+      return interaction.showModal(modals.reasonModal(args[0], 'warn', 0));
+    }
+
+    case 'kick': {
+      const guard = await canModerate(interaction, args[0]);
+      if (guard) return ephemeral(interaction, guard);
+      if (level < ACCESS.ADMIN && !configService.get(guild.id, 'moderation.allowKickModerator')) {
+        return ephemeral(interaction, 'Кік доступний лише адміністраторам.');
+      }
+      return interaction.showModal(modals.reasonModal(args[0], 'kick', 0));
+    }
+
+    default:
+      return interaction.deferUpdate().catch(() => {});
+  }
+}
+
+/** Причина покарання з модального вікна — тут дія й застосовується. */
+async function modModal(interaction, action, args) {
+  const check = accessService.require(interaction.member, ACCESS.MODERATOR);
+  if (!check.ok) return ephemeral(interaction, check.message);
+  if (action !== 'reason') return;
+
+  const [targetId, kind, minutesRaw] = args;
+  const minutes = Number(minutesRaw ?? 0);
+  const guild = interaction.guild;
+  const level = accessService.level(interaction.member);
+  const reason = interaction.fields.getTextInputValue('reason')?.trim() || null;
+
+  if (configService.get(guild.id, 'moderation.requireReason') && !reason) {
+    return ephemeral(interaction, 'Причина обовʼязкова.');
+  }
+
+  const guard = await canModerate(interaction, targetId);
+  if (guard) return ephemeral(interaction, guard);
+
+  const target = await guild.members.fetch(targetId).catch(() => null);
+  if (!target) return ephemeral(interaction, 'Учасника вже немає на сервері.');
+
+  try {
+    if (kind === 'warn') {
+      await usersRepo.ensure(guild.id, targetId, target.displayName);
+      await modRepo.add({
+        guildId: guild.id, userId: targetId, moderatorId: interaction.user.id,
+        action: 'warn', reason, result: 'applied',
+      });
+      await punishmentService.notify(guild, {
+        target: target.user, moderator: interaction.user.id, kind: 'warn', reason,
+      });
+      return ephemeral(interaction, `⚠️ Попередження видано ${target.displayName}.`);
+    }
+
+    if (kind === 'kick') {
+      await target.kick(reason ?? 'Без причини');
+      await modRepo.add({
+        guildId: guild.id, userId: targetId, moderatorId: interaction.user.id,
+        action: 'kick', reason, result: 'applied',
+      });
+      await punishmentService.notify(guild, {
+        target: target.user, moderator: interaction.user.id, kind: 'kick', reason,
+      });
+      return ephemeral(interaction, `👢 ${target.displayName} вигнано.`);
+    }
+
+    if (!punishmentService.withinLimit(guild.id, level, minutes)) {
+      return ephemeral(interaction, 'Цей термін перевищує ваш ліміт.');
+    }
+
+    await punishmentService.apply(guild, target, {
+      kind, minutes, reason, moderatorId: interaction.user.id,
+    });
+    await punishmentService.notify(guild, {
+      target: target.user, moderator: interaction.user.id, kind, minutes, reason,
+    });
+    return ephemeral(interaction, `✅ Застосовано до ${target.displayName}.`);
+  } catch (err) {
+    log.warn('Покарання не застосувалось', err.message);
+    return ephemeral(interaction, `⚠️ Не вдалося: ${err.message}`);
+  }
+}
+
+/**
+ * Кого модерувати не можна: себе, бота, рівних або старших за доступом.
+ * @returns {Promise<string|null>} текст помилки або null, якщо все гаразд
+ */
+async function canModerate(interaction, targetId) {
+  if (!targetId) return 'Не обрано учасника.';
+  if (targetId === interaction.user.id) return 'Себе модерувати не можна.';
+  if (targetId === interaction.client.user.id) return 'Це я.';
+
+  const target = interaction.guild.members.cache.get(targetId)
+    ?? await interaction.guild.members.fetch(targetId).catch(() => null);
+  if (!target) return 'Учасника не знайдено.';
+
+  const mine = accessService.level(interaction.member);
+  const theirs = accessService.level(target);
+  if (theirs >= mine) return 'Цей учасник рівний вам або вищий за правами.';
+  if (!target.manageable) return 'У бота бракує прав для цього учасника — підніміть його роль вище.';
+  return null;
 }
 
 async function adminHandlers(interaction, action, args) {
@@ -315,6 +481,10 @@ async function devHandlers(interaction, action) {
 // ─────────────────────────────────────────────
 async function handleModal(interaction) {
   const { ns, action, args } = parseCid(interaction.customId);
+
+  // Причина покарання приходить окремим вікном — саме тут і застосовуємо.
+  if (ns === NS.MOD) return modModal(interaction, action, args);
+
   if (ns !== NS.ADMIN) return;
 
   const check = accessService.require(interaction.member, ACCESS.ADMIN);

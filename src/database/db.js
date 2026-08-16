@@ -134,6 +134,21 @@ CREATE TABLE IF NOT EXISTS moderation_log (
 );
 CREATE INDEX IF NOT EXISTS idx_modlog_user ON moderation_log (guild_id, user_id, created_at DESC);
 
+-- ── ЧИННІ ПОКАРАННЯ ─────────────────────────
+-- Окремо від журналу: журнал — це історія, а тут те, що діє просто зараз
+-- і що треба зняти, коли вийде час.
+CREATE TABLE IF NOT EXISTS punishments (
+  guild_id     TEXT NOT NULL,
+  user_id      TEXT NOT NULL,
+  kind         TEXT NOT NULL,          -- text | voice | full
+  until        INTEGER,                -- null → назавжди, поки не знімуть
+  reason       TEXT,
+  moderator_id TEXT NOT NULL,
+  created_at   INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id, kind)
+);
+CREATE INDEX IF NOT EXISTS idx_punish_until ON punishments (until);
+
 CREATE TABLE IF NOT EXISTS achievements (
   guild_id   TEXT NOT NULL,
   user_id    TEXT NOT NULL,

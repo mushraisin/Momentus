@@ -73,7 +73,8 @@ export async function adminHome(guild) {
         })),
       }),
       ...rows([
-        button({ id: cid(NS.ADMIN, 'tiers'), label: 'Рівні ролей', emoji: '🛡️', style: ButtonStyle.Primary }),
+        button({ id: cid(NS.MOD, 'home'), label: 'Модерація', emoji: '🛡️', style: ButtonStyle.Danger }),
+        button({ id: cid(NS.ADMIN, 'tiers'), label: 'Рівні ролей', emoji: '🎖️', style: ButtonStyle.Primary }),
         button({ id: cid(NS.ADMIN, 'site'), label: 'Сайт', emoji: '🌐' }),
         button({ id: cid(NS.ADMIN, 'deploy'), label: 'Опублікувати панель', emoji: '📢' }),
         button({ id: cid(NS.DEV, 'open'), label: 'Dev', emoji: '🧬' }),

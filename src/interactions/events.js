@@ -7,6 +7,7 @@ import { configService } from '../services/configService.js';
 import { reputationService } from '../services/reputationService.js';
 import { setupPanel } from '../ui/adminPanel.js';
 import { offerPublish, removeByMessage } from '../services/galleryWatcher.js';
+import { punishmentService } from '../services/punishmentService.js';
 import { caches } from '../core/cache.js';
 import { createLogger } from '../core/logger.js';
 
@@ -72,6 +73,18 @@ export function registerEvents(client) {
   // ── Учасники ──────────────────────────────
   client.on(Events.GuildMemberAdd, (member) => {
     usersRepo.ensure(member.guild.id, member.id, member.user.username, member.joinedTimestamp).catch(() => {});
+  });
+
+  // Новий канал — одразу розставляємо в ньому заборони мутів,
+  // інакше покараний зміг би писати саме там.
+  client.on(Events.ChannelCreate, async (channel) => {
+    if (!channel.guild) return;
+    for (const kind of ['text', 'voice']) {
+      const roleId = configService.get(channel.guild.id, `moderation.${kind}MuteRoleId`);
+      const role = roleId ? channel.guild.roles.cache.get(roleId) : null;
+      if (!role) continue;
+      await punishmentService.syncOverwrites(channel.guild, role, kind, channel).catch(() => {});
+    }
   });
 
   client.on(Events.GuildCreate, (guild) => {

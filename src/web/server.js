@@ -8,6 +8,7 @@ import {
   cinemaRepo, cinemaQueueRepo, cinemaLogRepo,
 } from '../database/repositories.js';
 import { oauth, avatarUrl } from './oauth.js';
+import { profileCard } from '../ui/cards.js';
 import { parseMultipart, kindOf } from './multipart.js';
 import { storage, extFor } from './storage.js';
 import { discordStore, safeName } from './discordStore.js';
@@ -15,7 +16,10 @@ import { galleryChannelId, postToChannel } from '../services/galleryWatcher.js';
 import { resolveSource } from './providers.js';
 import { signUrl, handleStream } from './mediaProxy.js';
 import { ytdlpAvailable } from './ytdlp.js';
-import { OWNER_ID } from '../config/constants.js';
+import { OWNER_ID, ACCESS } from '../config/constants.js';
+import { accessService } from '../services/accessService.js';
+import { punishmentService, KIND_LABEL } from '../services/punishmentService.js';
+import { modRepo } from '../database/repositories.js';
 import { t, normalizeLang, langFromHeader } from '../i18n/index.js';
 import * as R from './render.js';
 
@@ -35,6 +39,21 @@ function maxUploadMb(guild) {
   if (discordStore.configured(guild.id)) return discordStore.uploadLimitMb(guild);
   if (storage.configured) return Math.max(DB_MAX_UPLOAD_MB, 25);
   return DB_MAX_UPLOAD_MB;
+}
+
+/**
+ * Рівень доступу для сайту — той самий, що й у боті.
+ * Сесія знає лише id, тож звіряємось із учасником гільдії.
+ */
+function accessLevel(guild, session) {
+  if (!session) return ACCESS.MEMBER;
+  if (session.user_id === OWNER_ID) return ACCESS.OWNER;
+  const member = guild.members.cache.get(session.user_id);
+  return member ? accessService.level(member) : ACCESS.MEMBER;
+}
+
+function isModerator(guild, session) {
+  return accessLevel(guild, session) >= ACCESS.MODERATOR;
 }
 
 /** Власник бота або учасник із правами керування сервером. */
@@ -259,6 +278,33 @@ async function handle(req, res) {
     return json(res, 200, { ok: true, title });
   }
 
+  // ── картинка для прев'ю посилання на профіль ──
+  // Малюємо тим самим рендером, що й картки в Discord, тож нічого нового вчити не треба.
+  if (path.startsWith('/og/u/')) {
+    const userId = path.slice(6).replace(/[^0-9]/g, '');
+    const png = userId ? await ogProfileImage(guild, userId).catch(() => null) : null;
+    if (!png) return send(res, 404, 'text/plain', 'not found');
+    res.writeHead(200, {
+      'Content-Type': 'image/png',
+      'Content-Length': png.length,
+      'Cache-Control': 'public, max-age=600',
+    });
+    return res.end(png);
+  }
+
+  // ── маніфест: сайт можна поставити як застосунок ──
+  if (path === '/manifest.webmanifest') {
+    return send(res, 200, 'application/manifest+json; charset=utf-8', JSON.stringify({
+      name: guild.name,
+      short_name: 'Моментус',
+      start_url: '/',
+      display: 'standalone',
+      background_color: '#05070d',
+      theme_color: '#05070d',
+      icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+    }));
+  }
+
   // ── іконка вкладки ──
   if (path === '/favicon.svg' || path === '/favicon.ico') {
     res.writeHead(200, {
@@ -270,6 +316,24 @@ async function handle(req, res) {
 
   // ── проксі медіа (підписані посилання) ──
   if (path === '/stream') return handleStream(req, res, url);
+
+  // ── модерація ──
+  // Сторінка й дії закриті рівнем доступу, а не лише схованою кнопкою:
+  // прямим посиланням сюди теж не зайти.
+  if (path === '/mod') {
+    if (!session) {
+      res.writeHead(302, { Location: '/login?next=%2Fmod' });
+      return res.end();
+    }
+    if (!isModerator(guild, session)) {
+      return html(res, 403, guild, session, lang, path, '403', R.errorPage(403, t(lang, 'mod.denied'), lang));
+    }
+    return renderMod(res, guild, session, lang, path);
+  }
+
+  if (path.startsWith('/api/mod/') && req.method === 'POST') {
+    return modApi(req, res, guild, session, path.slice(9));
+  }
 
   // ── кінотеатр ──
   if (path === '/cinema') return renderCinema(res, guild, session, lang, path, hostOf(req));
@@ -309,7 +373,11 @@ async function handle(req, res) {
   }
 
   if (path === '/') {
-    return send(res, 200, 'text/html; charset=utf-8', R.landingLayout({ lang, session }));
+    return send(res, 200, 'text/html; charset=utf-8', R.landingLayout({
+      lang,
+      session,
+      og: ogFor(guild, '/', null, 'Профілі, галерея та спільний перегляд'),
+    }));
   }
 
   if (path === '/top') {
@@ -470,6 +538,89 @@ async function handleUpload(req, res, guild, session, lang) {
 }
 
 // ─────────────────────────────────────────────
+//  Модерація
+// ─────────────────────────────────────────────
+async function renderMod(res, guild, session, lang, path) {
+  const level = accessLevel(guild, session);
+  const active = await punishmentService.forGuild(guild.id, 60);
+  const journal = await modRepo.recent(guild.id, 60).catch(() => []);
+
+  // імена й аватари підтягуємо з кешу учасників
+  const who = {};
+  for (const id of new Set([...active.map((p) => p.userId), ...journal.flatMap((j) => [j.user_id, j.moderator_id])])) {
+    const m = guild.members.cache.get(id);
+    who[id] = {
+      name: m?.displayName ?? id,
+      avatar: m?.user?.displayAvatarURL?.({ extension: 'png', size: 64 }) ?? avatarUrl(id, null, 64),
+    };
+  }
+
+  const body = R.modPage({
+    active,
+    journal,
+    who,
+    lang,
+    level,
+    limitMinutes: punishmentService.limitMinutes(guild.id, level),
+    kinds: KIND_LABEL,
+  });
+  return html(res, 200, guild, session, lang, path, t(lang, 'mod.title'), body, false, 'mod');
+}
+
+async function modApi(req, res, guild, session, action) {
+  if (!session) return json(res, 401, { error: 'auth' });
+  if (!isModerator(guild, session)) return json(res, 403, { error: 'forbidden' });
+
+  const level = accessLevel(guild, session);
+  const body = await readJson(req).catch(() => ({}));
+  const targetId = String(body.userId ?? '').replace(/[^0-9]/g, '');
+  if (!targetId) return json(res, 400, { error: 'userId' });
+
+  // себе перевіряємо одразу — по учасника до Discord ходити ні до чого
+  if (targetId === session.user_id) return json(res, 400, { error: 'self' });
+
+  const target = guild.members.cache.get(targetId) ?? await guild.members.fetch(targetId).catch(() => null);
+  if (!target) return json(res, 404, { error: 'not found' });
+
+  // ті самі правила, що й у боті: не рівного й не старшого за правами
+  if (accessService.level(target) >= level) return json(res, 403, { error: 'rank' });
+
+  if (action === 'lift') {
+    await punishmentService.lift(guild, targetId, String(body.kind ?? 'all'), session.user_id);
+    await punishmentService.notify(guild, {
+      target: target.user, moderator: session.user_id, kind: body.kind === 'all' ? 'full' : body.kind, lifted: true,
+    });
+    return json(res, 200, { ok: true });
+  }
+
+  if (action === 'apply') {
+    const kind = String(body.kind ?? '');
+    if (!['text', 'voice', 'full'].includes(kind)) return json(res, 400, { error: 'kind' });
+
+    const minutes = Math.max(0, Math.min(525_600, Number(body.minutes ?? 0)));
+    if (!punishmentService.withinLimit(guild.id, level, minutes)) return json(res, 403, { error: 'limit' });
+
+    const reason = String(body.reason ?? '').slice(0, 400).trim() || null;
+    if (configService.get(guild.id, 'moderation.requireReason') && !reason) {
+      return json(res, 400, { error: 'reason' });
+    }
+
+    try {
+      await punishmentService.apply(guild, target, { kind, minutes, reason, moderatorId: session.user_id });
+      await punishmentService.notify(guild, {
+        target: target.user, moderator: session.user_id, kind, minutes, reason,
+      });
+      log.info(`Модерація: ${session.username} → ${target.displayName} (${kind})`);
+      return json(res, 200, { ok: true });
+    } catch (err) {
+      return json(res, 400, { error: err.message });
+    }
+  }
+
+  return json(res, 404, { error: 'action' });
+}
+
+// ─────────────────────────────────────────────
 //  Кінотеатр: спільний перегляд для тих, хто сидить у голосовому каналі
 // ─────────────────────────────────────────────
 
@@ -544,7 +695,9 @@ async function cinemaState(guild, session) {
   const editor = isEditor(guild, session);
   const lock = lockedUntil(guild);
   // Дивитися може будь-хто; керувати — лише той, хто сидить у голосовому каналі.
-  const inRoom = !!session && inVoice(channel, session.user_id);
+  // Адміністратор керує залом і не заходячи в канал — інакше не запустиш сеанс,
+  // поки всі збираються.
+  const inRoom = !!session && (inVoice(channel, session.user_id) || admin);
   const blocked = !!session && isBlocked(guild, session.user_id) && !admin;
   const canControl = inRoom && !blocked && (!lock || admin);
 
@@ -628,8 +781,8 @@ async function cinemaAction(req, res, guild, session, action) {
     return json(res, 200, await cinemaState(guild, session));
   }
 
-  // ── усе інше вимагає присутності в голосовому каналі ──
-  if (!inVoice(channel, session.user_id)) return json(res, 403, { error: 'voice' });
+  // ── усе інше вимагає присутності в голосовому каналі (адміну — ні) ──
+  if (!inVoice(channel, session.user_id) && !admin) return json(res, 403, { error: 'voice' });
   if (lockedUntil(guild) && !admin) return json(res, 403, { error: 'locked' });
   // право паузи могли забрати особисто — перевіряємо це саме тут, на сервері,
   // бо ховати кнопку в інтерфейсі недостатньо
@@ -891,6 +1044,47 @@ async function renderCinema(res, guild, session, lang, path, host) {
   return html(res, 200, guild, session, lang, path, t(lang, 'cin.title'), body, false, 'cinema');
 }
 
+/** PNG-картка профілю для прев'ю посилання. Кешуємо — рендер не безкоштовний. */
+const ogCache = new Map(); // userId → { at, png }
+
+async function ogProfileImage(guild, userId) {
+  const hit = ogCache.get(userId);
+  if (hit && Date.now() - hit.at < 300_000) return hit.png;
+
+  const profile = await profileService.build(guild.id, userId, { fresh: false });
+  if (!profile) return null;
+
+  const member = guild.members.cache.get(userId) ?? await guild.members.fetch(userId).catch(() => null);
+  const tone = member?.displayHexColor && member.displayHexColor !== '#000000' ? member.displayHexColor : null;
+
+  let roleName = null;
+  let roleColor = tone;
+  if (member) {
+    const tier = verificationService.tiers(guild.id).find((x) => x.roleId && member.roles.cache.has(x.roleId));
+    const role = tier?.roleId ? guild.roles.cache.get(tier.roleId) : null;
+    if (role) {
+      roleName = role.name;
+      roleColor = role.color ? role.hexColor : roleColor;
+    }
+  }
+
+  // profileCard віддає вкладення для Discord — нам потрібні самі байти
+  const card = await profileCard(profile, {
+    username: member?.displayName ?? profile.username ?? userId,
+    avatarUrl: member?.user?.displayAvatarURL({ extension: 'png', size: 128 }) ?? avatarUrl(userId, null, 128),
+    roleName,
+    roleColor,
+    accent: tone,
+  });
+  const png = card?.attachment ?? null;
+  if (!png) return null;
+
+  // тримаємо лише кілька останніх карток — це прев'ю, а не сховище
+  if (ogCache.size > 40) ogCache.clear();
+  ogCache.set(userId, { at: Date.now(), png });
+  return png;
+}
+
 /** Домен, на якому нас відкрили (для parent= у чужих плеєрах). */
 function hostOf(req) {
   const pub = publicUrl();
@@ -928,8 +1122,16 @@ async function renderProfile(res, guild, session, lang, path, userId) {
     ? member.user.displayAvatarURL({ extension: 'png', size: 128 })
     : avatarUrl(userId, null);
 
+  // у прев'ю посилання йде та сама картка, що й у Discord
+  const og = ogFor(
+    guild, path, username,
+    `Рейтинг ${profile.aiScore}${rank ? ` · #${rank}` : ''} · на сервері ${profile.daysOnServer} дн.`,
+    publicUrl() ? `${publicUrl()}/og/u/${userId}` : undefined,
+  );
+
   return html(res, 200, guild, session, lang, path, username,
-    R.profilePage(profile, { username, avatar, roleName, roleColor, rank, lang }));
+    R.profilePage(profile, { username, avatar, roleName, roleColor, rank, lang }),
+    false, null, og);
 }
 
 async function topRows(guild, limit) {
@@ -948,7 +1150,21 @@ async function topRows(guild, limit) {
 // ─────────────────────────────────────────────
 //  Відповіді
 // ─────────────────────────────────────────────
-async function html(res, code, guild, session, lang, path, title, body, gallery = false, page = null) {
+/**
+ * Дані для прев'ю посилання. Кидаєш адресу в чат — має бути картка,
+ * а не голий текст.
+ */
+function ogFor(guild, path, title, description, image) {
+  const base = publicUrl();
+  return {
+    title: title ? `${title} · ${guild.name}` : guild.name,
+    description: description ?? 'Спільнота, галерея та спільний перегляд',
+    url: base ? base + path : undefined,
+    image: image ?? (base ? `${base}/og.png` : undefined),
+  };
+}
+
+async function html(res, code, guild, session, lang, path, title, body, gallery = false, page = null, og = null) {
   const hasCustomCss = !!(await siteAssetsRepo.get(guild.id, '/custom.css').catch(() => null));
   const pages = await sitePagesRepo.list(guild.id).catch(() => []);
 
@@ -960,11 +1176,16 @@ async function html(res, code, guild, session, lang, path, title, body, gallery 
       : []),
     ...pages.map((p) => ({ href: `/${p.slug}`, label: p.title, active: path === `/${p.slug}` })),
     { href: '/me', label: t(lang, 'nav.profile'), active: path === '/me' },
+    // кнопку модерації бачать лише ті, кому вона доступна
+    ...(isModerator(guild, session)
+      ? [{ href: '/mod', label: `🛡️ ${t(lang, 'nav.mod')}`, active: path === '/mod', apart: true }]
+      : []),
   ];
 
   const out = R.layout({
     title: `${title} · ${guild.name}`,
     guildName: guild.name,
+    og: og ?? ogFor(guild, path, title),
     body, nav, session, hasCustomCss, lang, path, gallery, page,
   });
   return send(res, code, 'text/html; charset=utf-8', out);
