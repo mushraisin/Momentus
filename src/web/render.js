@@ -122,7 +122,25 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
   background:0;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
 .pick-row:hover{background:rgba(107,124,255,.16)}
 .pick-row img{width:24px;height:24px;border-radius:50%;flex:none}
-.kindbtn.on{background:rgba(107,124,255,.22);border-color:rgba(107,124,255,.6);color:#fff}
+/* Обраний вид покарання має бути видно з першого погляду:
+   акцентна заливка, світла рамка, кільце й позначка. */
+.up .kindbtn{position:relative;transition:.2s cubic-bezier(.22,.9,.3,1)}
+.up .kindbtn.on{background:linear-gradient(180deg,#7d8bff,#5b6bf0);
+  border-color:rgba(255,255,255,.35);color:#fff;font-weight:700;
+  box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
+.up .kindbtn.on::after{content:'✓';margin-left:7px;font-size:12px;opacity:.9}
+.up .kindbtn:not(.on){opacity:.72}
+.up .kindbtn:not(.on):hover{opacity:1}
+
+/* Будь-яка кнопка помітно «продавлюється» — стає ясно, що клік зарахований */
+.btn:active:not(:disabled),.act:active:not(:disabled),.kindbtn:active{transform:scale(.96)}
+.btn.busy{position:relative;color:transparent}
+.btn.busy::after{content:'';position:absolute;left:50%;top:50%;width:15px;height:15px;
+  margin:-8px 0 0 -8px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* короткий зелений спалах після вдалої дії */
+.btn.done{background:linear-gradient(180deg,#4fd18b,#37b374)!important;color:#06210f!important}
 .viewer .tagp{flex:none}
 .langs{position:relative;margin-left:6px}
 .langs summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
@@ -1855,6 +1873,16 @@ const MOD_JS = `
   var kind='text',err=document.getElementById('mod-err');
   function fail(t){if(!err)return;err.textContent=t;err.hidden=!t}
 
+  /** Термін: або готовий варіант, або своє число з обраною одиницею. */
+  function pickedMinutes(){
+    var drop=document.getElementById('mod-dur');
+    var v=drop?drop.dataset.value:'0';
+    if(v!=='custom')return Number(v||0);
+    var n=Number((document.getElementById('mod-num')||{}).value||0);
+    var unit=Number((document.getElementById('mod-unit')||{dataset:{}}).dataset.value||1);
+    return Math.max(1,Math.round(n*unit));
+  }
+
   /* ── Спадні меню в стилі сайту ── */
   document.addEventListener('click',function(e){
     var opt=e.target.closest('.drop-opt');
@@ -1864,6 +1892,11 @@ const MOD_JS = `
       drop.querySelector('.drop-v').textContent=opt.textContent;
       drop.querySelectorAll('.drop-opt').forEach(function(o){o.classList.toggle('on',o===opt)});
       drop.removeAttribute('open');
+      /* «свій час» відкриває поле для ручного значення */
+      if(drop.id==='mod-dur'){
+        var box=document.getElementById('mod-custom');
+        if(box)box.hidden=drop.dataset.value!=='custom';
+      }
       return;
     }
     var open=document.querySelector('.drop[open]');
@@ -1927,7 +1960,11 @@ const MOD_JS = `
     var k=e.target.closest('.kindbtn');
     if(k){
       kind=k.dataset.kind;
-      document.querySelectorAll('.kindbtn').forEach(function(b){b.classList.toggle('on',b===k)});
+      document.querySelectorAll('.kindbtn').forEach(function(b){
+        var on=b===k;
+        b.classList.toggle('on',on);
+        b.setAttribute('aria-pressed',on?'true':'false');
+      });
       return;
     }
 
@@ -1943,19 +1980,33 @@ const MOD_JS = `
     }
 
     if(e.target.closest('#mod-apply')){
+      var apply=e.target.closest('#mod-apply');
       var user=(document.getElementById('mod-user').value||'').replace(/[^0-9]/g,'');
-      if(!user){fail(document.getElementById('mod-picker').dataset.need||'Оберіть учасника');return}
+      if(!user){
+        fail(document.getElementById('mod-picker').dataset.need||'Оберіть учасника');
+        /* підсвічуємо саме те місце, де бракує вибору */
+        var pick=document.getElementById('mod-pick');
+        pick.classList.add('bad');setTimeout(function(){pick.classList.remove('bad')},1200);
+        return;
+      }
       fail('');
+      apply.disabled=true;apply.classList.add('busy');
       fetch('/api/mod/apply',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({
           userId:user,kind:kind,
-          minutes:Number(document.getElementById('mod-dur').dataset.value||0),
+          minutes:pickedMinutes(),
           reason:document.getElementById('mod-reason').value||''
         })}).then(function(r){return r.json()}).then(function(j){
+          apply.disabled=false;apply.classList.remove('busy');
           if(j.error){fail(({limit:'Перевищено ваш ліміт',rank:'Цей учасник рівний вам або вищий',
             reason:'Причина обовʼязкова',self:'Себе не можна','not found':'Учасника не знайдено'})[j.error]||j.error);return}
-          location.reload();
-        }).catch(function(){});
+          /* коротко підтверджуємо успіх, і аж потім оновлюємо сторінку */
+          apply.classList.add('done');
+          setTimeout(function(){location.reload()},450);
+        }).catch(function(){
+          apply.disabled=false;apply.classList.remove('busy');
+          fail('Не вдалося звʼязатися з сервером');
+        });
     }
   });
 })();
@@ -2670,7 +2721,21 @@ export function modPage({ active = [], journal = [], who = {}, lang = 'uk', limi
           data-kind="${k}">${KIND_ICON[k]} ${esc(kinds[k] ?? k)}</button>`).join('')}
       </div>
 
-      ${dropdown('mod-dur', durations.map(([m, l]) => [String(m), l]), t(lang, 'mod.duration'))}
+      ${dropdown(
+    'mod-dur',
+    [...durations.map(([m, l]) => [String(m), l]), ['custom', t(lang, 'mod.custom')]],
+    t(lang, 'mod.duration'),
+  )}
+      <!-- своє значення: число + одиниця, показується лише коли обрано «свій час» -->
+      <div class="row custom-dur" id="mod-custom" hidden style="gap:8px">
+        <input type="number" id="mod-num" min="1" max="99999" value="30"
+          aria-label="${esc(t(lang, 'mod.duration'))}">
+        ${dropdown('mod-unit', [
+    ['1', t(lang, 'mod.minutes')],
+    ['60', t(lang, 'mod.hours')],
+    ['1440', t(lang, 'mod.days')],
+  ])}
+      </div>
 
       <input type="text" id="mod-reason" placeholder="${esc(t(lang, 'mod.reason'))}">
       <button class="btn" id="mod-apply">${esc(t(lang, 'mod.applyBtn'))}</button>

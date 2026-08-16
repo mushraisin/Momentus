@@ -496,6 +496,13 @@ ok('галерея з Discord-каналу: публікація, звʼязок
   assert.ok(modPage.body.includes('pick-search'), 'пошук учасників');
   assert.ok(!modPage.body.includes('<select'), 'жодних нативних select — усі меню свої');
   assert.ok(modPage.body.includes('drop-menu'), 'спадне меню в стилі сайту');
+  assert.ok(modPage.body.includes('mod-custom') && modPage.body.includes('mod-num'),
+    'можна вписати свій термін');
+  assert.ok(modPage.body.includes('aria-pressed') || modPage.body.includes('kindbtn'),
+    'вид покарання видно як обраний');
+
+  // сам розбір терміну й застосування перевіряються в moderationTest,
+  // де є повноцінний мок учасника; тут — що поле є в розмітці
 
   // список учасників закритий для сторонніх
   assert.equal((await req('/api/members', auth)).status, 403, 'список учасників лише модераторам');

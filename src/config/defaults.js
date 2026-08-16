@@ -11,6 +11,7 @@ export const CONFIG_SCHEMA = {
   // бота, які бачити стороннім ні до чого.
   'general.statsChannelId': { type: 'channel', default: '', label: 'Канал панелі (для всіх)', group: 'general' },
   'general.adminChannelId': { type: 'channel', default: '', label: 'Канал налаштувань (адмін)', group: 'general' },
+  'general.modPanelChannelId': { type: 'channel', default: '', label: 'Канал панелі модерації', group: 'general' },
   'general.modLogChannelId': { type: 'channel', default: '', label: 'Канал лог-модерації', group: 'general' },
   'general.systemLogChannelId': { type: 'channel', default: '', label: 'Системний лог', group: 'general' },
 

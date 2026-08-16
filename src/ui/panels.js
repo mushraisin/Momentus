@@ -37,6 +37,24 @@ export function hubPanel(guild) {
   };
 }
 
+/**
+ * Повідомлення в каналі модерації: одна кнопка, що відкриває панель.
+ * Сама панель приватна, тож у каналі лишається чисто.
+ */
+export function modEntryPanel(guild) {
+  return {
+    embeds: [{
+      color: 0xef5350,
+      title: '🛡️ Модерація',
+      description: 'Панель відкриється лише для вас — у каналі нічого не лишиться.',
+      footer: { text: guild.name },
+    }],
+    components: rows([
+      button({ id: cid(NS.MOD, 'home'), label: 'Відкрити панель', emoji: '🛡️', style: ButtonStyle.Danger }),
+    ]),
+  };
+}
+
 /** Ряд навігації між розділами + посилання на сайт. */
 function nav(active) {
   const mk = (ns, action, label, emoji) =>

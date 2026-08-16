@@ -48,7 +48,9 @@ function idsOf(payload) {
 // 2. жоден customId не має порожнього простору імен
 const screens = {
   'панель для всіх': panels.hubPanel(guild),
-  'майстер налаштування': admin.setupPanel(guild),
+  'майстер: канали': admin.setupPanel(guild, 0),
+  'майстер: медіа': admin.setupPanel(guild, 1),
+  'канал модерації': panels.modEntryPanel(guild),
   'адмін-панель': await admin.adminHome(guild),
   'розділ конфігу': admin.adminGroup(guild, 'moderation'),
   'модерація: головна': mod.modHome(guild, member),

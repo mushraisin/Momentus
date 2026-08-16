@@ -43,6 +43,51 @@ export function reasonModal(targetId, kind, minutes) {
     }));
 }
 
+/**
+ * Своє значення терміну. Модальне вікно не можна відкрити з іншого вікна,
+ * тож питаємо час і причину одразу разом.
+ */
+export function customDurationModal(targetId, kind) {
+  const title = {
+    text: 'Текстовий мут', voice: 'Голосовий мут', full: 'Повний мут',
+  }[kind] ?? 'Покарання';
+
+  return new ModalBuilder()
+    .setCustomId(cid(NS.MOD, 'reason', targetId, kind, 'custom'))
+    .setTitle(title.slice(0, 45))
+    .addComponents(
+      input({
+        id: 'duration',
+        label: 'Термін',
+        placeholder: 'напр. 90хв, 3год, 2д — або 0, щоб до зняття',
+        required: true,
+      }),
+      input({
+        id: 'reason',
+        label: 'Причина',
+        style: TextInputStyle.Paragraph,
+        placeholder: 'Її побачить учасник і журнал модерації',
+        required: false,
+      }),
+    );
+}
+
+/** Розбір «90хв», «3 год», «2д», «45» (за замовчуванням — хвилини). */
+export function parseDuration(raw) {
+  const s = String(raw ?? '').trim().toLowerCase().replace(',', '.');
+  if (!s) return null;
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Zа-яіїєґ]*)$/u);
+  if (!m) return null;
+
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n < 0) return null;
+
+  const unit = m[2];
+  const mult = /^(д|дн|день|дні|днів|d|day|days)/.test(unit) ? 1440
+    : (/^(г|год|ч|час|h|hour|hours)/.test(unit) ? 60 : 1);
+  return Math.round(n * mult);
+}
+
 export function configModal(guildId, key) {
   const schema = CONFIG_SCHEMA[key];
   if (!schema) return null;

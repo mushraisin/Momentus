@@ -1,3 +1,4 @@
+import { MessageFlags } from 'discord.js';
 import { NS, ACCESS } from '../config/constants.js';
 import { parseCid } from '../ui/components.js';
 import { createLogger } from '../core/logger.js';
@@ -194,31 +195,49 @@ async function modHandlers(interaction, action, args) {
   const guild = interaction.guild;
   const level = accessService.level(interaction.member);
 
+  /**
+   * Панель модерації особиста: у спільному повідомленні панелі її не можна
+   * малювати, бо оновлення побачили б усі. Тому з публічної кнопки
+   * відкриваємо приватну відповідь, а далі вже правимо саме її.
+   */
+  const isPrivate = !!interaction.message?.flags?.has?.(MessageFlags.Ephemeral);
+  const show = (payload) => (isPrivate ? safeUpdate(interaction, payload) : ephemeral(interaction, payload));
+
   switch (action) {
     case 'home':
-      return safeUpdate(interaction, mod.modHome(guild, interaction.member));
+      return show(mod.modHome(guild, interaction.member));
+
+    case 'close':
+      return safeUpdate(interaction, { content: 'Закрито.', embeds: [], components: [] });
 
     case 'pick':
     case 'pickAgain': {
       const targetId = action === 'pick' ? interaction.values?.[0] : args[0];
       if (!targetId) return ephemeral(interaction, 'Не обрано учасника.');
-      return safeUpdate(interaction, await mod.modTarget(guild, targetId, interaction.member));
+      return show(modTarget(guild, targetId, interaction.member));
     }
 
     case 'active':
-      return safeUpdate(interaction, await mod.modActive(guild));
+      return show(modActive(guild));
 
     case 'ask': {
       const [targetId, kind] = args;
       const guard = await canModerate(interaction, targetId);
       if (guard) return ephemeral(interaction, guard);
-      return safeUpdate(interaction, mod.modDuration(guild, targetId, kind, interaction.member));
+      return show(modDuration(guild, targetId, kind, interaction.member));
     }
 
     // Термін обрано — питаємо причину окремим вікном.
     case 'dur': {
       const [targetId, kind] = args;
-      const minutes = Number(interaction.values?.[0] ?? 0);
+      const picked = interaction.values?.[0] ?? '0';
+
+      // своє значення питаємо разом із причиною — вікно з вікна не відкрити
+      if (picked === 'custom') {
+        return interaction.showModal(modals.customDurationModal(targetId, kind));
+      }
+
+      const minutes = Number(picked);
       if (!punishmentService.withinLimit(guild.id, level, minutes)) {
         return ephemeral(interaction, 'Цей термін перевищує ваш ліміт.');
       }
@@ -237,7 +256,7 @@ async function modHandlers(interaction, action, args) {
           target: target.user, moderator: interaction.user.id, kind: kind === 'all' ? 'full' : kind, lifted: true,
         });
       }
-      return safeUpdate(interaction, await mod.modTarget(guild, targetId, interaction.member));
+      return show(modTarget(guild, targetId, interaction.member));
     }
 
     case 'warn': {
@@ -267,7 +286,16 @@ async function modModal(interaction, action, args) {
   if (action !== 'reason') return;
 
   const [targetId, kind, minutesRaw] = args;
-  const minutes = Number(minutesRaw ?? 0);
+
+  // «custom» означає, що термін вписали руками в тому ж вікні
+  let minutes = Number(minutesRaw ?? 0);
+  if (minutesRaw === 'custom') {
+    const parsed = modals.parseDuration(interaction.fields.getTextInputValue('duration'));
+    if (parsed === null) {
+      return ephemeral(interaction, 'Не зрозумів термін. Приклади: `90хв`, `3год`, `2д`, `0` — до зняття.');
+    }
+    minutes = parsed;
+  }
   const guild = interaction.guild;
   const level = accessService.level(interaction.member);
   const reason = interaction.fields.getTextInputValue('reason')?.trim() || null;
@@ -359,6 +387,31 @@ async function adminHandlers(interaction, action, args) {
     // канал налаштувань: сюди приходить сама адмін-панель
     case 'bindAdmin':
       return bindAdmin(interaction, interaction.values?.[0]);
+
+    // крок майстра
+    case 'setup':
+      return safeUpdate(interaction, admin.setupPanel(guild, Number(args[0] ?? 0)));
+
+    // окремий канал для модераторів: туди йде повідомлення з кнопкою панелі
+    case 'bindModPanel': {
+      const channelId = interaction.values?.[0];
+      const channel = channelId ? await guild.channels.fetch(channelId).catch(() => null) : null;
+      if (!channel?.isTextBased?.()) return ephemeral(interaction, '⚠️ Це не текстовий канал.');
+
+      await configService.set(guild.id, 'general.modPanelChannelId', channelId);
+      await channel.send(panels.modEntryPanel(guild)).catch(() => {});
+      return safeUpdate(interaction, admin.setupPanel(guild, 0));
+    }
+
+    // канали галереї та кінотеатру — з того ж майстра, без походу в конфіг
+    case 'bindGallery': {
+      await configService.set(guild.id, 'gallery.channelId', interaction.values?.[0] ?? '');
+      return safeUpdate(interaction, admin.setupPanel(guild, 1));
+    }
+    case 'bindCinema': {
+      await configService.set(guild.id, 'cinema.voiceChannelId', interaction.values?.[0] ?? '');
+      return safeUpdate(interaction, admin.setupPanel(guild, 1));
+    }
     // розділ відкривається кнопкою; args[1] — сторінка, якщо полів багато
     case 'group':
       return safeUpdate(interaction, admin.adminGroup(

@@ -28,42 +28,73 @@ const GROUP_LABELS = {
  * Обидва обираються тут же, у будь-якому порядку; майстер сам показує,
  * що вже готово, а чого ще бракує.
  */
-export function setupPanel(guild) {
+export function setupPanel(guild, page = 0) {
   const cfg = configService.all(guild.id);
   const hub = cfg['general.statsChannelId'];
   const adminCh = cfg['general.adminChannelId'];
 
   const mark = (id) => (id ? `✅ <#${id}>` : '⬜ не обрано');
+  const ready = !!(hub && adminCh);
 
   const embed = baseEmbed()
-    .setColor(hub && adminCh ? COLORS.good ?? COLORS.primary : COLORS.primary)
+    .setColor(ready ? COLORS.good ?? COLORS.primary : COLORS.primary)
     .setTitle('Перший запуск')
     .setDescription([
-      'Боту потрібні два канали — вони з різним призначенням.',
+      'Оберіть канали — у кожного своє призначення.',
       '',
       `**1. Панель для всіх** — ${mark(hub)}`,
-      '-# профіль, репутація, перевірка, сайт і кінотеатр; модерація — кому дозволено',
-      '',
+      '-# профіль, репутація, перевірка, посилання на сайт',
       `**2. Налаштування бота** — ${mark(adminCh)}`,
       '-# лише для адміністрації: сюди приходить панель керування',
+      `**3. Панель модерації** — ${mark(cfg['general.modPanelChannelId'])}`,
+      '-# окремий канал для модераторів *(не обовʼязково)*',
+      `**4. Галерея** — ${mark(cfg['gallery.channelId'])}`,
+      '-# медіа звідси бот пропонує публікувати на сайті',
+      `**5. Кінотеатр** — ${mark(cfg['cinema.voiceChannelId'])}`,
+      '-# голосовий канал: керувати сеансом можна лише з нього',
     ].join('\n'))
-    .setFooter({ text: guild.name });
+    .setFooter({ text: `${guild.name} · крок ${page + 1} з 2` });
+
+  // Discord дозволяє лише пʼять рядків, тож селектори розділені на два кроки.
+  const step0 = [
+    channelSelectRow({ id: cid(NS.ADMIN, 'bindChannel'), placeholder: '1 · Канал панелі для всіх…' }),
+    channelSelectRow({ id: cid(NS.ADMIN, 'bindAdmin'), placeholder: '2 · Канал налаштувань…' }),
+    channelSelectRow({ id: cid(NS.ADMIN, 'bindModPanel'), placeholder: '3 · Канал модерації…' }),
+  ];
+  const step1 = [
+    channelSelectRow({ id: cid(NS.ADMIN, 'bindGallery'), placeholder: '4 · Канал галереї…' }),
+    channelSelectRow({
+      id: cid(NS.ADMIN, 'bindCinema'),
+      placeholder: '5 · Голосовий канал кінотеатру…',
+      types: [ChannelType.GuildVoice, ChannelType.GuildStageVoice],
+    }),
+  ];
+
+  const nav = page === 0
+    ? [
+      button({ id: cid(NS.ADMIN, 'setup', '1'), label: 'Галерея й кінотеатр', emoji: '➡️' }),
+      button({
+        id: cid(NS.ADMIN, 'home'),
+        label: 'Готово',
+        emoji: '⚙️',
+        style: ButtonStyle.Success,
+        disabled: !ready,
+      }),
+    ]
+    : [
+      button({ id: cid(NS.ADMIN, 'setup', '0'), label: 'Назад', emoji: '⬅️' }),
+      button({
+        id: cid(NS.ADMIN, 'home'),
+        label: 'Готово',
+        emoji: '⚙️',
+        style: ButtonStyle.Success,
+        disabled: !ready,
+      }),
+    ];
 
   return {
     embeds: [embed],
-    components: [
-      channelSelectRow({ id: cid(NS.ADMIN, 'bindChannel'), placeholder: '1 · Канал панелі для всіх…' }),
-      channelSelectRow({ id: cid(NS.ADMIN, 'bindAdmin'), placeholder: '2 · Канал налаштувань…' }),
-      ...rows([
-        button({
-          id: cid(NS.ADMIN, 'home'),
-          label: 'Готово, до налаштувань',
-          emoji: '⚙️',
-          style: ButtonStyle.Success,
-          disabled: !(hub && adminCh),
-        }),
-      ]),
-    ],
+    components: [...(page === 0 ? step0 : step1), ...rows(nav)],
   };
 }
 

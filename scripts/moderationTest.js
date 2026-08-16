@@ -147,6 +147,23 @@ assert.equal((await punishRepo.forUser(G, USER)).length, 0, 'чистий арк
 assert.ok(KIND_LABEL.text && KIND_LABEL.voice && KIND_LABEL.full, 'назви для інтерфейсу є');
 ok('зняття вручну прибирає всі покарання одразу');
 
+// 9. термін можна вписати руками в будь-якому зручному вигляді
+{
+  const { parseDuration } = await import('../src/ui/modals.js');
+  assert.equal(parseDuration('90хв'), 90);
+  assert.equal(parseDuration('3год'), 180);
+  assert.equal(parseDuration('2д'), 2880);
+  assert.equal(parseDuration('45'), 45, 'без одиниці — хвилини');
+  assert.equal(parseDuration('1.5год'), 90, 'дробові теж');
+  assert.equal(parseDuration('2 дні'), 2880, 'із пробілом і словом');
+  assert.equal(parseDuration('12h'), 720, 'латиниця теж');
+  assert.equal(parseDuration('0'), 0, 'нуль — до зняття');
+  assert.equal(parseDuration('сміття'), null, 'нісенітницю відкидаємо');
+  assert.equal(parseDuration(''), null);
+  assert.equal(parseDuration('-5'), null, 'відʼємне — ні');
+}
+ok('свій термін: «90хв», «3год», «2д», «1.5год» — усе розбирається');
+
 await punishRepo.removeAll(G, USER);
 console.log(`\n✅ Усі ${passed} перевірок модерації пройдено.`);
 process.exit(0);

@@ -46,7 +46,8 @@ export function modHome(guild, member) {
       userSelectRow({ id: cid(NS.MOD, 'pick'), placeholder: 'Кого модеруємо…' }),
       ...rows([
         button({ id: cid(NS.MOD, 'active'), label: 'Чинні покарання', emoji: '📋' }),
-        button({ id: cid(NS.ADMIN, 'home'), label: 'Назад', emoji: '↩️' }),
+        // це вікно бачить лише той, хто його відкрив, тож «назад» тут не потрібне
+        button({ id: cid(NS.MOD, 'close'), label: 'Закрити', emoji: '✖️' }),
       ]),
     ],
   };
@@ -114,9 +115,13 @@ export function modDuration(guild, targetId, kind, member) {
   const level = accessService.level(member);
   const limit = punishmentService.limitMinutes(guild.id, level);
 
-  const options = DURATIONS
-    .filter((d) => punishmentService.withinLimit(guild.id, level, Number(d.value)))
-    .map((d) => ({ value: d.value, label: d.label }));
+  const options = [
+    ...DURATIONS
+      .filter((d) => punishmentService.withinLimit(guild.id, level, Number(d.value)))
+      .map((d) => ({ value: d.value, label: d.label })),
+    // своє значення: відкриє вікно, де можна вписати «90хв», «3год», «2д»
+    { value: 'custom', label: 'Свій час…' },
+  ];
 
   const embed = baseEmbed()
     .setColor(COLORS.neutral)
