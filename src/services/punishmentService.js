@@ -265,9 +265,8 @@ export const punishmentService = {
     const icon = lifted ? '✅' : (warnLike ? '⚠️' : '⛔');
     // у попередження строку немає — воно просто згасає за 72 години
     const term = lifted || warnLike ? '' : (minutes ? `на ${fmtMin(minutes)}` : 'до зняття');
-    const by = moderator === 'system'
-      ? (lifted ? 'система (час вийшов)' : 'система (автоматично)')
-      : `<@${moderator}>`;
+    // без пояснень у дужках: або згадка людини, або просто «Система»
+    const by = moderator === 'system' ? 'Система' : `<@${moderator}>`;
 
     const logId = configService.get(guild.id, 'general.modLogChannelId');
     if (logId) {
