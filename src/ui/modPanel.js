@@ -3,7 +3,7 @@ import { NS, ACCESS } from '../config/constants.js';
 import { button, cid, rows, selectRow, userSelectRow } from './components.js';
 import { baseEmbed } from './embeds.js';
 import { COLORS } from './theme.js';
-import { punishmentService, KIND_LABEL } from '../services/punishmentService.js';
+import { punishmentService, KIND_LABEL, WARN_LIMIT } from '../services/punishmentService.js';
 import { modRepo } from '../database/repositories.js';
 import { accessService } from '../services/accessService.js';
 
@@ -58,6 +58,7 @@ export async function modTarget(guild, targetId, member) {
   const level = accessService.level(member);
   const target = guild.members.cache.get(targetId) ?? await guild.members.fetch(targetId).catch(() => null);
   const active = await punishmentService.forUser(guild.id, targetId);
+  const warns = await punishmentService.warnings(guild.id, targetId);
   const history = await modRepo.history(guild.id, targetId, 5);
 
   const embed = baseEmbed()
@@ -70,6 +71,14 @@ export async function modTarget(guild, targetId, member) {
     value: active.length
       ? active.map((p) => `${KIND_EMOJI[p.kind]} ${KIND_LABEL[p.kind]} — ${untilText(p.until)}`).join('\n')
       : 'нічого',
+  });
+
+  // попередження живуть 72 години й згасають самі
+  embed.addFields({
+    name: `Попередження ${warns.length}/${WARN_LIMIT}`,
+    value: warns.length
+      ? warns.map((w, i) => `**${i + 1}.** ${w.reason ? `${String(w.reason).slice(0, 50)} · ` : ''}згасне ${untilText(w.expiresAt)}`).join('\n')
+      : 'немає',
   });
 
   if (history.length) {
@@ -103,6 +112,18 @@ export async function modTarget(guild, targetId, member) {
       ]),
       ...rows([
         button({ id: cid(NS.MOD, 'warn', targetId), label: 'Попередження', emoji: '⚠️' }),
+        button({
+          id: cid(NS.MOD, 'unwarn', targetId, 'one'),
+          label: 'Зняти одне',
+          emoji: '➖',
+          disabled: !warns.length,
+        }),
+        button({
+          id: cid(NS.MOD, 'unwarn', targetId, 'all'),
+          label: 'Зняти всі',
+          emoji: '🧹',
+          disabled: !warns.length,
+        }),
         button({ id: cid(NS.MOD, 'kick', targetId), label: 'Кік', emoji: '👢', disabled: !canKick }),
         button({ id: cid(NS.MOD, 'home'), label: 'Назад', emoji: '↩️' }),
       ]),

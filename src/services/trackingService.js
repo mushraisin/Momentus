@@ -1,6 +1,7 @@
 import { usersRepo, activityRepo } from '../database/repositories.js';
 import { caches } from '../core/cache.js';
 import { isGratitude, isQuestion, isHelpful } from './analysis/ruleEngine.js';
+import { reputationService } from './reputationService.js';
 
 /**
  * Легкий облік «сирих» подій активності (без AI): повідомлення, реакції, войс.
@@ -22,6 +23,9 @@ export const trackingService = {
 
     await trackPeers(guildId, message);
     await trackHelp(guildId, message);
+
+    // рейтинг оновиться сам найближчим проходом — кнопку тиснути не треба
+    reputationService.markDirty(guildId, userId);
   },
 
   async reactionReceived(guildId, authorId, giverId) {

@@ -18,8 +18,8 @@ import { signUrl, handleStream } from './mediaProxy.js';
 import { ytdlpAvailable } from './ytdlp.js';
 import { OWNER_ID, ACCESS } from '../config/constants.js';
 import { accessService } from '../services/accessService.js';
-import { punishmentService, KIND_LABEL } from '../services/punishmentService.js';
-import { modRepo } from '../database/repositories.js';
+import { punishmentService, KIND_LABEL, WARN_LIMIT } from '../services/punishmentService.js';
+import { modRepo, warnRepo } from '../database/repositories.js';
 import { t, normalizeLang, langFromHeader } from '../i18n/index.js';
 import * as R from './render.js';
 
@@ -567,11 +567,16 @@ async function handleUpload(req, res, guild, session, lang) {
 async function renderMod(res, guild, session, lang, path) {
   const level = accessLevel(guild, session);
   const active = await punishmentService.forGuild(guild.id, 60);
+  const warns = await warnRepo.counts(guild.id).catch(() => []);
   const journal = await modRepo.recent(guild.id, 60).catch(() => []);
 
   // імена й аватари підтягуємо з кешу учасників
   const who = {};
-  for (const id of new Set([...active.map((p) => p.userId), ...journal.flatMap((j) => [j.user_id, j.moderator_id])])) {
+  for (const id of new Set([
+    ...active.map((p) => p.userId),
+    ...warns.map((w) => w.userId),
+    ...journal.flatMap((j) => [j.user_id, j.moderator_id]),
+  ])) {
     const m = guild.members.cache.get(id);
     who[id] = {
       name: m?.displayName ?? id,
@@ -581,6 +586,8 @@ async function renderMod(res, guild, session, lang, path) {
 
   const body = R.modPage({
     active,
+    warns,
+    warnLimit: WARN_LIMIT,
     journal,
     who,
     lang,
@@ -615,6 +622,33 @@ async function modApi(req, res, guild, session, action) {
       target: target.user, moderator: session.user_id, kind: body.kind === 'all' ? 'full' : body.kind, lifted: true,
     });
     return json(res, 200, { ok: true });
+  }
+
+  // попередження: живе 72 години, три чинні дають автоматичний мут
+  if (action === 'warn') {
+    const reason = String(body.reason ?? '').slice(0, 400).trim() || null;
+    if (configService.get(guild.id, 'moderation.requireReason') && !reason) {
+      return json(res, 400, { error: 'reason' });
+    }
+    const { count, auto } = await punishmentService.warn(guild, target, {
+      reason, moderatorId: session.user_id,
+    });
+    await punishmentService.notify(guild, {
+      target: target.user, moderator: session.user_id, kind: 'warn', reason,
+    });
+    if (auto) {
+      await punishmentService.notify(guild, {
+        target: target.user, moderator: 'system', kind: 'full',
+        minutes: auto.minutes, reason: `${WARN_LIMIT}/${WARN_LIMIT} попереджень`,
+      });
+    }
+    return json(res, 200, { ok: true, count, auto });
+  }
+
+  // зняття попереджень вручну
+  if (action === 'unwarn') {
+    const left = await punishmentService.liftWarn(guild.id, targetId, { all: body.all !== false });
+    return json(res, 200, { ok: true, left });
   }
 
   if (action === 'apply') {
@@ -1204,7 +1238,7 @@ async function html(res, code, guild, session, lang, path, title, body, gallery 
       ? [{ href: '/cinema', label: t(lang, 'nav.cinema'), active: path === '/cinema' }]
       : []),
     ...pages.map((p) => ({ href: `/${p.slug}`, label: p.title, active: path === `/${p.slug}` })),
-    { href: '/me', label: t(lang, 'nav.profile'), active: path === '/me' },
+    // окремої кнопки «Профіль» немає — до нього ведуть аватар і нік у шапці
     // кнопку модерації бачать лише ті, кому вона доступна
     ...(isModerator(guild, session)
       ? [{ href: '/mod', label: `🛡️ ${t(lang, 'nav.mod')}`, active: path === '/mod', apart: true }]

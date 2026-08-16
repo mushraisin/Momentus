@@ -1,6 +1,6 @@
 import { reputationService } from './reputationService.js';
 import { backupService } from './backupService.js';
-import { reputationRepo } from '../database/repositories.js';
+import { reputationRepo, warnRepo } from '../database/repositories.js';
 import { pipeline } from './analysisPipeline.js';
 import { punishmentService } from './punishmentService.js';
 import { createLogger } from '../core/logger.js';
@@ -13,9 +13,19 @@ export function startScheduler(client) {
   setInterval(() => pipeline.flushAll(), 30_000);
 
   // Покарання з терміном знімаються самі — раз на хвилину звіряємо час.
+  // Заразом прибираємо згаслі попередження, щоб таблиця не росла.
   setInterval(() => {
     punishmentService.liftExpired(client).catch(() => {});
+    warnRepo.purge().catch(() => {});
   }, 60_000);
+
+  // Рейтинг оновлюється сам: хто був активний — потрапляє в чергу,
+  // і раз на пʼять хвилин вона перераховується пачкою.
+  setInterval(() => {
+    reputationService.flushDirty(150)
+      .then((n) => { if (n) log.info(`Рейтинг оновлено: ${n} учасник(ів)`); })
+      .catch(() => {});
+  }, 5 * 60_000);
 
   // Щоденні знімки та бекап — раз на добу.
   setInterval(() => runDaily(client), 24 * 3600_000);

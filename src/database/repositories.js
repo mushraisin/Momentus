@@ -772,6 +772,73 @@ function shapePunish(row) {
   };
 }
 
+// ─────────────────────────────────────────────
+//  ПОПЕРЕДЖЕННЯ
+// ─────────────────────────────────────────────
+export const warnRepo = {
+  /** Термін життя одного попередження. */
+  TTL_MS: 72 * 3600_000,
+
+  async add(guildId, userId, { reason, moderatorId }) {
+    const now = Date.now();
+    const res = await run(`
+      INSERT INTO warnings (guild_id, user_id, reason, moderator_id, created_at, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [guildId, userId, reason ?? null, moderatorId, now, now + this.TTL_MS]);
+    return num(res.lastInsertRowid);
+  },
+
+  /** Чинні попередження — прострочені не рахуються. */
+  async active(guildId, userId, now = Date.now()) {
+    const rows = await all(
+      'SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? AND expires_at > ? ORDER BY created_at ASC',
+      [guildId, userId, now],
+    );
+    return rows.map(shapeWarn);
+  },
+
+  /** Скільки в кого чинних — для списку в панелі. */
+  async counts(guildId, now = Date.now()) {
+    const rows = await all(`
+      SELECT user_id, COUNT(*) AS n, MIN(expires_at) AS soonest
+      FROM warnings WHERE guild_id = ? AND expires_at > ?
+      GROUP BY user_id ORDER BY n DESC, soonest ASC
+    `, [guildId, now]);
+    return rows.map((r) => ({ userId: r.user_id, count: num(r.n), soonest: num(r.soonest) }));
+  },
+
+  /** Зняти одне (найстаріше або вказане). */
+  async removeOne(guildId, userId, id = null) {
+    if (id) return run('DELETE FROM warnings WHERE guild_id = ? AND user_id = ? AND id = ?', [guildId, userId, id]);
+    const row = await get(
+      'SELECT id FROM warnings WHERE guild_id = ? AND user_id = ? AND expires_at > ? ORDER BY created_at ASC LIMIT 1',
+      [guildId, userId, Date.now()],
+    );
+    if (!row) return null;
+    return run('DELETE FROM warnings WHERE id = ?', [num(row.id)]);
+  },
+
+  clear(guildId, userId) {
+    return run('DELETE FROM warnings WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+  },
+
+  /** Прибирання згаслих — щоб таблиця не росла вічно. */
+  purge(now = Date.now()) {
+    return run('DELETE FROM warnings WHERE expires_at <= ?', [now]);
+  },
+};
+
+function shapeWarn(row) {
+  return {
+    id: num(row.id),
+    userId: row.user_id,
+    reason: row.reason ?? null,
+    moderatorId: row.moderator_id,
+    createdAt: num(row.created_at),
+    expiresAt: num(row.expires_at),
+  };
+}
+
 export const sessionsRepo = {
   create({ token, guildId, userId, username, avatar, ttlMs }) {
     const now = Date.now();

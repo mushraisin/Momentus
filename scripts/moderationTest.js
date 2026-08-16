@@ -4,7 +4,7 @@
  */
 import 'dotenv/config';
 import assert from 'node:assert';
-import { initDatabase } from '../src/database/db.js';
+import { initDatabase, run } from '../src/database/db.js';
 
 await initDatabase();
 const { punishRepo, modRepo } = await import('../src/database/repositories.js');
@@ -163,6 +163,76 @@ ok('зняття вручну прибирає всі покарання одр�
   assert.equal(parseDuration('-5'), null, 'відʼємне — ні');
 }
 ok('свій термін: «90хв», «3год», «2д», «1.5год» — усе розбирається');
+
+// 10. попередження: 72 години, лічильник, автомут на 3/3
+{
+  const { warnRepo } = await import('../src/database/repositories.js');
+  const { WARN_LIMIT } = await import('../src/services/punishmentService.js');
+  await warnRepo.clear(G, USER);
+  await punishRepo.removeAll(G, USER);
+
+  const r1 = await punishmentService.warn(guild, member, { reason: 'раз', moderatorId: MOD });
+  assert.equal(r1.count, 1, 'перше попередження');
+  assert.equal(r1.auto, null, 'мута ще немає');
+  const r2 = await punishmentService.warn(guild, member, { reason: 'два', moderatorId: MOD });
+  assert.equal(r2.count, 2);
+
+  done.timeouts.length = 0;
+  const r3 = await punishmentService.warn(guild, member, { reason: 'три', moderatorId: MOD });
+  assert.equal(r3.count, WARN_LIMIT, 'третє замикає');
+  assert.ok(r3.auto, 'видано автоматичний мут');
+  assert.ok(r3.auto.minutes >= 60 && r3.auto.minutes <= 720, `строк у межах 1–12 год (${r3.auto.minutes})`);
+  assert.equal(done.timeouts.length, 1, 'це саме повний мут');
+  assert.equal(done.timeouts[0], r3.auto.minutes * 60_000, 'timeout на розрахований строк');
+
+  // покарання анулює попередження
+  assert.equal((await warnRepo.active(G, USER)).length, 0, 'після мута лічильник обнулено');
+  ok(`3/3 → автоматичний повний мут на ${r3.auto.minutes} хв, попередження обнулені`);
+
+  // темп впливає на строк: три поспіль суворіше, ніж три за три доби
+  const slow = [
+    { createdAt: Date.now() - 70 * 3600_000 },
+    { createdAt: Date.now() - 35 * 3600_000 },
+    { createdAt: Date.now() },
+  ];
+  await warnRepo.clear(G, USER);
+  for (const w of slow) {
+    await warnRepo.add(G, USER, { reason: 'повільно', moderatorId: MOD });
+    await run('UPDATE warnings SET created_at = ? WHERE id = (SELECT MAX(id) FROM warnings)', [w.createdAt]);
+  }
+  done.timeouts.length = 0;
+  const slowRes = await punishmentService.warn(guild, member, { reason: 'останнє', moderatorId: MOD });
+  assert.ok(slowRes.auto, 'мут видано й тут');
+  assert.ok(slowRes.auto.minutes < r3.auto.minutes || slowRes.auto.minutes <= 300,
+    `розтягнуті попередження караються мʼякше (${slowRes.auto.minutes} проти ${r3.auto.minutes})`);
+  ok(`темп враховано: повільні три → ${slowRes.auto.minutes} хв`);
+
+  // згаслі не рахуються
+  await warnRepo.clear(G, USER);
+  await warnRepo.add(G, USER, { reason: 'старе', moderatorId: MOD });
+  await run('UPDATE warnings SET expires_at = ? WHERE guild_id = ? AND user_id = ?',
+    [Date.now() - 1000, G, USER]);
+  assert.equal((await warnRepo.active(G, USER)).length, 0, 'через 72 години попередження зникає');
+  ok('попередження згасає саме через 72 години');
+
+  // зняття вручну
+  await warnRepo.clear(G, USER);
+  await punishmentService.warn(guild, member, { reason: 'а', moderatorId: MOD });
+  await punishmentService.warn(guild, member, { reason: 'б', moderatorId: MOD });
+  const leftOne = await punishmentService.liftWarn(G, USER, { all: false });
+  assert.equal(leftOne, 1, 'знято одне, лишилось одне');
+  const leftAll = await punishmentService.liftWarn(G, USER, { all: true });
+  assert.equal(leftAll, 0, 'знято всі');
+  ok('попередження знімаються вручну — по одному й усі одразу');
+
+  // будь-яке інше покарання теж обнуляє
+  await punishmentService.warn(guild, member, { reason: 'перед мутом', moderatorId: MOD });
+  await punishmentService.apply(guild, member, { kind: 'text', minutes: 30, reason: 'мут', moderatorId: MOD });
+  assert.equal((await warnRepo.active(G, USER)).length, 0, 'мут обнулив попередження');
+  ok('будь-яке покарання анулює попередження');
+
+  await warnRepo.clear(G, USER);
+}
 
 await punishRepo.removeAll(G, USER);
 console.log(`\n✅ Усі ${passed} перевірок модерації пройдено.`);

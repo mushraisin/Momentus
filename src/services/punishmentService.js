@@ -1,5 +1,6 @@
 import { PermissionFlagsBits, ChannelType } from 'discord.js';
-import { punishRepo, modRepo } from '../database/repositories.js';
+import { punishRepo, modRepo, warnRepo, reputationRepo } from '../database/repositories.js';
+import { reputationService } from './reputationService.js';
 import { configService } from './configService.js';
 import { createLogger } from '../core/logger.js';
 
@@ -135,6 +136,11 @@ export const punishmentService = {
     await punishRepo.set({
       guildId: guild.id, userId: member.id, kind, until, reason, moderatorId,
     });
+    // Будь-яке покарання анулює попередження — зокрема й мут за 3/3,
+    // інакше людина вийшла б із мута й одразу отримала наступний.
+    await warnRepo.clear(guild.id, member.id).catch(() => {});
+    // Порушення впливають на репутацію, тож перераховуємо одразу.
+    await reputationService.recompute(guild.id, member.id).catch(() => {});
     await modRepo.add({
       guildId: guild.id,
       userId: member.id,
@@ -197,6 +203,52 @@ export const punishmentService = {
     return punishRepo.forUser(guildId, userId);
   },
 
+  /** Чинні попередження (згаслі не рахуються). */
+  warnings(guildId, userId) {
+    return warnRepo.active(guildId, userId);
+  },
+
+  /**
+   * Видати попередження. Три чинні одночасно — і людина автоматично
+   * отримує повний мут, після якого список обнуляється.
+   *
+   * @returns {Promise<{count:number, auto:null|{minutes:number}}>}
+   */
+  async warn(guild, member, { reason, moderatorId }) {
+    await warnRepo.add(guild.id, member.id, { reason, moderatorId });
+    await modRepo.add({
+      guildId: guild.id, userId: member.id, moderatorId,
+      action: 'warn', reason, result: 'applied',
+    });
+
+    const active = await warnRepo.active(guild.id, member.id);
+    if (active.length < WARN_LIMIT) return { count: active.length, auto: null };
+
+    // поріг досягнуто — рахуємо строк і застосовуємо
+    const minutes = await autoMuteMinutes(guild, member.id, active);
+    await this.apply(guild, member, {
+      kind: 'full',
+      minutes,
+      reason: `${WARN_LIMIT}/${WARN_LIMIT} попереджень`,
+      moderatorId: 'system',
+    });
+    return { count: active.length, auto: { minutes } };
+  },
+
+  /** Зняти попередження вручну: одне або всі. */
+  async liftWarn(guildId, userId, { all = false, id = null } = {}) {
+    if (all) await warnRepo.clear(guildId, userId);
+    else await warnRepo.removeOne(guildId, userId, id);
+
+    const left = await warnRepo.active(guildId, userId);
+    await modRepo.add({
+      guildId, userId, moderatorId: 'system',
+      action: 'warn.lift', result: 'applied',
+      note: all ? 'усі' : 'одне',
+    }).catch(() => {});
+    return left.length;
+  },
+
   /** Усі чинні покарання гільдії. */
   forGuild(guildId, limit = 50) {
     return punishRepo.active(guildId, limit);
@@ -251,6 +303,42 @@ export const KIND_LABEL = {
   voice: 'голосовий мут',
   full: 'повний мут',
 };
+
+/** Скільки чинних попереджень призводять до автоматичного мута. */
+export const WARN_LIMIT = 3;
+
+/**
+ * Строк автоматичного мута: від години до дванадцяти.
+ *
+ * Враховуємо три речі:
+ *   темп — три попередження за годину гірші, ніж три за три доби;
+ *   історію — хто вже мав покарання, отримує довше;
+ *   репутацію — низький рейтинг додає, високий пом'якшує.
+ */
+async function autoMuteMinutes(guild, userId, warns) {
+  const MIN = 60;
+  const MAX = 720;
+
+  // темп: 0 — розтягнуто на всі 72 години, 1 — усі три поспіль
+  const spanMs = (warns.at(-1)?.createdAt ?? Date.now()) - (warns[0]?.createdAt ?? Date.now());
+  const pace = 1 - Math.min(1, spanMs / warnRepo.TTL_MS);
+
+  // історія: рахуємо попередні покарання, окрім самих попереджень
+  const past = await modRepo.history(guild.id, userId, 50).catch(() => []);
+  const serious = past.filter((h) => /^(mute\.|kick|ban|timeout)/.test(String(h.action))).length;
+  const history = Math.min(1, serious / 5);
+
+  // репутація: чим нижча, тим суворіше
+  let rep = 0.5;
+  try {
+    const row = await reputationRepo.get(guild.id, userId);
+    if (row?.ai_score != null) rep = 1 - Math.min(1, Math.max(0, Number(row.ai_score) / 1000));
+  } catch { /* немає даних — лишаємо середину */ }
+
+  const weight = pace * 0.45 + history * 0.3 + rep * 0.25;
+  const raw = MIN + weight * (MAX - MIN);
+  return Math.min(MAX, Math.max(MIN, Math.round(raw / 15) * 15));   // кратно 15 хв
+}
 
 function fmtMin(m) {
   if (m >= 1440 && m % 1440 === 0) return `${m / 1440} дн.`;

@@ -149,6 +149,20 @@ CREATE TABLE IF NOT EXISTS punishments (
 );
 CREATE INDEX IF NOT EXISTS idx_punish_until ON punishments (until);
 
+-- ── ПОПЕРЕДЖЕННЯ ────────────────────────────
+-- Живуть 72 години й згасають самі. Три чинні одночасно — автоматичний мут,
+-- після якого список обнуляється. Будь-яке інше покарання теж його обнуляє.
+CREATE TABLE IF NOT EXISTS warnings (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id     TEXT NOT NULL,
+  user_id      TEXT NOT NULL,
+  reason       TEXT,
+  moderator_id TEXT NOT NULL,
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_warn_user ON warnings (guild_id, user_id, expires_at);
+
 CREATE TABLE IF NOT EXISTS achievements (
   guild_id   TEXT NOT NULL,
   user_id    TEXT NOT NULL,

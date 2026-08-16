@@ -5,12 +5,52 @@ import {
 import { configService } from './configService.js';
 import { PUNISHMENT_WEIGHT, PUNISHMENT_DECAY_MS } from '../config/constants.js';
 import { bus, EVENTS } from '../core/eventBus.js';
+import { caches } from '../core/cache.js';
 
 /**
  * Перетворює сирі ознаки/активність/модерацію на 11 категорій репутації
  * та підсумковий AI Score (0..1000).
  */
+/**
+ * Хто чекає на перерахунок. Перераховувати після кожного повідомлення
+ * задорого, тож збираємо «брудних» і оновлюємо їх пачкою за розкладом.
+ */
+const dirty = new Map(); // guildId → Set(userId)
+
 export const reputationService = {
+  /** Позначити, що дані учасника змінились і рейтинг варто перерахувати. */
+  markDirty(guildId, userId) {
+    if (!guildId || !userId) return;
+    if (!dirty.has(guildId)) dirty.set(guildId, new Set());
+    dirty.get(guildId).add(userId);
+  },
+
+  /** Скільки зараз чекає на перерахунок. */
+  get pending() {
+    let n = 0;
+    for (const set of dirty.values()) n += set.size;
+    return n;
+  },
+
+  /**
+   * Перерахувати тих, хто накопичився. Обмежуємо пачку, щоб не блокувати
+   * подієвий цикл, — решта дочекається наступного разу.
+   */
+  async flushDirty(limit = 150) {
+    let done = 0;
+    for (const [guildId, set] of dirty) {
+      for (const userId of [...set]) {
+        if (done >= limit) return done;
+        set.delete(userId);
+        await this.recompute(guildId, userId).catch(() => {});
+        caches.profile.delete(`${guildId}:${userId}`);
+        done += 1;
+      }
+      if (!set.size) dirty.delete(guildId);
+    }
+    return done;
+  },
+
   /** Повний перерахунок репутації користувача. */
   async recompute(guildId, userId) {
     const user = await usersRepo.get(guildId, userId);
@@ -161,11 +201,24 @@ function peerScore(user) {
   return clamp(40 + received + social - 40, 0, 100);
 }
 
+/**
+ * Вага дії в порушеннях. Нові мути пишуться як `mute.text`/`mute.voice`/
+ * `mute.full`, тож зводимо їх до спільного ключа; зняття покарань,
+ * навпаки, ваги не мають узагалі.
+ */
+function actionWeight(action) {
+  const a = String(action ?? '');
+  if (/^(unmute|warn\.lift|note|praise|reward|unpunish)$/.test(a)) return 0;
+  const direct = PUNISHMENT_WEIGHT[a];
+  if (direct !== undefined) return direct;
+  return PUNISHMENT_WEIGHT[a.split('.')[0]] ?? 0;
+}
+
 function violationScore(rows) {
   let raw = 0;
   const now = Date.now();
   for (const r of rows) {
-    const weight = PUNISHMENT_WEIGHT[r.action] ?? 0;
+    const weight = actionWeight(r.action);
     if (!weight) continue;
     if (r.reverted_at) continue;
     const age = now - r.created_at;

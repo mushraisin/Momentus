@@ -25,6 +25,15 @@ export const BASE_CSS = `
   --accent:#6b7cff;--discord:#5865f2;
 }
 *{box-sizing:border-box}
+
+/* ── Смуги прокрутки: тонкі, у кольорах сайту, замість системних ── */
+*{scrollbar-width:thin;scrollbar-color:rgba(107,124,255,.45) transparent}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:999px;
+  border:3px solid transparent;background-clip:content-box;transition:background .25s}
+*::-webkit-scrollbar-thumb:hover{background:rgba(107,124,255,.55);background-clip:content-box}
+*::-webkit-scrollbar-corner{background:transparent}
 body{margin:0;background:var(--bg0);color:var(--text);min-height:100vh;overflow-x:hidden;
   font:16px/1.6 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
@@ -77,10 +86,12 @@ nav a.apart::before{content:'';position:absolute;left:-6px;top:50%;transform:tra
 nav a.apart:hover{border-color:rgba(239,83,80,.65);background:rgba(239,83,80,.2)}
 nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26)}
 
-/* сітка панелі модерації */
+/* сітка панелі модерації: журналу потрібно більше місця, ніж решті */
 .modgrid{margin-top:0}
-.modgrid .log{max-height:420px}
-.modgrid .viewers{max-height:420px}
+.modgrid .log{max-height:460px}
+.modgrid .viewers{max-height:460px}
+.modgrid .journalbox{grid-column:span 2}
+@media(max-width:820px){.modgrid .journalbox{grid-column:span 1}}
 
 /* ── Спадне меню в стилі сайту (замість нативного select) ── */
 .drop{position:relative}
@@ -175,8 +186,13 @@ nav:has(.langs[open]){overflow:visible}
   background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:13px;animation:fadeIn .7s .2s both}
 .me img{width:26px;height:26px;border-radius:50%;border:1px solid rgba(107,124,255,.6)}
 .me span{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.me a{padding:2px 7px;border-radius:999px;color:var(--muted);font-size:12px;border:0;background:0}
-.me a:hover{color:#fff;background:rgba(255,255,255,.08)}
+/* аватар і нік — це і є вхід у профіль */
+.me-link{display:flex;align-items:center;gap:9px;padding:0;border:0;background:0;transition:.2s}
+.me-link:hover{transform:none;background:0}
+.me-link:hover img{border-color:rgba(107,124,255,1);box-shadow:0 0 0 3px rgba(107,124,255,.2)}
+.me-link:hover span{color:#fff}
+.me-out{padding:2px 7px;border-radius:999px;color:var(--dim);font-size:12px;border:0;background:0}
+.me-out:hover{color:#fff;background:rgba(255,255,255,.08)}
 .signed{display:flex;align-items:center;gap:8px;font-size:13px;color:#8fe08a;letter-spacing:.04em;
   animation:fadeIn .8s .35s both}
 
@@ -519,23 +535,34 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .chev{margin-left:auto;width:0;height:0;border:5px solid transparent;border-top-color:var(--dim);
   margin-top:4px;transition:transform .3s cubic-bezier(.22,.9,.3,1)}
 .hist[open] .chev{transform:rotate(180deg) translateY(4px)}
-.log{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto;font-size:12px}
-.logrow{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:9px;
-  background:rgba(255,255,255,.03)}
-.li{flex:none;width:16px;text-align:center}
-.lu{font-weight:600;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.la{color:var(--dim)}
-.ld{color:var(--text);opacity:.85;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lt{margin-left:auto;color:var(--dim);font-variant-numeric:tabular-nums;flex:none}
+.log{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;font-size:12px;
+  padding-right:4px}
+.logrow{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:10px;
+  background:rgba(255,255,255,.03);transition:background .2s}
+.logrow:hover{background:rgba(255,255,255,.06)}
+.li{flex:none;width:18px;text-align:center;font-size:13px;line-height:1.5}
+.lmain{min-width:0;flex:1}
+.ltop{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.lu{font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.la{color:var(--dim);white-space:nowrap}
+.lchip{padding:1px 7px;border-radius:999px;background:rgba(107,124,255,.16);
+  border:1px solid rgba(107,124,255,.3);font-size:11px;white-space:nowrap}
+.lreason{color:var(--text);opacity:.8;margin-top:3px;line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.lsub{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--dim);font-size:11px}
+.lt{margin-left:auto;font-variant-numeric:tabular-nums;flex:none}
 .btn.sm{padding:8px 14px;font-size:13px}
 .locked-now{margin-bottom:12px;padding:10px 13px;border-radius:11px;font-size:13px;color:#f0cd7a;
   background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.3)}
 .lock{opacity:.75}
 .viewers{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow:auto}
-.viewer{display:flex;align-items:center;gap:10px;font-size:13px;padding:5px 6px;border-radius:10px;
-  transition:background .2s}
+.viewer{display:flex;align-items:center;gap:9px;font-size:13px;padding:6px 7px;border-radius:10px;
+  transition:background .2s;flex-wrap:wrap}
 .viewer:hover{background:rgba(255,255,255,.04)}
+/* імʼя стискається останнім і має розумну ширину, а не 88 пікселів */
+.viewer .vname{flex:1 1 110px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .viewer>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer .hint{flex:none;font-size:11px}
 .viewer img{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);
   box-shadow:0 0 0 2px rgba(107,124,255,.14)}
 .gate{font-size:44px;margin-bottom:14px}
@@ -1968,6 +1995,18 @@ const MOD_JS = `
       return;
     }
 
+    /* зняти всі попередження учасника */
+    var unwarn=e.target.closest('.mod-unwarn');
+    if(unwarn){
+      fetch('/api/mod/unwarn',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({userId:unwarn.dataset.user,all:true})})
+        .then(function(r){return r.json()}).then(function(j){
+          if(j.error){fail(j.error);return}
+          location.reload();
+        }).catch(function(){});
+      return;
+    }
+
     var lift=e.target.closest('.mod-lift');
     if(lift){
       fetch('/api/mod/lift',{method:'POST',headers:{'content-type':'application/json'},
@@ -1991,7 +2030,9 @@ const MOD_JS = `
       }
       fail('');
       apply.disabled=true;apply.classList.add('busy');
-      fetch('/api/mod/apply',{method:'POST',headers:{'content-type':'application/json'},
+      /* попередження — окрема дія: без терміну, зі своїм лічильником */
+      var url=kind==='warn'?'/api/mod/warn':'/api/mod/apply';
+      fetch(url,{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({
           userId:user,kind:kind,
           minutes:pickedMinutes(),
@@ -2110,11 +2151,14 @@ export function layout({
     .map((n) => `<a href="${esc(n.href)}" class="${[n.active ? 'active' : '', n.apart ? 'apart' : ''].filter(Boolean).join(' ')}">${esc(n.label)}</a>`)
     .join('');
 
+  // Сам чип із аватаром і ніком веде в профіль — окрема кнопка зайва.
   const auth = session
     ? `<div class="me">
-        <img src="${esc(avatarUrl(session.user_id, session.avatar, 64))}" alt="">
-        <span>${esc(session.username ?? '')}</span>
-        <a href="/logout" title="${esc(t(lang, 'nav.logout'))}">✕</a>
+        <a class="me-link" href="/me" title="${esc(t(lang, 'nav.profile'))}">
+          <img src="${esc(avatarUrl(session.user_id, session.avatar, 64))}" alt="">
+          <span>${esc(session.username ?? '')}</span>
+        </a>
+        <a class="me-out" href="/logout" title="${esc(t(lang, 'nav.logout'))}">✕</a>
       </div>`
     : `<a href="/login?next=${encodeURIComponent(path)}">${esc(t(lang, 'nav.login'))}</a>`;
 
@@ -2149,12 +2193,14 @@ export function layout({
 
 /** Головна: назва, вхід і галерея. */
 export function landingLayout({ lang = 'uk', session = null, og = null, mod = false }) {
-  // Залогінений бачить себе в шапці й іде одразу в профіль — жодних сліпих редиректів.
+  // Залогінений бачить себе в шапці — сам аватар із ніком і є входом у профіль.
   const chip = session
     ? `<div class="me">
-        <img src="${esc(avatarUrl(session.user_id, session.avatar, 64))}" alt="">
-        <span>${esc(session.username ?? '')}</span>
-        <a href="/logout" title="${esc(t(lang, 'nav.logout'))}">✕</a>
+        <a class="me-link" href="/me" title="${esc(t(lang, 'nav.profile'))}">
+          <img src="${esc(avatarUrl(session.user_id, session.avatar, 64))}" alt="">
+          <span>${esc(session.username ?? '')}</span>
+        </a>
+        <a class="me-out" href="/logout" title="${esc(t(lang, 'nav.logout'))}">✕</a>
       </div>`
     : '';
 
@@ -2165,8 +2211,9 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
       </a>`
     : '';
 
+  // Окремої кнопки «Профіль» більше немає: увійшовши, людина клікає свій чип угорі.
   const primary = session
-    ? `<a class="dbtn" href="/me">${DISCORD_ICON}<span>${esc(t(lang, 'landing.profile'))}</span></a>`
+    ? `<a class="dbtn" href="/top">🏆 <span>${esc(t(lang, 'nav.top'))}</span></a>`
     : `<a class="dbtn" href="/login?next=/">${DISCORD_ICON}<span>${esc(t(lang, 'landing.login'))}</span></a>`;
 
   return shell({
@@ -2687,7 +2734,10 @@ export function dropdown(id, options, label = '') {
   </details>`;
 }
 
-export function modPage({ active = [], journal = [], who = {}, lang = 'uk', limitMinutes = 0, kinds = {} }) {
+export function modPage({
+  active = [], warns = [], warnLimit = 3, journal = [], who = {},
+  lang = 'uk', limitMinutes = 0, kinds = {},
+}) {
   const name = (id) => esc(who[id]?.name ?? id);
   const face = (id) => esc(who[id]?.avatar ?? avatarUrl(id, null, 64));
 
@@ -2719,6 +2769,7 @@ export function modPage({ active = [], journal = [], who = {}, lang = 'uk', limi
       <div class="row" style="gap:8px;flex-wrap:wrap">
         ${['text', 'voice', 'full'].map((k, i) => `<button class="btn ghost sm kindbtn${i === 0 ? ' on' : ''}"
           data-kind="${k}">${KIND_ICON[k]} ${esc(kinds[k] ?? k)}</button>`).join('')}
+        <button class="btn ghost sm kindbtn" data-kind="warn">⚠️ ${esc(t(lang, 'mod.warn'))}</button>
       </div>
 
       ${dropdown(
@@ -2760,27 +2811,50 @@ export function modPage({ active = [], journal = [], who = {}, lang = 'uk', limi
     </div>
   </div>`;
 
+  // Попередження живуть 72 години й згасають самі; три чинні — автоматичний мут.
+  const warnBox = `<div class="card pane">
+    <div class="pane-h">${esc(t(lang, 'mod.warns'))} · <b>${warns.length}</b></div>
+    <div class="viewers">
+      ${warns.length ? warns.map((w) => `<div class="viewer" data-user="${esc(w.userId)}">
+        <img src="${face(w.userId)}" alt="">
+        <span class="vname">${name(w.userId)}</span>
+        <span class="tagp${w.count >= warnLimit - 1 ? ' warn' : ''}">${w.count}/${warnLimit}</span>
+        <span class="hint">${esc(leftText(w.soonest, lang))}</span>
+        <button class="act mod-unwarn" data-user="${esc(w.userId)}"
+          title="${esc(t(lang, 'mod.clearWarns'))}">🧹</button>
+      </div>`).join('') : `<div class="muted">${esc(t(lang, 'mod.noWarns'))}</div>`}
+    </div>
+  </div>`;
+
+  // Два рядки на запис: угорі суть, унизу хто й коли —
+  // так нічого не тісниться й не обрізається до трьох літер.
   const rowsHtml = journal.map((j) => {
     const when = new Date(Number(j.created_at));
     const sys = j.moderator_id === 'system';
     return `<div class="logrow">
       <span class="li">${actIcon(j.action)}</span>
-      <span class="lu">${name(j.user_id)}</span>
-      <span class="la">${esc(actText(j.action, lang))}</span>
-      ${j.duration_ms ? `<span class="ld">${esc(durText(j.duration_ms))}</span>` : ''}
-      ${j.reason ? `<span class="ld">${esc(String(j.reason).slice(0, 60))}</span>` : ''}
-      <span class="la">· ${sys ? esc(t(lang, 'mod.system')) : name(j.moderator_id)}</span>
-      <span class="lt">${when.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}
-        ${when.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>
+      <div class="lmain">
+        <div class="ltop">
+          <b class="lu">${name(j.user_id)}</b>
+          <span class="la">${esc(actText(j.action, lang))}</span>
+          ${j.duration_ms ? `<span class="lchip">${esc(durText(j.duration_ms))}</span>` : ''}
+        </div>
+        ${j.reason ? `<div class="lreason">${esc(String(j.reason).slice(0, 120))}</div>` : ''}
+        <div class="lsub">
+          ${sys ? esc(t(lang, 'mod.system')) : name(j.moderator_id)}
+          <span class="lt">${when.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}
+            ${when.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      </div>
     </div>`;
   }).join('');
 
-  const journalBox = `<div class="card pane">
+  const journalBox = `<div class="card pane journalbox">
     <div class="pane-h">${esc(t(lang, 'mod.journal'))} · <b>${journal.length}</b></div>
     <div class="log">${rowsHtml || `<div class="muted">${esc(t(lang, 'mod.empty'))}</div>`}</div>
   </div>`;
 
-  return `<div class="cpanels modgrid">${form}${activeBox}${journalBox}</div>`;
+  return `<div class="cpanels modgrid">${form}${activeBox}${warnBox}${journalBox}</div>`;
 }
 
 function actIcon(a) {

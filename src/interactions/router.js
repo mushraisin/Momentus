@@ -265,6 +265,15 @@ async function modHandlers(interaction, action, args) {
       return interaction.showModal(modals.reasonModal(args[0], 'warn', 0));
     }
 
+    // зняти попередження вручну: одне найстаріше або всі одразу
+    case 'unwarn': {
+      const [targetId, mode] = args;
+      const guard = await canModerate(interaction, targetId);
+      if (guard) return ephemeral(interaction, guard);
+      await punishmentService.liftWarn(guild.id, targetId, { all: mode === 'all' });
+      return show(await mod.modTarget(guild, targetId, interaction.member));
+    }
+
     case 'kick': {
       const guard = await canModerate(interaction, args[0]);
       if (guard) return ephemeral(interaction, guard);
@@ -313,14 +322,24 @@ async function modModal(interaction, action, args) {
   try {
     if (kind === 'warn') {
       await usersRepo.ensure(guild.id, targetId, target.displayName);
-      await modRepo.add({
-        guildId: guild.id, userId: targetId, moderatorId: interaction.user.id,
-        action: 'warn', reason, result: 'applied',
+      const { count, auto } = await punishmentService.warn(guild, target, {
+        reason, moderatorId: interaction.user.id,
       });
       await punishmentService.notify(guild, {
         target: target.user, moderator: interaction.user.id, kind: 'warn', reason,
       });
-      return ephemeral(interaction, `⚠️ Попередження видано ${target.displayName}.`);
+
+      // три чинні поспіль — мут видається сам, про це варто сказати одразу
+      if (auto) {
+        await punishmentService.notify(guild, {
+          target: target.user, moderator: 'system', kind: 'full',
+          minutes: auto.minutes, reason: `${count}/${count} попереджень`,
+        });
+        return ephemeral(interaction,
+          `⚠️ ${count}/${count} — автоматичний повний мут на ${fmtDur(auto.minutes)}.`);
+      }
+      return ephemeral(interaction,
+        `⚠️ Попередження ${count}/${punishmentService.WARN_LIMIT ?? 3} для ${target.displayName}.`);
     }
 
     if (kind === 'kick') {
@@ -350,6 +369,13 @@ async function modModal(interaction, action, args) {
     log.warn('Покарання не застосувалось', err.message);
     return ephemeral(interaction, `⚠️ Не вдалося: ${err.message}`);
   }
+}
+
+/** Термін людською мовою для коротких відповідей. */
+function fmtDur(minutes) {
+  if (minutes >= 1440) return `${+(minutes / 1440).toFixed(1)} дн.`;
+  if (minutes >= 60) return `${+(minutes / 60).toFixed(1)} год`;
+  return `${minutes} хв`;
 }
 
 /**
