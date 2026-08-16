@@ -65,9 +65,11 @@ a{color:inherit;text-decoration:none}
   border-bottom:1px solid rgba(255,255,255,.07);transition:box-shadow .35s,background .35s}
 .topbar.scrolled{background:linear-gradient(180deg,rgba(7,9,16,.92),rgba(7,9,16,.78));
   box-shadow:0 12px 34px rgba(0,0,0,.45)}
-.topbar-in{max-width:1060px;margin:0 auto;padding:0 18px;min-height:64px;
+/* Вміст смуги завжди однакової ширини — інакше на широких сторінках
+   (галерея, кінотеатр) кнопки роз'їжджалися до країв, а на вузьких
+   збігалися до центру, і шапка «стрибала» при переході. */
+.topbar-in{max-width:1240px;margin:0 auto;padding:0 clamp(16px,2.4vw,28px);min-height:64px;
   display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.topbar-in.wide{max-width:1560px;padding-left:clamp(18px,3vw,44px);padding-right:clamp(18px,3vw,44px)}
 .topbar .brand{flex:none}
 .topbar nav{padding:10px 0}
 header{display:flex;align-items:center;gap:12px;padding:14px 0 26px;flex-wrap:wrap;animation:fadeIn .6s both}
@@ -106,7 +108,12 @@ nav a.apart{margin-left:10px;padding-left:15px;border-color:rgba(239,83,80,.35);
 nav a.apart::before{content:'';position:absolute;left:-6px;top:50%;transform:translateY(-50%);
   width:1px;height:18px;background:var(--line)}
 nav a.apart:hover{border-color:rgba(239,83,80,.65);background:rgba(239,83,80,.2)}
-nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26)}
+/* модерація — той самий вигляд «обрано», але в червоному тоні:
+   це службова кнопка, і плутати її з рештою не варто */
+nav a.apart.active{background:linear-gradient(180deg,#ef6b68,#d63c39);color:#fff;
+  border-color:rgba(255,255,255,.35);
+  box-shadow:0 0 0 3px rgba(239,83,80,.2),0 8px 20px rgba(214,60,57,.32)}
+nav a.apart.active:hover{background:linear-gradient(180deg,#f47a77,#e04844)}
 
 /* сітка панелі модерації: журналу потрібно більше місця, ніж решті */
 .modgrid{margin-top:0}
@@ -160,22 +167,6 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
   background:0;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
 .pick-row:hover{background:rgba(107,124,255,.16)}
 .pick-row img{width:24px;height:24px;border-radius:50%;flex:none}
-/* ── Спільна мова «обрано / натиснуто» ──
-   Один вигляд для всього сайту: акцентна заливка, світла рамка, кільце
-   й позначка «✓». Клас .pick ставимо будь-якій кнопці-перемикачу,
-   а .on означає «обрано». Розмір при виборі не змінюється — місце
-   під «✓» зарезервоване, тож нічого не стрибає. */
-.pick-el{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  min-width:0;white-space:nowrap;font-weight:600;transition:.2s cubic-bezier(.22,.9,.3,1)}
-.pick-el::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
-.pick-el.on{background:linear-gradient(180deg,#7d8bff,#5b6bf0);
-  border-color:rgba(255,255,255,.35);color:#fff;
-  box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
-.pick-el.on::after{opacity:.9}
-.pick-el:not(.on){opacity:.72}
-.pick-el:not(.on):hover{opacity:1;transform:translateY(-1px)}
-.pick-el:active{transform:scale(.96)}
-
 /* Колонок стільки, скільки влізе: назви покарань довгі («голосовий мут»),
    тож комірка не вужча за напис, а сам напис при потребі переходить на
    другий рядок — обрізати текст у кнопці не можна. */
@@ -185,22 +176,8 @@ nav a.apart.active{border-color:rgba(239,83,80,.8);background:rgba(239,83,80,.26
   hyphens:auto;overflow-wrap:anywhere}
 @media(max-width:420px){.kindrow{grid-template-columns:1fr}}
 
-/* Ті самі правила — для вкладок, мов, варіантів у меню й якості відео,
-   щоб «обране» скрізь читалося однаково. */
-.tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on{
-  background:linear-gradient(180deg,#7d8bff,#5b6bf0);border-color:rgba(255,255,255,.35);color:#fff;
-  box-shadow:0 0 0 3px rgba(107,124,255,.18)}
-.tabs a.on{box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
 /* місце під «✓» праворуч; де є власне правило відступів — воно повторює 28px */
 .drop-opt,.qopt,.langmenu a,.pick-row{position:relative;padding-right:28px}
-.drop-opt::after,.qopt::after,.langmenu a::after{content:'✓';position:absolute;right:10px;
-  font-size:11px;opacity:0;transition:.2s}
-.drop-opt.on::after,.qopt.on::after,.langmenu a.on::after{opacity:.95}
-
-/* Натискання відчутне скрізь однаково */
-.tabs a:active,.drop-opt:active,.qopt:active,.pick-row:active,.like:active,
-.lbnav:active,.lbclose:active,.gbtn:active,.dbtn:active,.langmenu a:active{
-  transform:scale(.96)}
 
 /* Поле для свого терміну — той самий стиль, що й решта полів вводу.
    Стрілки-«крутилки» браузера прибираємо: вони псують вигляд. */
@@ -272,6 +249,13 @@ nav:has(.langs[open]){overflow:visible}
 .me-link:hover span{color:#fff}
 .me-out{padding:2px 7px;border-radius:999px;color:var(--dim);font-size:12px;border:0;background:0}
 .me-out:hover{color:#fff;background:rgba(255,255,255,.08)}
+/* ми на сторінці профілю — чип світиться, як активна кнопка в шапці */
+.me.active{background:linear-gradient(180deg,#7d8bff,#5b6bf0);border-color:rgba(255,255,255,.35);
+  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
+.me.active span{color:#fff}
+.me.active img{border-color:rgba(255,255,255,.7)}
+.me.active .me-out{color:rgba(255,255,255,.75)}
+.me.active .me-out:hover{background:rgba(255,255,255,.18)}
 .signed{display:flex;align-items:center;gap:8px;font-size:13px;color:#8fe08a;letter-spacing:.04em;
   animation:fadeIn .8s .35s both}
 
@@ -720,9 +704,20 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   font:inherit;font-weight:600;cursor:pointer;transition:.2s}
 .up input[type=file]:hover::file-selector-button{border-color:rgba(107,124,255,.55);
   background:rgba(107,124,255,.16);color:#fff}
-.btn{display:inline-block;padding:12px 22px;border-radius:12px;background:var(--accent);color:#fff;
-  font-weight:700;border:0;font:inherit;cursor:pointer;transition:.3s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(107,124,255,.4)}
+/* Головна дія («Застосувати», «Опублікувати») — той самий вигляд,
+   що й «обрано»: акцентна заливка, світла рамка й кільце. Один стиль
+   на весь сайт, тож нові кнопки просто беруть .btn і виглядають так само. */
+.btn{display:inline-block;padding:12px 22px;border-radius:12px;
+  background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
+  border:1px solid rgba(255,255,255,.35);font-weight:700;font:inherit;cursor:pointer;
+  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28);
+  transition:.3s cubic-bezier(.22,.9,.3,1)}
+.btn:hover{transform:translateY(-2px);background:linear-gradient(180deg,#8b97ff,#6675f5);
+  box-shadow:0 0 0 3px rgba(107,124,255,.24),0 12px 28px rgba(107,124,255,.42)}
+.btn:disabled{opacity:.5;box-shadow:none;transform:none;cursor:default}
+/* другорядні кнопки лишаються тихими — акцент має бути один на екран */
+.btn.ghost{box-shadow:none}
+.btn.ghost:hover{background:rgba(107,124,255,.16);border-color:rgba(107,124,255,.55);box-shadow:none}
 .hint{font-size:13px;color:var(--dim)}
 .err{color:#ff9a97;font-size:14px}
 .lightbox{position:fixed;inset:0;background:rgba(3,5,10,.92);display:none;align-items:center;
@@ -825,6 +820,40 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   .wrap.wide{max-width:1720px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ─────────────────────────────────────────────
+   СПІЛЬНА МОВА «ОБРАНО / НАТИСНУТО»
+   Блок навмисно стоїть останнім: він має перемагати будь-які часткові
+   стилі (.btn.ghost, .langmenu a тощо), інакше вибране губить вигляд.
+   Клас .pick-el — будь-яка кнопка-перемикач, .on — обрана.
+   Новий елемент вибору бере ці класи й не потребує власних правил.
+   ───────────────────────────────────────────── */
+.pick-el{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-width:0;white-space:nowrap;font-weight:600;transition:.2s cubic-bezier(.22,.9,.3,1)}
+.pick-el::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
+.pick-el.on,.btn.ghost.pick-el.on,
+.tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on{
+  background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
+  border-color:rgba(255,255,255,.35);
+  box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
+.pick-el.on::after{opacity:.9}
+.pick-el:not(.on){opacity:.72}
+.pick-el:not(.on):hover{opacity:1;transform:translateY(-1px)}
+.drop-opt.on::after,.qopt.on::after,.langmenu a.on::after{opacity:.95}
+/* наведення на вже обране не має його «гасити» */
+.pick-el.on:hover,.tabs a.on:hover,.drop-opt.on:hover,.qopt.on:hover{
+  background:linear-gradient(180deg,#8b97ff,#6675f5)}
+
+/* Натискання відчутне скрізь однаково */
+.pick-el:active,.tabs a:active,.drop-opt:active,.qopt:active,.pick-row:active,.like:active,
+.lbnav:active,.lbclose:active,.gbtn:active,.dbtn:active,.langmenu a:active{transform:scale(.96)}
+
+/* Головна дія на головній сторінці — у кольорах сайту, а не Discord */
+.dbtn.site{background:linear-gradient(180deg,#7d8bff,#5b6bf0);
+  border:1px solid rgba(255,255,255,.35);
+  box-shadow:0 0 0 3px rgba(107,124,255,.2),0 10px 30px rgba(107,124,255,.36)}
+.dbtn.site:hover{background:linear-gradient(180deg,#8b97ff,#6675f5);
+  box-shadow:0 0 0 3px rgba(107,124,255,.26),0 16px 42px rgba(107,124,255,.5)}
 `;
 
 // ─────────────────────────────────────────────
@@ -2410,8 +2439,10 @@ export function layout({
     .join('');
 
   // Сам чип із аватаром і ніком веде в профіль — окрема кнопка зайва.
+  // Профіль — теж сторінка, тож коли ми на ній, чип світиться так само,
+  // як активна кнопка в шапці.
   const auth = session
-    ? `<div class="me">
+    ? `<div class="me${path === '/me' ? ' active' : ''}">
         <a class="me-link" href="/me" title="${esc(t(lang, 'nav.profile'))}">
           <img src="${esc(avatarUrl(session.user_id, session.avatar, 64))}" alt="">
           <span>${esc(session.username ?? '')}</span>
@@ -2436,7 +2467,10 @@ export function layout({
     // Смуга навігації йде на всю ширину вікна, а її вміст тримається тієї ж
     // сітки, що й сторінка. На головній її немає — там своя обкладинка.
     content: `<div class="topbar" id="topbar">
-      <div class="topbar-in${wide}">
+      <!-- Смуга однакова на всіх сторінках: ширина вмісту стала, тож назва
+           сервера й кнопки стоять на тому самому місці, куди б ви не пішли.
+           Ширина самої сторінки нижче може бути різна — це вже не впливає. -->
+      <div class="topbar-in">
         <a class="brand" href="/"><span class="dot"></span>${esc(guildName)}</a>
         <nav>${navHtml}${auth}${langSwitch(lang, path)}</nav>
       </div>
@@ -2470,8 +2504,10 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
     : '';
 
   // Окремої кнопки «Профіль» більше немає: увійшовши, людина клікає свій чип угорі.
+  // Головна дія для своїх — у стилі сайту, для гостей — у кольорах Discord,
+  // бо це саме вхід через Discord.
   const primary = session
-    ? `<a class="dbtn" href="/top">🏆 <span>${esc(t(lang, 'nav.top'))}</span></a>`
+    ? `<a class="dbtn site" href="/top">🏆 <span>${esc(t(lang, 'nav.top'))}</span></a>`
     : `<a class="dbtn" href="/login?next=/">${DISCORD_ICON}<span>${esc(t(lang, 'landing.login'))}</span></a>`;
 
   return shell({

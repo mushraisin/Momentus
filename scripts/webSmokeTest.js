@@ -604,6 +604,40 @@ ok('галерея з Discord-каналу: публікація, звʼязок
 }
 ok('панель модерації на сайті: кнопка й сторінка лише для модераторів');
 
+// 17.75 смуга навігації однакова на всіх сторінках
+{
+  const bars = [];
+  for (const p of ['/gallery', '/top', '/mod', '/me', '/cinema']) {
+    const r = await req(p, adm);
+    const m = r.body.match(/<div class="topbar-in([^"]*)"/);
+    bars.push(m ? m[1] : `(немає на ${p})`);
+  }
+  assert.equal(new Set(bars).size, 1, `смуга скрізь однакова, отримали: ${bars.join(' | ')}`);
+  assert.equal(bars[0].trim(), '', 'без окремої широкої версії — вміст завжди тієї самої ширини');
+
+  const g = await req('/gallery', adm);
+  assert.ok(!/\.topbar-in\.wide/.test(g.body), 'широкого варіанта смуги більше немає');
+
+  // службова кнопка модерації світиться червоним, а не синім
+  assert.match(g.body, /nav a\.apart\.active\{background:linear-gradient\(180deg,#ef6b68,#d63c39\)/,
+    'активна модерація — червона');
+
+  // чип профілю світиться, коли ми саме на профілі
+  const mePage = await req('/me', adm);
+  assert.ok(/<div class="me active"/.test(mePage.body), 'на профілі чип активний');
+  assert.ok(!/<div class="me active"/.test(g.body), 'на інших сторінках — ні');
+
+  // головні дії — той самий стиль, що й «обрано»
+  assert.match(g.body, /\.btn\{[^}]*linear-gradient\(180deg,#7d8bff,#5b6bf0\)/,
+    '«Опублікувати» / «Застосувати» у спільному стилі');
+  const home = await req('/', adm);
+  assert.ok(home.body.includes('class="dbtn site"'), 'кнопка «Рейтинг» у стилі сайту');
+
+  // вибраний вид покарання не має губити стиль через .btn.ghost
+  assert.match(g.body, /\.pick-el\.on,\.btn\.ghost\.pick-el\.on/, 'вибране перемагає часткові стилі');
+}
+ok('шапка однакова скрізь; модерація червона, профіль і «Рейтинг» — у стилі');
+
 // 17.8 журнал із системними записами — сторінка не має падати в 500
 {
   const { warnRepo: wr } = await import('../src/database/repositories.js');
