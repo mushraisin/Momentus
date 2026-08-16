@@ -893,6 +893,45 @@ export const itemsRepo = {
   },
 };
 
+/** Особисті картинки оформлення. Файли — у приватному каналі Discord. */
+export const assetsRepo = {
+  async add(guildId, userId, { kind, mime, sizeBytes, objectKey, url, urlExpires }) {
+    const res = await run(`
+      INSERT INTO user_assets (guild_id, user_id, kind, mime, size_bytes, object_key, url, url_expires, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [guildId, userId, kind, mime ?? null, sizeBytes ?? 0, objectKey ?? null, url ?? null,
+      urlExpires ?? null, Date.now()]);
+    return num(res.lastInsertRowid);
+  },
+
+  meta(id) {
+    return get('SELECT * FROM user_assets WHERE id = ?', [id]);
+  },
+
+  list(guildId, userId, kind = null, limit = 24) {
+    const where = kind ? 'AND kind = ?' : '';
+    const args = kind ? [guildId, userId, kind, limit] : [guildId, userId, limit];
+    return all(`
+      SELECT * FROM user_assets WHERE guild_id = ? AND user_id = ? ${where}
+      ORDER BY created_at DESC LIMIT ?
+    `, args);
+  },
+
+  refreshUrl(id, url, expires) {
+    return run('UPDATE user_assets SET url = ?, url_expires = ? WHERE id = ?', [url, expires, id]);
+  },
+
+  remove(guildId, userId, id) {
+    return run('DELETE FROM user_assets WHERE guild_id = ? AND user_id = ? AND id = ?', [guildId, userId, id]);
+  },
+
+  async count(guildId, userId) {
+    const row = await get('SELECT COUNT(*) AS n FROM user_assets WHERE guild_id = ? AND user_id = ?',
+      [guildId, userId]);
+    return num(row?.n ?? 0);
+  },
+};
+
 export const prefsRepo = {
   async get(guildId, userId) {
     const row = await get('SELECT * FROM profile_prefs WHERE guild_id = ? AND user_id = ?', [guildId, userId]);

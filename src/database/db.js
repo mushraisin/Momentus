@@ -184,6 +184,22 @@ CREATE TABLE IF NOT EXISTS user_items (
   PRIMARY KEY (guild_id, user_id, item_id)
 );
 
+-- Особисті картинки для оформлення (фони, банери). Самі файли лежать
+-- у приватному каналі-сховищі Discord, тут — лише посилання на них.
+CREATE TABLE IF NOT EXISTS user_assets (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id    TEXT NOT NULL,
+  user_id     TEXT NOT NULL,
+  kind        TEXT NOT NULL,
+  mime        TEXT,
+  size_bytes  INTEGER NOT NULL DEFAULT 0,
+  object_key  TEXT,
+  url         TEXT,
+  url_expires INTEGER,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assets_user ON user_assets (guild_id, user_id, created_at);
+
 -- Вигляд сторінки учасника: банер, опис, обране оформлення.
 CREATE TABLE IF NOT EXISTS profile_prefs (
   guild_id   TEXT NOT NULL,

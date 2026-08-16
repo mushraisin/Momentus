@@ -544,14 +544,18 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   z-index:0;pointer-events:none;opacity:0;border-radius:50%;
   filter:blur(58px) saturate(1.7);transform:translateZ(0);
   transition:opacity .9s ease}
-.room.live .ambient{opacity:.62}
+/* Два полотна по черзі: нове проявляється поверх старого, тож колір
+   переходить плавно, а не смикається на кожному кадрі. */
+.ambient.next{z-index:1}
+.room.live .ambient.show{opacity:.62}
+.room.live .ambient{transition:opacity .7s ease}
 /* У повному екрані сцена займає весь екран, тож світлу нема куди вийти
    за її межі. Робимо саму сцену прозорою: чорні поля навколо кадру
    перестають бути глухими, і крізь них видно те саме світло. */
 .room.fs .ambient,.room:fullscreen .ambient,.room:-webkit-full-screen .ambient{
   left:0;right:0;top:0;bottom:0;width:100%;height:100%;
   filter:blur(90px) saturate(1.75);border-radius:0}
-.room.fs.live .ambient,.room:fullscreen.live .ambient{opacity:.7}
+.room.fs.live .ambient.show,.room:fullscreen.live .ambient.show{opacity:.7}
 .room.fs .screen,.room:fullscreen .screen,.room:-webkit-full-screen .screen{background:transparent}
 .room.fs .screen .cin-media,.room:fullscreen .screen .cin-media,
 .room:-webkit-full-screen .screen .cin-media{background:transparent}
@@ -918,6 +922,68 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-aboutbox.editing .pf-text{display:none}
 .pf-aboutbox.editing .pf-edit{display:block}
 
+/* ── Вікно передперегляду ──
+   Показує не сам колір, а сторінку з ним: смуга, картка, кнопка, аватар.
+   Так видно результат до того, як щось вдягати. */
+.pv-back{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+  padding:22px;background:rgba(3,5,10,.86);backdrop-filter:blur(6px);animation:fadeIn .22s both}
+.pv{width:min(680px,94vw);border-radius:20px;overflow:hidden;background:var(--card);
+  border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.6);
+  animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
+.pv-h{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--line);font-size:15px}
+.pv-h .gate-x{position:static}
+.pv-stage{position:relative;height:290px;padding:16px;overflow:hidden}
+.pv-fog{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(60% 50% at 50% 20%,rgba(255,255,255,.07),transparent 70%)}
+.pv-bar{position:relative;display:flex;align-items:center;gap:8px;padding:8px 10px;
+  border-radius:12px;background:rgba(9,12,20,.7);border:1px solid rgba(255,255,255,.07);
+  backdrop-filter:blur(8px)}
+.pv-dot{width:8px;height:8px;border-radius:2px;background:#fff;opacity:.7}
+.pv-bar i{display:block;width:52px;height:9px;border-radius:999px;background:rgba(255,255,255,.12)}
+.pv-bar i.on{width:64px;background:#6b7cff}
+.pv-card{position:relative;margin-top:16px;padding:16px;border-radius:16px;
+  background:rgba(22,27,40,.78);border:1px solid rgba(255,255,255,.08);
+  backdrop-filter:blur(10px);display:flex;align-items:center;gap:14px}
+.pv-ava{width:54px;height:54px;border-radius:50%;flex:none;border:3px solid #6b7cff;
+  background:linear-gradient(135deg,#20263a,#141926)}
+.pv-lines{flex:1;display:flex;flex-direction:column;gap:8px}
+.pv-lines i{display:block;height:10px;border-radius:999px;background:rgba(255,255,255,.16)}
+.pv-lines i.s{width:55%;height:8px;background:rgba(255,255,255,.09)}
+.pv-btn{padding:9px 16px;border-radius:11px;font-size:13px;font-weight:700;color:#fff;
+  background:#6b7cff;flex:none}
+.pv-f{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px}
+
+/* ── Гардероб: усе придбане в одному місці ── */
+.pf-look .pane-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pf-group{margin-top:16px}
+.pf-gt{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+.pf-sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.pf-sw{position:relative;height:62px;border-radius:12px;border:1px solid var(--line);
+  cursor:pointer;overflow:hidden;padding:0;color:#fff;font:inherit;
+  transition:.25s cubic-bezier(.22,.9,.3,1)}
+.pf-sw span{position:absolute;left:0;right:0;bottom:0;padding:4px 7px;font-size:11px;
+  text-align:left;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.72));
+  text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-sw:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.55)}
+.pf-sw:active{transform:scale(.96)}
+.pf-sw.on{border-color:rgba(107,124,255,.85);box-shadow:0 0 0 3px rgba(107,124,255,.22)}
+.pf-sw.on::after{content:'✓';position:absolute;right:7px;top:5px;font-size:12px;
+  text-shadow:0 1px 4px rgba(0,0,0,.9)}
+.pf-sw.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
+  background-size:300% 300%;animation:flow 9s ease-in-out infinite}
+.pf-sw.accent{background:radial-gradient(circle at 38% 34%,var(--c),#0a0d16 74%)}
+/* стиль вікон показуємо самим вікном — маленька картка в тому ж вигляді */
+.pf-sw.card{border-width:1px;border-style:solid;backdrop-filter:blur(8px)}
+.pf-sw.card::before{content:'';position:absolute;left:9px;right:9px;top:12px;height:6px;
+  border-radius:999px;background:rgba(255,255,255,.22)}
+.pf-sw.frame{background:#0a0d16}
+.pf-sw.frame::before{content:'';position:absolute;left:50%;top:42%;width:30px;height:30px;
+  margin:-15px 0 0 -15px;border-radius:50%;border:2px solid var(--c);box-shadow:0 0 14px var(--c)}
+.pf-up{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.pf-up .btn{cursor:pointer}
+.pf-up .btn.busy{opacity:.6;pointer-events:none}
+
 .pf-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
 .pf-shot{height:64px;border-radius:12px;border:1px solid var(--line);cursor:pointer;
   background:rgba(255,255,255,.05) center/cover no-repeat;color:var(--dim);
@@ -931,47 +997,84 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    градієнт. Замкнені набори видно всім — щоб було зрозуміло, заради
    чого бустити сервер. */
 .shop{display:flex;flex-direction:column;gap:26px}
-.sh-wallet{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+.sh-wallet{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
   background:linear-gradient(135deg,rgba(107,124,255,.14),rgba(155,107,255,.07)),var(--card)}
-.sh-bal{display:flex;align-items:baseline;gap:8px}
-.sh-bal b{font-size:34px;font-weight:800;letter-spacing:-.02em;
+.sh-bal{display:flex;align-items:center;gap:10px}
+.sh-bal b{font-size:34px;line-height:1;font-weight:800;letter-spacing:-.02em;
   background:linear-gradient(180deg,#fff,#b9c2ff);-webkit-background-clip:text;
   background-clip:text;color:transparent}
-.sh-bal span{color:var(--dim);font-size:13px;letter-spacing:.1em}
-.sh-coin{font-size:24px;animation:coin 3.5s ease-in-out infinite;transform-origin:center}
-@keyframes coin{0%,88%,100%{transform:rotate(0) scale(1)}92%{transform:rotate(-12deg) scale(1.12)}96%{transform:rotate(10deg) scale(1.08)}}
-.sh-wallet .hint{margin-left:auto;text-align:right;max-width:320px}
-.sh-boost{width:100%;padding:9px 14px;border-radius:12px;font-size:13px;color:var(--dim);
+/* підпис «FP» дрібний, але сама монетка — ні: інакше правило для span
+   тиснуло б і її (тому тут :not, а не окремий клас нижче) */
+.sh-bal span:not(.sh-coin){color:var(--dim);font-size:13px;letter-spacing:.1em}
+.sh-bal .sh-coin{font-size:30px;line-height:1;display:inline-block;
+  filter:drop-shadow(0 0 12px rgba(255,214,102,.45));
+  animation:coin 3.5s ease-in-out infinite;transform-origin:center}
+@keyframes coin{0%,88%,100%{transform:rotate(0) scale(1)}92%{transform:rotate(-12deg) scale(1.14)}96%{transform:rotate(10deg) scale(1.08)}}
+.sh-boost{margin-left:auto;padding:9px 14px;border-radius:12px;font-size:13px;color:var(--dim);
   background:rgba(255,255,255,.04);border:1px solid var(--line)}
 .sh-boost.on{color:#d9b8ff;background:rgba(155,107,255,.14);border-color:rgba(155,107,255,.35)}
 
-.sh-sec{animation:fadeUp .5s both}
-.sh-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px}
-.sh-h h2{margin:0 0 2px;font-size:19px;letter-spacing:-.01em}
+/* Категорії ліворуч списком згори вниз, набори — праворуч. */
+.sh-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:22px;align-items:start}
+.sh-side{position:sticky;top:84px;display:flex;flex-direction:column;gap:4px}
+.sh-cat{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 13px;border-radius:12px;font-size:14px;border:1px solid transparent;
+  color:var(--dim);transition:.22s cubic-bezier(.22,.9,.3,1)}
+.sh-cat:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.sh-cat.on{background:rgba(107,124,255,.16);border-color:rgba(107,124,255,.4);color:#fff}
+.sh-cn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-cc{font-size:12px;color:var(--dim);flex:none}
+.sh-cat.on .sh-cc{color:#c9d0ff}
+@media(max-width:820px){
+  .sh-layout{grid-template-columns:1fr}
+  .sh-side{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .sh-cat{flex:none}
+}
+
 .tagp.good{border-color:rgba(67,196,123,.45);background:rgba(67,196,123,.14);color:#7fe0a4}
-.sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:14px}
+.sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:16px}
 
 .sh-card{position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;
   border-radius:16px;background:var(--card);border:1px solid var(--line);
-  animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
+  scroll-margin-top:90px;animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
 .sh-card:hover{transform:translateY(-4px);border-color:rgba(107,124,255,.4);
   box-shadow:0 16px 40px rgba(0,0,0,.45)}
-.sh-card.worn{border-color:rgba(107,124,255,.6);box-shadow:0 0 0 3px rgba(107,124,255,.16)}
+.sh-card.mine{border-color:rgba(107,124,255,.5)}
+.sh-card.mine::after{content:'✓';position:absolute;right:14px;top:12px;font-size:12px;
+  color:#c9d0ff;opacity:.9}
 .sh-card.locked{opacity:.62}
 .sh-card.locked:hover{opacity:.85;transform:none;box-shadow:none}
-/* прев'ю самої речі */
-.sh-prev{display:block;height:84px;border-radius:12px;border:1px solid rgba(255,255,255,.1);
+
+/* прев'ю: справжні зразки з набору, а не іконка */
+.sh-prev{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;height:86px;
+  border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.1);
   box-shadow:inset 0 0 30px rgba(0,0,0,.5);transition:.35s}
 .sh-card:hover .sh-prev{transform:scale(1.02)}
-.sh-prev.accent{background:radial-gradient(circle at 30% 30%,var(--c),#0a0d16 72%)}
-.sh-prev.feat{display:flex;align-items:center;justify-content:center;font-size:30px;
-  background:rgba(255,255,255,.04)}
-.sh-b{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-.sh-n{font-weight:700;font-size:14px}
+.sh-prev i{display:block}
+.sh-prev i.ac{background:radial-gradient(circle at 40% 35%,var(--c),#0a0d16 74%)}
+.sh-prev i.cd{border:1px solid;border-radius:8px;margin:9px 4px;backdrop-filter:blur(6px)}
+.sh-prev i.fr{background:#0a0d16;position:relative}
+.sh-prev i.fr::after{content:'';position:absolute;left:50%;top:50%;width:34px;height:34px;
+  margin:-17px 0 0 -17px;border-radius:50%;border:2px solid var(--c);
+  box-shadow:0 0 14px var(--c)}
+.sh-prev i.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
+  background-size:300% 300%;animation:flow 9s ease-in-out infinite}
+@keyframes flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.sh-prev.custom{display:flex;align-items:center;justify-content:center;font-size:32px;
+  color:var(--dim);background:repeating-linear-gradient(45deg,#0a0d16,#0a0d16 10px,#0e121c 10px,#0e121c 20px)}
+
+.sh-b{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.sh-n{font-weight:700;font-size:15px;margin-bottom:2px}
 .sh-p{font-size:12px;color:var(--dim);white-space:nowrap}
-.sh-a{display:flex}
+.sh-left{margin-top:-4px}
+.sh-a{display:flex;margin-top:auto}
 .sh-a .btn{width:100%;text-align:center;padding:9px 12px;font-size:13px}
-.sh-have{width:100%;text-align:center;padding:9px 12px;font-size:13px;color:var(--good)}
+/* редагування ціни — лише адміністратору */
+.sh-price{display:flex;gap:8px}
+.sh-price input{width:100%;padding:8px 11px;border-radius:10px;font:inherit;font-size:13px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+.sh-price input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+.sh-price .btn{white-space:nowrap;padding:8px 12px}
 /* коротка іскра після вдалої покупки */
 .sh-card.bought{animation:bought .7s cubic-bezier(.22,.9,.3,1)}
 @keyframes bought{0%{box-shadow:0 0 0 0 rgba(107,124,255,.55)}
@@ -987,7 +1090,13 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .dchip b{font-size:13px;color:var(--text)}
 .dchip.up b{color:var(--good)}
 .dchip.down b{color:var(--bad)}
-.chart{width:100%;height:200px;display:block;margin:14px 0 4px;overflow:visible}
+.chart{width:100%;height:auto;display:block;margin:14px 0 4px;overflow:visible}
+/* сітка й підписи: без них лінія читається як випадкова риска */
+.chgrid{stroke:rgba(255,255,255,.07);stroke-width:1}
+.chlabel{fill:var(--dim);font-size:11px;letter-spacing:.04em}
+.chpt{opacity:.85}
+.chhair{stroke:rgba(255,255,255,.18);stroke-width:1;opacity:0;transition:opacity .15s}
+.hp:hover .chhair{opacity:1}
 .chline{stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;
   filter:drop-shadow(0 4px 14px rgba(107,124,255,.45));
   stroke-dasharray:2400;stroke-dashoffset:2400;animation:draw 1.4s cubic-bezier(.22,.9,.3,1) .15s forwards}
@@ -2011,33 +2120,45 @@ const CINEMA_JS = `
    * «псується» й кидає SecurityError) — тихо лишаємо рівне акцентне сяйво.
    */
   function startAmbient(player){
-    var cv=document.getElementById('cin-ambient'),wrap=document.querySelector('.stagewrap');
-    if(!cv||!wrap)return;
+    var a=document.getElementById('cin-ambient'),b=document.getElementById('cin-ambient2'),
+        wrap=document.querySelector('.stagewrap');
+    if(!a||!b||!wrap)return;
     var video=player&&player.el&&player.el.tagName==='VIDEO'?player.el:null;
     if(!video){wrap.classList.add('noframe');return}
 
-    var ctx=null;
-    try{ ctx=cv.getContext('2d',{willReadFrequently:false}) }catch(e){}
-    if(!ctx){wrap.classList.add('noframe');return}
+    var ctxA=null,ctxB=null;
+    try{ ctxA=a.getContext('2d');ctxB=b.getContext('2d') }catch(e){}
+    if(!ctxA||!ctxB){wrap.classList.add('noframe');return}
 
     /* повага до системного «менше руху»: світло стоїть, а не пульсує */
     var still=matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var timer=null,dead=false;
+    var timer=null,dead=false,top=false;   /* top — чи зараз згори друге полотно */
 
+    /**
+     * Плавність. Новий кадр малюємо в те полотно, яке зараз невидиме,
+     * і проявляємо його поверх старого. Через півсекунди воно стає
+     * основним, і все повторюється — колір переходить, а не стрибає.
+     */
     function draw(){
       if(dead)return;
-      /* невидима вкладка або пауза — не тратимо кадри намарно */
       if(document.hidden||video.paused||video.readyState<2)return;
+      var hidden=top?a:b,ctx=top?ctxA:ctxB;
       try{
-        ctx.drawImage(video,0,0,cv.width,cv.height);
+        ctx.drawImage(video,0,0,hidden.width,hidden.height);
       }catch(e){
         /* потік з чужого домену без CORS — полотно зіпсоване, більше не пробуємо */
-        dead=true;clearInterval(timer);wrap.classList.add('noframe');cv.remove();
+        dead=true;clearInterval(timer);wrap.classList.add('noframe');
+        a.remove();b.remove();
+        return;
       }
+      /* міняємо, хто згори: CSS-перехід зробить решту */
+      top=!top;
+      a.classList.toggle('show',!top);
+      b.classList.toggle('show',top);
     }
 
     draw();
-    timer=setInterval(draw,still?2000:500);
+    timer=setInterval(draw,still?2400:600);
     document.addEventListener('visibilitychange',function(){if(!document.hidden)draw()});
   }
 
@@ -2533,77 +2654,341 @@ const CINEMA_JS = `
  * Магазин: покупка й одягання без перезавантаження сторінки.
  * Кожна дія одразу видно на самій картці — і в балансі згори.
  */
+/**
+ * Вікно передперегляду.
+ *
+ * Показує не сам колір, а те, як із ним виглядатиме сторінка: смуга
+ * навігації, картка з текстом, кнопка й аватар із рамкою. Так видно
+ * результат до того, як щось вдягати.
+ */
+const PREVIEW_JS = `
+window.CosmeticPreview=(function(){
+  var box=null;
+
+  function shut(){if(box){box.remove();box=null;document.body.style.overflow=''}}
+
+  function css(it){
+    var v=it.value||{};
+    if(it.kind==='background'&&v.type==='solid')return 'background:'+v.color;
+    if(it.kind==='background'&&v.type==='gradient')
+      return 'background:linear-gradient('+(v.angle||160)+'deg,'+v.from+','+v.to+')';
+    if(it.kind==='background'&&v.type==='motion')
+      return 'background:linear-gradient(120deg,'+v.from+','+v.to+','+v.from+');background-size:300% 300%;animation:flow 12s ease-in-out infinite';
+    if(it.kind==='background'&&v.type==='image')return 'background:#05070d url('+v.url+') center/cover no-repeat';
+    return 'background:#0a0d16';
+  }
+
+  /**
+   * @param it   {id,name,kind,value}
+   * @param opts {owned, action:{label,fn}}
+   */
+  function open(it,opts){
+    shut();
+    opts=opts||{};
+    var accent=(it.kind==='accent'&&it.value.color)||'#6b7cff';
+    var frame=(it.kind==='frame'&&it.value.color)||null;
+
+    box=document.createElement('div');
+    box.className='pv-back';
+    box.innerHTML=
+      '<div class="pv">'
+      +'<div class="pv-h"><b></b><button class="gate-x pv-x" aria-label="×">×</button></div>'
+      +'<div class="pv-stage" style="'+css(it)+'">'
+        +'<div class="pv-fog"></div>'
+        +'<div class="pv-bar"><span class="pv-dot"></span><i></i><i></i><i class="on"></i></div>'
+        +'<div class="pv-card">'
+          +'<div class="pv-ava"></div>'
+          +'<div class="pv-lines"><i></i><i class="s"></i></div>'
+          +'<div class="pv-btn">Кнопка</div>'
+        +'</div>'
+      +'</div>'
+      +'<div class="pv-f"><span class="hint pv-hint"></span><span class="pv-act"></span></div>'
+      +'</div>';
+
+    box.querySelector('.pv-h b').textContent=it.name||'';
+    box.querySelector('.pv-hint').textContent=opts.hint||'';
+    box.querySelector('.pv-bar i.on').style.background=accent;
+    box.querySelector('.pv-btn').style.background=accent;
+    if(frame){
+      var a=box.querySelector('.pv-ava');
+      a.style.borderColor=frame;a.style.boxShadow='0 0 0 4px '+frame+'33,0 0 24px '+frame+'66';
+    }
+
+    if(opts.action){
+      var b=document.createElement('button');
+      b.className='btn sm';b.textContent=opts.action.label;
+      b.addEventListener('click',function(){opts.action.fn();shut()});
+      box.querySelector('.pv-act').appendChild(b);
+    }
+
+    box.addEventListener('click',function(e){
+      if(e.target===box||e.target.closest('.pv-x'))shut();
+    });
+    document.body.appendChild(box);
+    document.body.style.overflow='hidden';
+  }
+
+  addEventListener('keydown',function(e){if(e.key==='Escape')shut()});
+  return {open:open,close:shut};
+})();
+`;
+
 const SHOP_JS = `
 (function(){
   var err=document.getElementById('sh-err');
   function fail(t){if(!err)return;err.textContent=t;err.hidden=!t;
     if(t)setTimeout(function(){err.hidden=true},4000)}
 
-  function post(url,item){
+  var TEXT={funds:'Не вистачає FP',booster:'Це відкривається бустерам сервера',
+    owned:'Уже ваше',limit:'Досягнуто ліміт своїх картинок'};
+
+  function post(url,payload){
     return fetch(url,{method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({item:item})}).then(function(r){return r.json()}).catch(function(){return{error:'net'}});
+      body:JSON.stringify(payload)}).then(function(r){return r.json()})
+      .catch(function(){return{error:'net'}});
+  }
+
+  /* Категорії ліворуч підсвічуються за тим, що зараз на екрані. */
+  var cats=[].slice.call(document.querySelectorAll('.sh-cat'));
+  var cards=[].slice.call(document.querySelectorAll('.sh-card'));
+  if(window.IntersectionObserver&&cards.length){
+    var io=new IntersectionObserver(function(list){
+      list.forEach(function(en){
+        if(!en.isIntersecting)return;
+        var id=en.target.id;
+        cats.forEach(function(c){c.classList.toggle('on',c.dataset.cat===id)});
+      });
+    },{rootMargin:'-40% 0px -50% 0px'});
+    cards.forEach(function(c){io.observe(c)});
   }
 
   document.addEventListener('click',function(e){
+    /* ── отримати набір: картка міняється на місці ── */
     var buy=e.target.closest('.sh-buy');
     if(buy){
       var card=buy.closest('.sh-card');
       buy.disabled=true;buy.classList.add('busy');
-      post('/api/shop/buy',buy.dataset.item).then(function(j){
+      post('/api/shop/buy',{item:buy.dataset.item}).then(function(j){
         buy.disabled=false;buy.classList.remove('busy');
-        if(j.error){
-          fail(({funds:'Не вистачає FP',booster:'Це відкривається бустерам сервера',
-            owned:'Уже ваше'})[j.error]||j.error);
-          return;
-        }
+        if(j.error){fail(TEXT[j.error]||j.error);return}
+
         var bal=document.getElementById('sh-balance');
         if(bal&&typeof j.balance==='number')bal.textContent=j.balance;
-        card.classList.add('bought');
-        setTimeout(function(){location.reload()},650);
+
+        card.classList.add('mine','bought');
+        var a=card.querySelector('.sh-a');
+        if(a)a.innerHTML='<a class="btn ghost sm" href="/me#look">Обрати в профілі</a>';
+        var cat=document.querySelector('.sh-cat[data-cat="'+j.pack+'"] .sh-cc');
+        if(cat)cat.textContent='✓';
       });
       return;
     }
 
-    var eq=e.target.closest('.sh-equip');
-    if(eq){
-      var worn=eq.classList.contains('on');
-      eq.disabled=true;
-      /* повторний клік по одягненому — знімаємо оформлення */
-      post('/api/shop/equip',worn?'':eq.dataset.item).then(function(j){
-        eq.disabled=false;
+    /* ── передперегляд набору: показуємо, як воно виглядатиме ── */
+    var prev=e.target.closest('.sh-prev');
+    if(prev&&window.CosmeticPreview){
+      var card=prev.closest('.sh-card');
+      var items=JSON.parse(card.dataset.items||'[]');
+      if(items.length){
+        var i=Number(card.dataset.pi||0)%items.length;
+        card.dataset.pi=i+1;
+        window.CosmeticPreview.open(items[i],{
+          hint:items.length>1?'Клікайте ще — у наборі '+items.length+' варіант(и)':'',
+        });
+      }
+      return;
+    }
+
+    /* ── ціна набору (адміністратор) ── */
+    var setp=e.target.closest('.sh-setprice');
+    if(setp){
+      var box=setp.closest('.sh-card');
+      var input=box.querySelector('.sh-price input');
+      setp.disabled=true;
+      post('/api/shop/price',{item:setp.dataset.pack,price:input.value}).then(function(j){
+        setp.disabled=false;
         if(j.error){fail(j.error);return}
-        location.reload();
+        var p=box.querySelector('.sh-p');
+        if(p)p.textContent=j.price?j.price+' ✨FP':'безкоштовно';
+        var b=box.querySelector('.sh-buy');
+        if(b)b.textContent=j.price?j.price+' ✨':'Взяти';
+        var cc=document.querySelector('.sh-cat[data-cat="'+setp.dataset.pack+'"] .sh-cc');
+        if(cc&&!box.classList.contains('mine'))cc.textContent=j.price?j.price+' ✨':'безкоштовно';
+        setp.classList.add('done');
+        setTimeout(function(){setp.classList.remove('done')},900);
       });
     }
   });
 })();
 `;
 
-/** Профіль: опис і банер редагуються прямо на сторінці. */
+/**
+ * Профіль: опис, гардероб і свої картинки.
+ * Усе застосовується на місці — сторінка не перезавантажується, бо оформлення
+ * видно одразу, а перезавантаження щоразу збивало б з пантелику.
+ */
 const PROFILE_JS = `
 (function(){
+  function post(url,payload){
+    return fetch(url,{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify(payload)}).then(function(r){return r.json()})
+      .catch(function(){return{error:'net'}});
+  }
+
+  /* ── Оформлення застосовуємо самі, без перезавантаження ── */
+  function paint(look){
+    var st=document.getElementById('skin-live');
+    if(!st){st=document.createElement('style');st.id='skin-live';document.head.appendChild(st)}
+    var css='',bg=look&&look.background;
+    if(bg&&bg.type==='solid')css+='.bg{background:'+bg.color+'}';
+    if(bg&&bg.type==='gradient')css+='.bg{background:linear-gradient('+(bg.angle||160)+'deg,'+bg.from+','+bg.to+')}';
+    if(bg&&bg.type==='motion')css+='.bg{background:linear-gradient(120deg,'+bg.from+','+bg.to+','+bg.from+');background-size:300% 300%;animation:flow 18s ease-in-out infinite}';
+    if(bg&&bg.type==='image')css+='.bg{background:#05070d url('+bg.url+') center/cover no-repeat fixed}';
+    if(bg)css+='#fog{opacity:.34;mix-blend-mode:screen}#stars{opacity:.7}';
+    if(look&&look.accent)css+=':root{--accent:'+look.accent+'}';
+    if(look&&look.frame)css+='.avatar{border-color:'+look.frame.color+'!important;box-shadow:0 0 0 4px '+look.frame.color+'33,0 0 26px '+look.frame.color+'66}';
+    if(look&&look.card){
+      var c=look.card;
+      css+=':root{--card:'+c.bg+';--line:'+c.line+'}';
+      css+='.card,.pane{border-radius:'+(c.radius||18)+'px;backdrop-filter:blur('+(c.blur||14)+'px)'
+        +(c.shadow?';box-shadow:'+c.shadow:'')+'}';
+    }
+    st.textContent=css;
+
+    /* банер угорі картки */
+    var head=document.querySelector('.pf-head');
+    var old=head?head.querySelector('.pf-banner'):null;
+    if(look&&look.bannerUrl){
+      if(!old){
+        old=document.createElement('div');old.className='pf-banner';
+        old.innerHTML='<img alt="">';head.prepend(old);head.classList.add('withbanner');
+      }
+      old.querySelector('img').src=look.bannerUrl;
+    }else if(old){old.remove();head.classList.remove('withbanner')}
+
+    /* позначки «вдягнено» */
+    document.querySelectorAll('.pf-sw').forEach(function(b){
+      var kind=b.dataset.kind,on=false;
+      if(kind==='background')on=!!bg&&bg.id===b.dataset.item;
+      if(kind==='frame')on=!!(look&&look.frame)&&look.frame.id===b.dataset.item;
+      if(kind==='accent')on=b.classList.contains('on');
+      b.classList.toggle('on',on);
+    });
+  }
+
+  /* ── Опис ── */
   var box=document.getElementById('pf-about'),edit=document.getElementById('pf-edit');
   if(edit&&box)edit.addEventListener('click',function(){
     var open=box.classList.toggle('editing');
     edit.textContent=edit.dataset[open?'save':'edit'];
-    if(open){var ta=box.querySelector('textarea');if(ta)ta.focus();return}
-
     var ta=box.querySelector('textarea');
-    fetch('/api/profile',{method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({about:ta?ta.value:''})})
-      .then(function(r){return r.json()}).then(function(j){
-        if(j.error)return;
-        location.reload();
-      }).catch(function(){});
+    if(open){if(ta)ta.focus();return}
+    post('/api/profile',{about:ta?ta.value:''}).then(function(j){
+      if(j.error)return;
+      var view=box.querySelector('.pf-text');
+      if(view)view.textContent=(ta&&ta.value.trim())||'—';
+    });
   });
 
-  /* банер обирається з власних публікацій */
-  var pick=document.getElementById('pf-banner');
-  if(pick)pick.addEventListener('click',function(e){
-    var b=e.target.closest('.pf-shot');if(!b)return;
-    fetch('/api/profile',{method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({banner:b.dataset.item||0})})
-      .then(function(r){return r.json()}).then(function(){location.reload()}).catch(function(){});
+  /* ── Гардероб ── */
+  document.addEventListener('click',function(e){
+    var sw=e.target.closest('.pf-sw');
+    if(sw){
+      var was=sw.classList.contains('on');
+      var it=JSON.parse(sw.dataset.item2||'null');
+
+      /* спершу показуємо, як це виглядатиме, і вже потім вдягаємо */
+      if(it&&window.CosmeticPreview&&!e.shiftKey){
+        window.CosmeticPreview.open(it,{
+          hint:was?'Зараз вдягнено':'',
+          action:{label:was?'Зняти':'Вдягнути',fn:function(){
+            post('/api/shop/equip',{item:was?'':sw.dataset.item}).then(function(j){
+              if(j.error)return;
+              if(sw.dataset.kind==='accent'){
+                document.querySelectorAll('.pf-sw.accent').forEach(function(b){
+                  b.classList.toggle('on',b===sw&&!was);
+                });
+              }
+              paint(j.look);
+            });
+          }},
+        });
+        return;
+      }
+
+      post('/api/shop/equip',{item:was?'':sw.dataset.item}).then(function(j){
+        if(j.error)return;
+        if(sw.dataset.kind==='accent'){
+          document.querySelectorAll('.pf-sw.accent').forEach(function(b){b.classList.toggle('on',b===sw&&!was)});
+        }
+        paint(j.look);
+      });
+      return;
+    }
+
+    /* налаштування: де показувати оформлення */
+    var sc=e.target.closest('.pf-scope');
+    if(sc){
+      var next=!sc.classList.contains('on');
+      var body={scope:{}};body.scope[sc.dataset.part]=next;
+      post('/api/profile',body).then(function(j){
+        if(j.error)return;
+        sc.classList.toggle('on',next);
+        paint(j.look);
+      });
+      return;
+    }
+
+    var clr=e.target.closest('.pf-clear');
+    if(clr){
+      post('/api/shop/clear',{what:clr.dataset.what}).then(function(j){
+        if(j.error)return;
+        if(clr.dataset.what==='accent'){
+          document.querySelectorAll('.pf-sw.accent').forEach(function(b){b.classList.remove('on')});
+        }
+        paint(j.look);
+      });
+      return;
+    }
+
+    /* своя картинка: клік по ній ставить її у свою ж категорію */
+    var shot=e.target.closest('.pf-shot');
+    if(shot&&shot.dataset.asset){
+      var body={};body[shot.dataset.slot||'background']=shot.dataset.asset;
+      post('/api/profile',body).then(function(j){
+        if(j.error)return;
+        document.querySelectorAll('.pf-shot').forEach(function(b){b.classList.toggle('on',b===shot)});
+        paint(j.look);
+      });
+    }
+  });
+
+  /* ── Завантаження своїх картинок ── */
+  document.addEventListener('change',function(e){
+    var inp=e.target.closest('.pf-up input[type=file]');
+    if(!inp||!inp.files||!inp.files[0])return;
+    var slot=inp.dataset.slot,label=inp.closest('label');
+    label.classList.add('busy');
+
+    var fd=new FormData();fd.append('slot',slot);fd.append('file',inp.files[0]);
+    fetch('/api/profile/asset',{method:'POST',body:fd})
+      .then(function(r){return r.json()}).then(function(j){
+        label.classList.remove('busy');inp.value='';
+        if(j.error){
+          var t=({limit:'Досягнуто ліміт',funds:'Не вистачає FP',
+            booster:'Лише для бустерів',locked:'Лише для бустерів'})[j.error]||j.error;
+          var h=document.querySelector('.pf-up .hint');if(h)h.textContent=t;
+          return;
+        }
+        var list=document.getElementById('pf-assets');
+        if(list){
+          var b=document.createElement('button');
+          b.className='pf-shot on';b.dataset.asset=j.id;b.dataset.slot=j.kind;
+          b.style.backgroundImage='url(/asset/'+j.id+')';
+          list.prepend(b);
+        }
+        paint(j.look);
+      }).catch(function(){label.classList.remove('busy')});
   });
 })();
 `;
@@ -2848,7 +3233,88 @@ function metaTags({ title, description, image, url, type = 'website' }) {
     .join('\n');
 }
 
-function shell({ title, content, hasCustomCss, extraJs = '', meta = '' }) {
+/**
+ * Особисте оформлення на весь сайт.
+ *
+ * Фон, акцент і рамка аватара — це вибір людини, тож він їде з нею по всіх
+ * сторінках, а не живе лише в профілі. Зорі й дим лишаються завжди: дим
+ * переходить у режим «screen» і притлумлюється, тож світиться поверх кольору
+ * замість того, щоб його забивати.
+ */
+function skinCss(look, { page = null } = {}) {
+  if (!look) return '';
+  const here = page === 'me';                 // ми на власній сторінці
+  const scope = look.scope ?? {};
+  // Кожну частину оформлення можна лишити тільки в профілі — це вибір людини
+  // в налаштуваннях; за замовчуванням усе діє на всьому сайті.
+  const show = (part) => (scope[part] === false ? here : true);
+
+  const bg = show('background') ? look.background : null;
+  const rules = [];
+
+  if (bg?.type === 'solid') rules.push(`.bg{background:${bg.color}}`);
+  if (bg?.type === 'gradient') {
+    rules.push(`.bg{background:linear-gradient(${bg.angle ?? 160}deg,${bg.from},${bg.to})}`);
+  }
+  if (bg?.type === 'motion') {
+    rules.push(
+      `.bg{background:linear-gradient(120deg,${bg.from},${bg.to},${bg.from});`
+      + 'background-size:300% 300%;animation:flow 18s ease-in-out infinite}',
+    );
+  }
+  if (bg?.type === 'image') {
+    rules.push(`.bg{background:#05070d url(${bg.url}) center/cover no-repeat fixed}`);
+    // під власною картинкою текст мусить лишатися читабельним
+    rules.push('.bg::after{content:"";position:absolute;inset:0;background:rgba(4,6,12,.55)}');
+  }
+  if (bg) rules.push('#fog{opacity:.34;mix-blend-mode:screen}#stars{opacity:.7}');
+
+  if (look.accent && show('accent')) {
+    rules.push(`:root{--accent:${look.accent}}`);
+    // спільна мова «обрано» теж має підхопити новий колір
+    rules.push(
+      '.pick-el.on,.btn.ghost.pick-el.on,.btn.icon.on,.tabs a.on,.langmenu a.on,'
+      + '.drop-opt.on,.qopt.on,.vopt.on,.sopt.on,nav a.active,.me.active,.btn{'
+      + `background:linear-gradient(180deg,${look.accent},${shade(look.accent, -18)})}`,
+    );
+  }
+
+  if (look.card && show('card')) {
+    const c = look.card;
+    rules.push(`:root{--card:${c.bg};--line:${c.line}}`);
+    rules.push(`.card,.pane{border-radius:${c.radius ?? 18}px;`
+      + `backdrop-filter:blur(${c.blur ?? 14}px);-webkit-backdrop-filter:blur(${c.blur ?? 14}px)`
+      + `${c.shadow ? `;box-shadow:${c.shadow}` : ''}}`);
+  }
+
+  if (look.frame) {
+    const c = look.frame.color;
+    rules.push(`.avatar{border-color:${c}!important;box-shadow:0 0 0 4px ${c}33,0 0 26px ${c}66}`);
+    if (look.frame.style === 'spin') {
+      rules.push(`.avatar{animation:frameSpin 6s linear infinite}
+        @keyframes frameSpin{to{box-shadow:0 0 0 4px ${c}33,0 0 26px ${c}66}}`);
+    }
+    if (look.frame.style === 'pulse') {
+      rules.push(`.avatar{animation:framePulse 2.6s ease-in-out infinite}
+        @keyframes framePulse{0%,100%{box-shadow:0 0 0 4px ${c}22,0 0 18px ${c}55}
+        50%{box-shadow:0 0 0 7px ${c}33,0 0 32px ${c}88}}`);
+    }
+  }
+
+  return rules.length ? `<style>${rules.join('\n')}</style>` : '';
+}
+
+/** Трохи темніший відтінок того самого кольору — для градієнта кнопок. */
+function shade(hex, amount) {
+  const m = /^#?([\da-f]{6})$/i.exec(String(hex));
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    .map((v) => Math.max(0, Math.min(255, v + amount)));
+  return `#${ch.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function shell({ title, content, hasCustomCss, extraJs = '', meta = '', skin = '' }) {
   return `<!doctype html>
 <html lang="uk"><head>
 <meta charset="utf-8">
@@ -2861,6 +3327,7 @@ function shell({ title, content, hasCustomCss, extraJs = '', meta = '' }) {
 ${meta}
 <style>${BASE_CSS}</style>
 ${hasCustomCss ? '<link rel="stylesheet" href="/custom.css">' : ''}
+${skin}
 </head><body>
 ${BACKGROUND}
 ${content}
@@ -2872,7 +3339,7 @@ ${extraJs ? `<script>${extraJs}</script>` : ''}
 
 export function layout({
   title, guildName, body, nav = [], session, hasCustomCss,
-  lang = 'uk', path = '/', gallery = false, page = null, og = null,
+  lang = 'uk', path = '/', gallery = false, page = null, og = null, look = null,
 }) {
   // apart — кнопка стоїть окремо від основних, з розділювачем
   const navHtml = nav
@@ -2898,12 +3365,14 @@ export function layout({
   return shell({
     title,
     hasCustomCss,
+    skin: skinCss(look, { page }),
     meta: og ? metaTags(og) : '',
     extraJs: [
       gallery ? GALLERY_JS : '',
       page === 'cinema' ? PLAYERS_JS : '',
       page === 'cinema' ? CINEMA_JS : '',
       page === 'mod' ? MOD_JS : '',
+      page === 'shop' || page === 'me' ? PREVIEW_JS : '',
       page === 'shop' ? SHOP_JS : '',
       page === 'me' ? PROFILE_JS : '',
     ].filter(Boolean).join('\n'),
@@ -2995,7 +3464,7 @@ export function leaderboardPage(rows, lang = 'uk') {
 
 export function profilePage(profile, {
   username, avatar, roleName, roleColor, rank, lang = 'uk',
-  look = {}, mine = false, can = {}, shots = [],
+  look = {}, mine = false, wardrobe = null,
 }) {
   // Обраний акцент важить більше за колір ролі: це свідомий вибір людини.
   const accent = look.accent || roleColor || '#6b7cff';
@@ -3013,34 +3482,110 @@ export function profilePage(profile, {
         #stars{opacity:.7}</style>`
     : '';
 
-  const banner = look.banner
-    ? `<div class="pf-banner"><img src="/media/${esc(look.banner)}" alt=""></div>`
+  const banner = look.bannerUrl
+    ? `<div class="pf-banner"><img src="${esc(look.bannerUrl)}" alt=""></div>`
     : '';
 
-  // Опис показуємо, якщо він є; редагувати може лише власник із доступом.
+  // Опис — базова персоналізація, доступна кожному власнику сторінки.
   const aboutText = String(look.about ?? '').trim();
-  const about = (aboutText || (mine && can.about))
+  const about = (aboutText || mine)
     ? `<div class="card pane rise pf-aboutbox" id="pf-about">
         <div class="pane-h">${esc(t(lang, 'profile.about'))}
-          ${mine && can.about ? `<button class="btn ghost sm" id="pf-edit"
+          ${mine ? `<button class="btn ghost sm" id="pf-edit"
             data-edit="${esc(t(lang, 'profile.edit'))}"
             data-save="${esc(t(lang, 'profile.save'))}">${esc(t(lang, 'profile.edit'))}</button>` : ''}
         </div>
         <div class="pf-text">${aboutText ? esc(aboutText) : `<span class="muted">—</span>`}</div>
-        ${mine && can.about ? `<textarea class="pf-edit" maxlength="400"
+        ${mine ? `<textarea class="pf-edit" maxlength="400"
           placeholder="${esc(t(lang, 'profile.aboutEdit'))}">${esc(aboutText)}</textarea>` : ''}
       </div>`
     : '';
 
-  // Банер обирається зі своїх же публікацій — чужі картинки сюди не потраплять.
-  const bannerPick = mine && can.banner && shots.length
-    ? `<div class="card pane rise" id="pf-banner">
-        <div class="pane-h">${esc(t(lang, 'profile.banner'))}</div>
-        <div class="hint" style="margin-bottom:10px">${esc(t(lang, 'profile.bannerPick'))}</div>
-        <div class="pf-shots">
-          <button class="pf-shot none" data-item="0">${esc(t(lang, 'profile.bannerNone'))}</button>
-          ${shots.map((s) => `<button class="pf-shot${String(look.banner) === String(s.id) ? ' on' : ''}"
-            data-item="${s.id}" style="background-image:url(/media/${s.id})"></button>`).join('')}
+  /** Один зразок у гардеробі: показує сам себе й позначається, коли вдягнений. */
+  const swatch = (it) => {
+    const on = {
+      background: () => look.background?.id === it.id,
+      accent: () => look.accent === it.value.color,
+      frame: () => look.frame?.id === it.id,
+      card: () => look.card?.id === it.id,
+    }[it.kind]?.() ?? false;
+    let style = '';
+    if (it.kind === 'background' && it.value.type === 'solid') style = `background:${esc(it.value.color)}`;
+    if (it.kind === 'background' && it.value.type === 'gradient') {
+      style = `background:linear-gradient(${it.value.angle}deg,${esc(it.value.from)},${esc(it.value.to)})`;
+    }
+    if (it.kind === 'background' && it.value.type === 'motion') {
+      style = `--a:${esc(it.value.from)};--b:${esc(it.value.to)}`;
+    }
+    if (it.kind === 'accent' || it.kind === 'frame') style = `--c:${esc(it.value.color)}`;
+    if (it.kind === 'card') {
+      style = `background:${esc(it.value.bg)};border-color:${esc(it.value.line)};`
+        + `border-radius:${it.value.radius ?? 18}px`;
+    }
+    const cls = ['pf-sw', it.kind, it.value.type === 'motion' ? 'mo' : '', on ? 'on' : '']
+      .filter(Boolean).join(' ');
+    // data-item2 несе всю річ — вікно передперегляду малює її, не ходячи на сервер
+    const full = esc(JSON.stringify({ id: it.id, name: it.name, kind: it.kind, value: it.value }));
+    return `<button class="${cls}" data-item="${esc(it.id)}" data-kind="${esc(it.kind)}"
+      data-item2="${full}" title="${esc(it.name)}" style="${style}"><span>${esc(it.name)}</span></button>`;
+  };
+
+  // Гардероб: усе придбане в одному місці — вибираємо тут, а не в магазині.
+  const wardrobeBox = mine && wardrobe
+    ? `<div class="card pane rise pf-look" id="look">
+        <div class="pane-h">${esc(t(lang, 'profile.look'))}
+          <a class="btn ghost sm" href="/shop">✨ ${esc(t(lang, 'nav.shop'))}</a>
+        </div>
+
+        ${wardrobe.packs.length
+    ? wardrobe.packs.map((p) => `<div class="pf-group">
+            <div class="pf-gt">${esc(p.name)}</div>
+            <div class="pf-sws">${p.items.map(swatch).join('')}</div>
+          </div>`).join('')
+    : `<div class="muted">${esc(t(lang, 'profile.noPacks'))}</div>`}
+
+        <div class="pf-group">
+          <div class="pf-gt">${esc(t(lang, 'profile.ownImages'))}</div>
+          ${wardrobe.canUpload
+    ? `<div class="pf-up">
+                <label class="btn ghost sm">
+                  ${esc(t(lang, 'profile.uploadBg'))}
+                  <input type="file" accept="image/*" data-slot="background" hidden>
+                </label>
+                <label class="btn ghost sm">
+                  ${esc(t(lang, 'profile.uploadBanner'))}
+                  <input type="file" accept="image/*" data-slot="banner" hidden>
+                </label>
+                <span class="hint">${esc(t(lang, 'profile.uploadCost', {
+      n: wardrobe.uploadPrice, max: wardrobe.uploadLimit,
+    }))}</span>
+              </div>
+              <div class="pf-shots" id="pf-assets">
+                ${wardrobe.assets.map((a) => `<button class="pf-shot${look.background?.id === `asset:${a.id}` || look.banner === `asset:${a.id}` ? ' on' : ''}"
+                  data-asset="${a.id}" data-slot="${esc(a.kind)}"
+                  style="background-image:url(${esc(a.url)})"></button>`).join('')}
+              </div>`
+    : `<div class="hint">🔒 ${esc(t(lang, 'profile.ownLocked'))}</div>`}
+        </div>
+
+        <div class="pf-group">
+          <div class="pf-gt">${esc(t(lang, 'profile.scope'))}</div>
+          <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.scopeHint'))}</div>
+          <div class="pf-up">
+            ${['background', 'accent', 'card'].map((part) => {
+    const on = look.scope?.[part] !== false;
+    return `<button class="btn ghost sm pick-el pf-scope${on ? ' on' : ''}" data-part="${part}">
+              ${esc(t(lang, `profile.scope.${part}`))}</button>`;
+  }).join('')}
+          </div>
+        </div>
+
+        <div class="pf-group">
+          <div class="pf-gt">${esc(t(lang, 'profile.reset'))}</div>
+          <div class="pf-up">
+            ${['background', 'accent', 'frame', 'card', 'banner'].map((w) =>
+    `<button class="btn ghost sm pf-clear" data-what="${w}">${esc(t(lang, `profile.clear.${w}`))}</button>`).join('')}
+          </div>
         </div>
       </div>`
     : '';
@@ -3065,12 +3610,15 @@ export function profilePage(profile, {
         <div class="muted" style="margin-top:5px">${esc(t(lang, 'profile.days', { days: profile.daysOnServer }))}${rank ? ` · #${rank}` : ''}</div>
       </div>
       <div class="score"><b>${profile.aiScore}</b><span>${esc(t(lang, 'profile.rating'))}</span></div>
+      ${Number.isFinite(look.balance)
+    ? `<div class="score fp"><b>${fmt(look.balance)}</b><span>✨ FP</span></div>`
+    : ''}
     </div>
     <div class="tiles">${tiles}</div>
   </div>
   ${about}
   ${scoreChart(profile, { lang, accent })}
-  ${bannerPick}`;
+  ${wardrobeBox}`;
 }
 
 /**
@@ -3102,54 +3650,95 @@ function scoreChart(profile, { lang = 'uk', accent = '#6b7cff' } = {}) {
     </div>`;
   }
 
-  const W = 720;
-  const H = 200;
-  const PAD = 14;
+  const W = 760;
+  const H = 240;
+  const L = 44;          // місце під підписи значень ліворуч
+  const R = 16;
+  const TOP = 16;
+  const BOT = 30;        // місце під дати знизу
+
   const min = Math.min(...pts);
   const max = Math.max(...pts);
-  // запас у 8% діапазону згори й знизу, щоб лінія не липла до країв
-  const span = Math.max(24, (max - min) * 1.16);
+  // запас, щоб лінія не липла до країв; для рівних значень — видима смуга
+  const span = Math.max(30, (max - min) * 1.35);
   const mid = (max + min) / 2;
-  const lo = Math.max(0, mid - span / 2);
-  const hi = Math.min(1000, mid + span / 2);
+  const lo = Math.max(0, Math.round(mid - span / 2));
+  const hi = Math.min(1000, Math.round(mid + span / 2));
 
-  const x = (i) => PAD + (W - PAD * 2) * (pts.length === 1 ? 0.5 : i / (pts.length - 1));
-  const y = (v) => PAD + (H - PAD * 2) * (1 - (v - lo) / (hi - lo || 1));
+  const x = (i) => L + (W - L - R) * (pts.length === 1 ? 0.5 : i / (pts.length - 1));
+  const y = (v) => TOP + (H - TOP - BOT) * (1 - (v - lo) / (hi - lo || 1));
 
-  const line = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const area = `${line} L${x(pts.length - 1).toFixed(1)} ${H - PAD} L${x(0).toFixed(1)} ${H - PAD} Z`;
+  /**
+   * Плавна лінія: між точками ведемо криву, а не ламану. Контрольні точки
+   * зміщені лише по горизонталі — так крива не «вилітає» за межі значень.
+   */
+  const curve = pts.map((v, i) => {
+    if (!i) return `M${x(0).toFixed(1)} ${y(v).toFixed(1)}`;
+    const x0 = x(i - 1);
+    const x1 = x(i);
+    const cx = (x0 + x1) / 2;
+    return `C${cx.toFixed(1)} ${y(pts[i - 1]).toFixed(1)} ${cx.toFixed(1)} ${y(v).toFixed(1)} ${x1.toFixed(1)} ${y(v).toFixed(1)}`;
+  }).join(' ');
+  const base = H - BOT;
+  const area = `${curve} L${x(pts.length - 1).toFixed(1)} ${base} L${x(0).toFixed(1)} ${base} Z`;
   const last = pts.at(-1);
+
+  // сітка з чотирьох ліній і підписами значень — без неї графік читається погано
+  const steps = 4;
+  const grid = Array.from({ length: steps + 1 }, (_, k) => {
+    const v = Math.round(lo + (hi - lo) * (k / steps));
+    const gy = y(v);
+    return `<line class="chgrid" x1="${L}" y1="${gy.toFixed(1)}" x2="${W - R}" y2="${gy.toFixed(1)}"></line>
+      <text class="chlabel" x="${L - 10}" y="${(gy + 4).toFixed(1)}" text-anchor="end">${v}</text>`;
+  }).join('');
+
+  // дати знизу: перша, середня й остання — більше не влізе й не треба
+  const dayLabel = (i) => {
+    const daysAgo = pts.length - 1 - i;
+    if (daysAgo === 0) return t(lang, 'profile.today');
+    return `−${daysAgo} ${t(lang, 'profile.daysShort')}`;
+  };
+  const marks = [...new Set([0, Math.floor((pts.length - 1) / 2), pts.length - 1])];
+  const dates = marks.map((i) => `<text class="chlabel" x="${x(i).toFixed(1)}" y="${H - 8}"
+    text-anchor="${i === 0 ? 'start' : (i === pts.length - 1 ? 'end' : 'middle')}">${esc(dayLabel(i))}</text>`).join('');
+
+  // точки видно, коли їх небагато — так одразу зрозуміло, скільки замірів
+  const dots = pts.length <= 20
+    ? pts.map((v, i) => `<circle class="chpt" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3"
+        fill="${esc(accent)}"></circle>`).join('')
+    : '';
 
   // невидимі смужки для підказок: наводиш будь-де — бачиш значення
   const hovers = pts.map((v, i) => {
-    const w = (W - PAD * 2) / pts.length;
-    const daysAgo = pts.length - 1 - i;
-    const when = daysAgo === 0 ? t(lang, 'profile.today') : `−${daysAgo} ${t(lang, 'profile.daysShort')}`;
-    return `<g class="hp"><rect x="${(PAD + w * i).toFixed(1)}" y="0" width="${w.toFixed(1)}" height="${H}"
-        fill="transparent"></rect>
-      <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4"></circle>
-      <title>${v} · ${esc(when)}</title></g>`;
+    const w = (W - L - R) / pts.length;
+    return `<g class="hp"><rect x="${(L + w * i).toFixed(1)}" y="${TOP}" width="${w.toFixed(1)}"
+        height="${(H - TOP - BOT).toFixed(1)}" fill="transparent"></rect>
+      <line class="chhair" x1="${x(i).toFixed(1)}" y1="${TOP}" x2="${x(i).toFixed(1)}" y2="${base}"></line>
+      <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="5"></circle>
+      <title>${v} · ${esc(dayLabel(i))}</title></g>`;
   }).join('');
 
   return `<div class="card pane rise chartbox">${head}
-    <svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
       aria-label="${esc(t(lang, 'profile.trend'))}">
       <defs>
         <linearGradient id="chg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${esc(accent)}" stop-opacity=".35"/>
+          <stop offset="0%" stop-color="${esc(accent)}" stop-opacity=".38"/>
           <stop offset="100%" stop-color="${esc(accent)}" stop-opacity="0"/>
         </linearGradient>
       </defs>
+      ${grid}
       <path class="charea" d="${area}" fill="url(#chg)"></path>
-      <path class="chline" d="${line}" fill="none" stroke="${esc(accent)}"></path>
-      <circle class="chdot" cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="5"
+      <path class="chline" d="${curve}" fill="none" stroke="${esc(accent)}"></path>
+      ${dots}
+      <circle class="chdot" cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="5.5"
         fill="${esc(accent)}"></circle>
+      ${dates}
       ${hovers}
     </svg>
     <div class="chfoot">
-      <span>${Math.round(lo)}</span>
       <span class="hint">${pts.length} ${esc(t(lang, 'profile.points'))}</span>
-      <span>${Math.round(hi)}</span>
+      <span class="hint">${esc(t(lang, 'profile.now'))}: <b>${last}</b></span>
     </div>
   </div>`;
 }
@@ -3394,6 +3983,7 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     <!-- Полотно живого світла: сюди щосекунди лягає зменшений кадр,
          розмитий до кольорових плям. Порожнє й невидиме, поки нема що показувати. -->
     <canvas class="ambient" id="cin-ambient" width="32" height="18" aria-hidden="true"></canvas>
+    <canvas class="ambient next" id="cin-ambient2" width="32" height="18" aria-hidden="true"></canvas>
     <div class="curtain" id="cin-curtain" hidden>
       <div class="curtain-i">⏸</div>
       <div class="curtain-t">${esc(t(lang, 'cin.paused'))}</div>
@@ -3621,76 +4211,94 @@ export function dropdown(id, options, label = '') {
  * заради чого бустити), але кнопка в них замкнена.
  */
 export function shopPage({
-  items = [], owned = [], equipped = {}, booster = false,
-  balance = 0, earned = 0, lang = 'uk',
+  packs = [], owned = [], booster = false, admin = false,
+  balance = 0, lang = 'uk', uploads = {}, uploadLimit = 3,
 }) {
   const has = new Set(owned);
 
-  const PACKS = [
-    ['solid', t(lang, 'shop.packSolid'), t(lang, 'shop.packSolidHint')],
-    ['gradient', t(lang, 'shop.packGradient'), t(lang, 'shop.packGradientHint')],
-    ['accent', t(lang, 'shop.packAccent'), t(lang, 'shop.packAccentHint')],
-    ['profile', t(lang, 'shop.packProfile'), t(lang, 'shop.packProfileHint')],
-  ];
+  // Ліворуч список категорій, праворуч самі набори. Клік по категорії
+  // просто прокручує до неї — так видно і структуру, і вміст одразу.
+  const side = `<aside class="sh-side">
+    ${packs.map((p, i) => `<a class="sh-cat${i === 0 ? ' on' : ''}" href="#${esc(p.id)}" data-cat="${esc(p.id)}">
+      <span class="sh-cn">${esc(p.name)}</span>
+      <span class="sh-cc">${has.has(p.id) ? '✓' : (p.price ? `${p.price} ✨` : t(lang, 'shop.free'))}</span>
+    </a>`).join('')}
+  </aside>`;
 
-  /** Живе прев'ю: сама річ, а не її опис. */
-  const preview = (it) => {
-    if (it.kind === 'background' && it.value.type === 'solid') {
-      return `<span class="sh-prev" style="background:${esc(it.value.color)}"></span>`;
+  /** Прев'ю набору — кілька справжніх зразків, а не іконка. */
+  const swatches = (p) => {
+    if (p.custom) {
+      return `<div class="sh-prev custom"><span>＋</span></div>`;
     }
-    if (it.kind === 'background' && it.value.type === 'gradient') {
-      return `<span class="sh-prev" style="background:linear-gradient(${it.value.angle}deg,${esc(it.value.from)},${esc(it.value.to)})"></span>`;
-    }
-    if (it.kind === 'accent') {
-      return `<span class="sh-prev accent" style="--c:${esc(it.value.color)}"></span>`;
-    }
-    return `<span class="sh-prev feat">${it.value.feature === 'banner' ? '🖼' : '✎'}</span>`;
+    const list = p.items.slice(0, 4).map((it) => {
+      if (it.kind === 'background' && it.value.type === 'solid') {
+        return `<i style="background:${esc(it.value.color)}"></i>`;
+      }
+      if (it.kind === 'background' && it.value.type === 'gradient') {
+        return `<i style="background:linear-gradient(${it.value.angle}deg,${esc(it.value.from)},${esc(it.value.to)})"></i>`;
+      }
+      if (it.kind === 'background' && it.value.type === 'motion') {
+        return `<i class="mo" style="--a:${esc(it.value.from)};--b:${esc(it.value.to)}"></i>`;
+      }
+      if (it.kind === 'accent') return `<i class="ac" style="--c:${esc(it.value.color)}"></i>`;
+      if (it.kind === 'card') {
+        return `<i class="cd" style="background:${esc(it.value.bg)};border-color:${esc(it.value.line)}"></i>`;
+      }
+      return `<i class="fr" style="--c:${esc(it.value.color)}"></i>`;
+    }).join('');
+    return `<div class="sh-prev">${list}</div>`;
   };
 
-  const card = (it, i) => {
-    const mine = has.has(it.id);
-    const worn = equipped.background === it.id
-      || (it.kind === 'accent' && equipped.accent === it.value.color);
-    const locked = it.booster && !booster;
+  const packCard = (p, i) => {
+    const mine = has.has(p.id);
+    const locked = p.booster && !booster;
 
-    const action = locked
-      ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
-      : mine
-        ? (it.kind === 'feature'
-          ? `<span class="sh-have">✓ ${esc(t(lang, 'shop.owned'))}</span>`
-          : `<button class="btn ghost sm sh-equip${worn ? ' on pick-el' : ''}" data-item="${esc(it.id)}">
-              ${worn ? esc(t(lang, 'shop.worn')) : esc(t(lang, 'shop.wear'))}</button>`)
-        : `<button class="btn sm sh-buy" data-item="${esc(it.id)}" data-price="${it.price}">
-            ${it.price ? `${it.price} ✨` : esc(t(lang, 'shop.take'))}</button>`;
+    const action = p.custom
+      ? (locked
+        ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
+        : `<a class="btn sm" href="/me#look">${esc(t(lang, 'shop.upload'))}</a>`)
+      : locked
+        ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
+        : mine
+          ? `<a class="btn ghost sm" href="/me#look">${esc(t(lang, 'shop.inProfile'))}</a>`
+          : `<button class="btn sm sh-buy" data-item="${esc(p.id)}">
+              ${p.price ? `${p.price} ✨` : esc(t(lang, 'shop.take'))}</button>`;
 
-    return `<article class="sh-card${locked ? ' locked' : ''}${worn ? ' worn' : ''}"
-        data-id="${esc(it.id)}" style="animation-delay:${Math.min(i * 0.04, 0.4)}s">
-      ${preview(it)}
+    const priceEdit = admin
+      ? `<div class="sh-price">
+          <input type="number" min="0" max="99999" value="${p.price}" data-pack="${esc(p.id)}"
+            aria-label="${esc(t(lang, 'shop.price'))}">
+          <button class="btn ghost sm sh-setprice" data-pack="${esc(p.id)}">${esc(t(lang, 'shop.savePrice'))}</button>
+        </div>`
+      : '';
+
+    const uploadInfo = p.custom && !locked
+      ? `<div class="hint sh-left">${esc(t(lang, 'shop.uploadsLeft', {
+        bg: uploads.background ?? uploadLimit, ban: uploads.banner ?? uploadLimit, max: uploadLimit,
+      }))}</div>`
+      : '';
+
+    // повний склад набору їде в розмітці — вікно передперегляду малює його
+    // без жодного запиту на сервер
+    const payload = esc(JSON.stringify(p.items.map((it) =>
+      ({ id: it.id, name: it.name, kind: it.kind, value: it.value }))));
+
+    return `<article class="sh-card${locked ? ' locked' : ''}${mine ? ' mine' : ''}"
+        id="${esc(p.id)}" data-id="${esc(p.id)}" data-items="${payload}"
+        style="animation-delay:${Math.min(i * 0.05, 0.4)}s">
+      ${swatches(p)}
       <div class="sh-b">
-        <div class="sh-n">${esc(it.name)}</div>
-        <div class="sh-p">${it.price ? `${it.price} ✨FP` : esc(t(lang, 'shop.free'))}</div>
+        <div>
+          <div class="sh-n">${esc(p.name)}</div>
+          <div class="hint">${esc(p.hint ?? '')}</div>
+        </div>
+        <div class="sh-p" data-price="${p.id}">${p.price ? `${p.price} ✨FP` : esc(t(lang, 'shop.free'))}</div>
       </div>
+      ${uploadInfo}
       <div class="sh-a">${action}</div>
+      ${priceEdit}
     </article>`;
   };
-
-  const sections = PACKS.map(([pack, title, hint]) => {
-    const list = items.filter((i) => i.pack === pack);
-    if (!list.length) return '';
-    const need = list.some((i) => i.booster);
-    return `<section class="sh-sec">
-      <div class="sh-h">
-        <div>
-          <h2>${esc(title)}</h2>
-          <div class="hint">${esc(hint)}</div>
-        </div>
-        ${need ? `<span class="tagp${booster ? ' good' : ''}">${booster
-          ? `✓ ${esc(t(lang, 'shop.youBoost'))}`
-          : `🔒 ${esc(t(lang, 'shop.forBoosters'))}`}</span>` : ''}
-      </div>
-      <div class="sh-grid">${list.map(card).join('')}</div>
-    </section>`;
-  }).join('');
 
   return `<div class="shop">
     <div class="card pane sh-wallet rise">
@@ -3699,16 +4307,15 @@ export function shopPage({
         <b id="sh-balance">${fmt(balance)}</b>
         <span>FP</span>
       </div>
-      <div class="hint">${esc(t(lang, 'shop.earned', { n: fmt(earned) }))}</div>
-      <div class="hint">${esc(t(lang, 'shop.howEarn'))}</div>
-      ${booster
-        ? `<div class="sh-boost on">💜 ${esc(t(lang, 'shop.boosterOn'))}</div>`
-        : `<div class="sh-boost">${esc(t(lang, 'shop.boosterOff'))}</div>`}
     </div>
-    ${sections}
+    <div class="sh-layout">
+      ${side}
+      <div class="sh-grid">${packs.map(packCard).join('')}</div>
+    </div>
     <div class="err" id="sh-err" hidden></div>
   </div>`;
 }
+
 
 export function modPage({
   active = [], warns = [], warnLimit = 3, journal = [], who = {},

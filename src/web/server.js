@@ -5,7 +5,7 @@ import { profileService } from '../services/profileService.js';
 import { verificationService } from '../services/verificationService.js';
 import {
   reputationRepo, sitePagesRepo, siteAssetsRepo, sessionsRepo, galleryRepo,
-  cinemaRepo, cinemaQueueRepo, cinemaLogRepo, prefsRepo,
+  cinemaRepo, cinemaQueueRepo, cinemaLogRepo, prefsRepo, assetsRepo, walletRepo,
 } from '../database/repositories.js';
 import { cosmeticsService } from '../services/cosmeticsService.js';
 import { oauth, avatarUrl } from './oauth.js';
@@ -350,6 +350,27 @@ async function handle(req, res) {
   if (path === '/api/profile' && req.method === 'POST') {
     return profileApi(req, res, guild, session);
   }
+  if (path === '/api/profile/asset' && req.method === 'POST') {
+    return assetUpload(req, res, guild, session);
+  }
+
+  // ── власні картинки оформлення (лежать у приватному каналі) ──
+  if (path.startsWith('/asset/')) {
+    const id = Number(path.slice(7).replace(/[^0-9]/g, ''));
+    const meta = id ? await assetsRepo.meta(id) : null;
+    if (!meta || meta.guild_id !== guild.id) return send(res, 404, 'text/plain', 'not found');
+
+    let url = meta.url;
+    const expires = Number(meta.url_expires ?? 0);
+    if (!url || expires - 60_000 < Date.now()) {
+      const fresh = await discordStore.refresh(guild, meta.object_key).catch(() => null);
+      if (!fresh) return send(res, 404, 'text/plain', 'gone');
+      await assetsRepo.refreshUrl(id, fresh.url, fresh.expires);
+      url = fresh.url;
+    }
+    res.writeHead(302, { Location: url, 'Cache-Control': 'private, max-age=600' });
+    return res.end();
+  }
 
   // ── пошук учасників для вибору (без вписування ID) ──
   if (path === '/api/members') {
@@ -586,15 +607,18 @@ async function renderShop(res, guild, session, lang, path) {
 
   const wallet = await cosmeticsService.wallet(guild.id, session.user_id);
   const owned = await cosmeticsService.owned(guild.id, session.user_id);
-  const prefs = await prefsRepo.get(guild.id, session.user_id);
 
   const body = R.shopPage({
-    items: cosmeticsService.CATALOG,
+    packs: cosmeticsService.catalog(guild.id),
     owned,
-    equipped: { background: prefs.background, accent: prefs.accent },
-    booster: cosmeticsService.isBooster(member),
+    booster: cosmeticsService.isBooster(guild.id, member),
+    admin: isAdmin(guild, session),
     balance: wallet.balance,
-    earned: wallet.earned,
+    uploadLimit: cosmeticsService.UPLOAD_LIMIT,
+    uploads: {
+      background: await cosmeticsService.uploadsLeft(guild.id, session.user_id, 'background'),
+      banner: await cosmeticsService.uploadsLeft(guild.id, session.user_id, 'banner'),
+    },
     lang,
   });
   return html(res, 200, guild, session, lang, path, t(lang, 'shop.title'), body, false, 'shop');
@@ -613,52 +637,140 @@ async function shopApi(req, res, guild, session, action) {
   if (action === 'buy') {
     const r = await cosmeticsService.buy(guild.id, session.user_id, member, itemId);
     if (!r.ok) return json(res, 400, { error: r.reason });
-    return json(res, 200, { ok: true, balance: r.balance });
+    // Одразу віддаємо, що саме відкрилось — сторінка перемальовує картку
+    // на місці, без перезавантаження.
+    const pack = cosmeticsService.pack(itemId);
+    return json(res, 200, {
+      ok: true,
+      balance: r.balance,
+      pack: itemId,
+      items: (pack?.items ?? []).map((i) => ({ id: i.id, name: i.name, kind: i.kind, value: i.value })),
+    });
   }
 
   if (action === 'equip') {
     const saved = await cosmeticsService.equip(guild.id, session.user_id, itemId || null);
     if (saved === null) return json(res, 400, { error: 'not owned' });
-    return json(res, 200, { ok: true });
+    const look = await cosmeticsService.look(guild.id, session.user_id);
+    return json(res, 200, { ok: true, look });
+  }
+
+  if (action === 'clear') {
+    await cosmeticsService.clear(guild.id, session.user_id, String(body.what ?? 'background'));
+    const look = await cosmeticsService.look(guild.id, session.user_id);
+    return json(res, 200, { ok: true, look });
+  }
+
+  // ціни править лише адміністратор
+  if (action === 'price') {
+    if (!isAdmin(guild, session)) return json(res, 403, { error: 'forbidden' });
+    const ok = await cosmeticsService.setPrice(guild.id, itemId, body.price);
+    if (!ok) return json(res, 400, { error: 'unknown' });
+    return json(res, 200, { ok: true, price: cosmeticsService.price(guild.id, itemId) });
   }
 
   return json(res, 404, { error: 'unknown' });
 }
 
-/** Редагування власної сторінки: опис, банер, скидання оформлення. */
+/**
+ * Власна сторінка: опис, банер, порядок блоків.
+ * Опис і порядок доступні всім — це базова персоналізація, а не товар.
+ * Картинки (банер, власне тло) беруться лише зі свого: або з галереї,
+ * або із завантажених у приватний канал.
+ */
 async function profileApi(req, res, guild, session) {
   if (!session) return json(res, 401, { error: 'auth' });
-  const member = guild.members.cache.get(session.user_id)
-    ?? await guild.members.fetch(session.user_id).catch(() => null);
 
   const body = await readJson(req).catch(() => ({}));
   const patch = {};
 
-  if (body.about !== undefined) {
-    if (!await cosmeticsService.canUse(guild.id, session.user_id, 'about')) {
-      return json(res, 403, { error: 'locked' });
+  if (body.about !== undefined) patch.about = String(body.about).slice(0, 400);
+
+  // Де показувати оформлення: на всьому сайті чи лише у своєму профілі.
+  if (body.scope !== undefined) {
+    const cur = await prefsRepo.get(guild.id, session.user_id);
+    const scope = { ...(cur.layout?.scope ?? {}) };
+    for (const part of ['background', 'accent', 'card']) {
+      if (body.scope[part] === undefined) continue;
+      scope[part] = body.scope[part] ? 'site' : 'profile';
     }
-    patch.about = String(body.about).slice(0, 400);
+    patch.layout = { ...(cur.layout ?? {}), scope };
   }
 
-  if (body.banner !== undefined) {
-    if (!await cosmeticsService.canUse(guild.id, session.user_id, 'banner')) {
-      return json(res, 403, { error: 'locked' });
-    }
-    // банер беремо лише з власних публікацій — чужі картинки сюди не потрапляють
-    const id = Number(body.banner);
-    if (!id) patch.banner = null;
-    else {
-      const item = await galleryRepo.meta(id);
-      if (!item || item.guild_id !== guild.id || item.user_id !== session.user_id) {
-        return json(res, 400, { error: 'not yours' });
-      }
-      patch.banner = String(id);
-    }
+  if (body.layout !== undefined) {
+    // лишаємо тільки відомі блоки, щоб у налаштування не потрапило чуже
+    const known = ['about', 'chart', 'stats', 'gallery'];
+    const order = Array.isArray(body.layout) ? body.layout.filter((k) => known.includes(k)) : [];
+    const cur = await prefsRepo.get(guild.id, session.user_id);
+    patch.layout = { ...(cur.layout ?? {}), order: [...new Set(order)] };
   }
 
-  const saved = await prefsRepo.save(guild.id, session.user_id, patch);
-  return json(res, 200, { ok: true, prefs: saved });
+  // банер і власне тло — лише із завантажених картинок (приватний канал)
+  for (const slot of ['banner', 'background']) {
+    if (body[slot] === undefined) continue;
+    const r = await cosmeticsService.setOwnImage(guild.id, session.user_id, {
+      slot, asset: body[slot] || null,
+    });
+    if (!r.ok) return json(res, r.reason === 'locked' ? 403 : 400, { error: r.reason });
+  }
+
+  if (Object.keys(patch).length) await prefsRepo.save(guild.id, session.user_id, patch);
+  const look = await cosmeticsService.look(guild.id, session.user_id);
+  return json(res, 200, { ok: true, look });
+}
+
+/**
+ * Завантаження власної картинки для оформлення.
+ * Файл лягає в приватний канал-сховище Discord — у базі лишається посилання.
+ */
+async function assetUpload(req, res, guild, session) {
+  if (!session) return json(res, 401, { error: 'auth' });
+  if (!discordStore.configured(guild.id)) return json(res, 503, { error: 'no storage' });
+
+  const member = guild.members.cache.get(session.user_id)
+    ?? await guild.members.fetch(session.user_id).catch(() => null);
+
+  const form = await parseMultipart(req, maxUploadMb(guild) * 1048576).catch(() => null);
+  const file = form?.files?.[0];
+  if (!file) return json(res, 400, { error: 'no file' });
+  if (kindOf(file.mime) !== 'image') return json(res, 400, { error: 'image only' });
+
+  const kind = String(form.fields?.slot) === 'banner' ? 'banner' : 'background';
+
+  // Платимо перед заливкою: так не буває картинки, за яку не списано,
+  // і не буває списання за картинку, яка не долетіла.
+  const paid = await cosmeticsService.payUpload(guild.id, session.user_id, member, kind);
+  if (!paid.ok) return json(res, paid.reason === 'booster' ? 403 : 400, { error: paid.reason });
+
+  const name = safeName(`${kind}-${session.user_id}`, extFor(file.mime));
+  let stored;
+  try {
+    stored = await discordStore.put(guild, file.data, name);
+  } catch (err) {
+    // не долетіло — повертаємо гроші
+    await walletRepo.add(guild.id, session.user_id, paid.price);
+    log.warn('Заливка оформлення не вдалася', err.message);
+    return json(res, 502, { error: 'upload' });
+  }
+
+  const id = await assetsRepo.add(guild.id, session.user_id, {
+    kind,
+    mime: file.mime,
+    sizeBytes: file.data.length,
+    objectKey: stored.key,
+    url: stored.url,
+    urlExpires: stored.expires,
+  });
+  // Залите одразу стає активним — людина платила саме за те, щоб це побачити.
+  await cosmeticsService.setOwnImage(guild.id, session.user_id, { slot: kind, asset: id });
+
+  const wallet = await cosmeticsService.wallet(guild.id, session.user_id);
+  log.info(`Оформлення → сховище: ${session.username ?? session.user_id}, ${kind}, ${(file.data.length / 1048576).toFixed(2)} MB`);
+  return json(res, 200, {
+    ok: true, id, kind, balance: wallet.balance,
+    left: await cosmeticsService.uploadsLeft(guild.id, session.user_id, kind),
+    look: await cosmeticsService.look(guild.id, session.user_id),
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -1304,24 +1416,33 @@ async function renderProfile(res, guild, session, lang, path, userId) {
     publicUrl() ? `${publicUrl()}/og/u/${userId}` : undefined,
   );
 
-  // Оформлення сторінки: обраний фон, акцент, банер і опис.
+  // Оформлення сторінки: обраний фон, акцент, рамка, банер і опис.
   // Дивиться його кожен, хто відкрив профіль, а не лише сам власник.
   const look = await cosmeticsService.look(guild.id, userId);
   const mine = session?.user_id === userId;
-  const can = mine
-    ? {
-      about: await cosmeticsService.canUse(guild.id, session.user_id, 'about'),
-      banner: await cosmeticsService.canUse(guild.id, session.user_id, 'banner'),
-    }
-    : { about: false, banner: false };
-  // для вибору банера показуємо власні публікації
-  const shots = mine && can.banner
-    ? (await galleryRepo.list(guild.id, { limit: 12, userId })).map((g) => ({ id: g.id, kind: g.kind }))
-    : [];
+  // Гаманець показуємо в самому профілі — щоб не бігати в магазин по число.
+  look.balance = (await cosmeticsService.wallet(guild.id, userId)).balance;
+
+  // Власнику сторінки збираємо все, чим він може її змінити.
+  let wardrobe = null;
+  if (mine) {
+    const owned = new Set(await cosmeticsService.owned(guild.id, userId));
+    const packs = cosmeticsService.catalog(guild.id)
+      .filter((p) => !p.custom && (owned.has(p.id) || userId === OWNER_ID))
+      .map((p) => ({ id: p.id, name: p.name, items: p.items }));
+    const assets = await assetsRepo.list(guild.id, userId, null, 24);
+    wardrobe = {
+      packs,
+      canUpload: cosmeticsService.canUpload(guild.id, member, userId),
+      uploadPrice: cosmeticsService.uploadPrice(guild.id),
+      uploadLimit: cosmeticsService.UPLOAD_LIMIT,
+      assets: assets.map((a) => ({ id: a.id, kind: a.kind, url: `/asset/${a.id}` })),
+    };
+  }
 
   return html(res, 200, guild, session, lang, path, username,
     R.profilePage(profile, {
-      username, avatar, roleName, roleColor, rank, lang, look, mine, can, shots,
+      username, avatar, roleName, roleColor, rank, lang, look, mine, wardrobe,
     }),
     false, mine ? 'me' : null, og);
 }
@@ -1376,11 +1497,16 @@ async function html(res, code, guild, session, lang, path, title, body, gallery 
       : []),
   ];
 
+  // Особисте оформлення їде з людиною по всіх сторінках, а не лише в профілі.
+  const look = session
+    ? await cosmeticsService.look(guild.id, session.user_id).catch(() => null)
+    : null;
+
   const out = R.layout({
     title: `${title} · ${guild.name}`,
     guildName: guild.name,
     og: og ?? ogFor(guild, path, title),
-    body, nav, session, hasCustomCss, lang, path, gallery, page,
+    body, nav, session, hasCustomCss, lang, path, gallery, page, look,
   });
   return send(res, code, 'text/html; charset=utf-8', out);
 }

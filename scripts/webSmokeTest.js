@@ -884,7 +884,13 @@ ok('субтитри: вибір доріжки та вимкнення');
     'у повному екрані сцена прозора');
   assert.match(c.body, /\.room\.fs \.ambient[^{]*\{\s*left:0;right:0;top:0;bottom:0/,
     'світло розтягується на весь екран');
-  assert.match(c.body, /\.room\.fs\.live \.ambient,[^{]*\{opacity:\.7\}/, 'і світить помітніше');
+  assert.match(c.body, /\.room\.fs\.live \.ambient\.show,[^{]*\{opacity:\.7\}/, 'і світить помітніше');
+
+  // колір переходить плавно: два полотна змінюють одне одного
+  assert.ok(c.body.includes('id="cin-ambient2"'), 'друге полотно для плавності');
+  assert.match(c.body, /\.room\.live \.ambient\.show\{opacity:\.62\}/, 'видиме те, що зверху');
+  assert.match(c.body, /\.room\.live \.ambient\{transition:opacity \.7s ease\}/, 'перехід між кадрами');
+  assert.ok(c.body.includes('top=!top;'), 'полотна міняються місцями');
 }
 ok('світло залу підхоплює кольори кадру');
 
@@ -903,14 +909,23 @@ ok('світло залу підхоплює кольори кадру');
   assert.match(p.body, /class="score"><b>\d+</, 'загальне число лишилось');
 
   assert.ok(p.body.includes('class="chart"'), 'графік намальовано');
-  assert.match(p.body, /<path class="chline" d="M[\d.]+ [\d.]+ L/, 'лінія має точки');
+  // лінія тепер плавна — сегменти йдуть кривими, а не ламаною
+  assert.match(p.body, /<path class="chline" d="M[\d.]+ [\d.]+ C/, 'лінія плавна');
+  assert.ok(p.body.includes('chgrid'), 'є сітка значень');
+  assert.ok(p.body.includes('chlabel'), 'є підписи значень і дат');
+  assert.ok(p.body.includes('chpt'), 'точки заміру видно');
+  assert.ok(!p.body.includes('preserveAspectRatio="none"'), 'графік не розтягується непропорційно');
   assert.ok(p.body.includes('class="chdot"'), 'остання точка позначена');
   assert.ok(p.body.includes('сьогодні'), 'підказка на останній точці');
   assert.ok(p.body.includes('dchip'), 'зміни за тиждень і місяць');
 
-  // шкала не від нуля, інакше рух на кілька десятків виглядав би прямою
-  const foot = p.body.slice(p.body.indexOf('class="chfoot"'), p.body.indexOf('class="chfoot"') + 260);
-  const [lo, hi] = [...foot.matchAll(/<span>(\d+)<\/span>/g)].map((m) => Number(m[1]));
+  // шкала не від нуля, інакше рух на кілька десятків виглядав би прямою:
+  // підписи сітки беремо з самого графіка
+  const ticks = [...p.body.matchAll(/<text class="chlabel"[^>]*text-anchor="end">(\d+)<\/text>/g)]
+    .map((m) => Number(m[1]));
+  const lo = Math.min(...ticks);
+  const hi = Math.max(...ticks);
+  assert.ok(ticks.length >= 3, `сітка має підписи, отримали: ${ticks.join(', ')}`);
   assert.ok(lo > 0 && hi > lo, `межі шкали по даних: ${lo}…${hi}`);
   assert.ok(lo <= Math.min(...vals) && hi >= Math.max(...vals), 'усі точки вміщаються');
 }
@@ -921,76 +936,96 @@ ok('профіль: загальне число й графік динаміки
   const shop = await req('/shop', auth);
   assert.equal(shop.status, 200, 'сторінка магазину відкривається');
   assert.ok(shop.body.includes('sh-balance'), 'баланс FP на видноті');
-  for (const pack of ['Однотонні фони', 'Градієнти', 'Акцентні кольори', 'Оформлення профілю']) {
-    assert.ok(shop.body.includes(pack), `набір «${pack}» показано`);
+
+  // категорії списком ліворуч
+  assert.ok(shop.body.includes('class="sh-side"'), 'категорії окремим списком');
+  for (const pack of ['Однотонні фони', 'Градієнти', 'Живі фони', 'Акцентні кольори',
+    'Рамки аватара', 'Прозорі вікна', 'Стилі вікон', 'Власний контент']) {
+    assert.ok(shop.body.includes(pack), `категорія «${pack}» показана`);
   }
-  // однотонні — безкоштовні й доступні всім; бустерські видно, але замкнені
-  assert.ok((shop.body.match(/class="sh-card"/g) ?? []).length >= 8, 'безкоштовний набір цілий');
-  assert.ok(shop.body.includes('sh-card locked'), 'бустерські набори видно, але замкнені');
+
+  // зайвих підписів у гаманці більше немає
+  assert.ok(!shop.body.includes('нараховуються щодня'), 'опис про нарахування прибрано');
+  assert.ok(!shop.body.includes('Зароблено за весь час'), 'підсумок зароблених прибрано');
+  assert.ok(!shop.body.includes('Ви бустите сервер'), 'підпис про буст прибрано');
+  assert.ok(!shop.body.includes('Забустіть сервер'), 'і зворотний теж');
+
+  // банер/опис із магазину прибрано — це базова персоналізація
+  assert.ok(!shop.body.includes('Банер профілю') && !shop.body.includes('Опис про себе'),
+    'банер і опис більше не товар');
+
+  // бустерські набори видно, але замкнені; прозорі вікна — безкоштовні всім
+  assert.ok(shop.body.includes('sh-card locked'), 'бустерські набори замкнені');
   assert.ok(shop.body.includes('Лише бустерам'), 'зрозуміло, чому замкнено');
-  assert.ok(!shop.body.includes('<select'), 'жодних нативних select');
+  const freeCards = shop.body.slice(shop.body.indexOf('id="pack.cardsFree"'));
+  assert.ok(!freeCards.slice(0, 200).includes('locked'), 'прозорі вікна відкриті без бусту');
 
   // анонім у магазин не заходить
   assert.equal((await req('/shop')).status, 302, 'без входу — на сторінку входу');
 
-  // взяти безкоштовне, вдруге — вже своє
-  const take = await jreq('/api/shop/buy', auth, { item: 'solid.dusk' });
-  assert.equal(take.status, 200, 'безкоштовне береться');
-  assert.equal((await jreq('/api/shop/buy', auth, { item: 'solid.dusk' })).status, 400, 'двічі не візьмеш');
+  // набір береться цілком, вдруге — вже свій
+  assert.equal((await jreq('/api/shop/buy', auth, { item: 'pack.solid' })).status, 200, 'набір береться');
+  assert.equal((await jreq('/api/shop/buy', auth, { item: 'pack.solid' })).status, 400, 'двічі не візьмеш');
+  assert.equal(JSON.parse((await jreq('/api/shop/buy', auth, { item: 'pack.gradient' })).body).error,
+    'booster', 'бустерський набір закритий');
 
-  // платне без грошей — відмова; бустерське без бусту — теж
-  const poor = await jreq('/api/shop/buy', auth, { item: 'feat.about' });
-  assert.equal(JSON.parse(poor.body).error, 'funds', 'без FP не купиш');
-  const noBoost = await jreq('/api/shop/buy', auth, { item: 'grad.aurora' });
-  assert.equal(JSON.parse(noBoost.body).error, 'booster', 'бустерське закрите');
-
-  // одягнути можна лише своє
-  assert.equal((await jreq('/api/shop/equip', auth, { item: 'solid.dusk' })).status, 200, 'своє одягається');
+  // вдягається будь-яка річ із набору — і саме в профілі
+  assert.equal((await jreq('/api/shop/equip', auth, { item: 'solid.dusk' })).status, 200, 'своє вдягається');
   assert.equal((await jreq('/api/shop/equip', auth, { item: 'grad.ember' })).status, 400, 'чуже — ні');
 
-  // фон ліг на сторінку, але зорі й дим лишились
+  // оформлення діє на всьому сайті, а не лише в профілі
+  for (const page of ['/me', '/gallery', '/top']) {
+    assert.match((await req(page, auth)).body, /\.bg\{background:#150f22\}/,
+      `фон застосовано на ${page}`);
+  }
   const me = await req('/me', auth);
-  assert.match(me.body, /\.bg\{background:#150f22\}/, 'обраний фон застосовано');
   assert.ok(me.body.includes('id="stars"') && me.body.includes('id="fog"'), 'зорі й дим на місці');
   assert.match(me.body, /#fog\{opacity:\.34/, 'дим притлумлено, щоб не забивав колір');
+  assert.ok(me.body.includes('class="score fp"'), 'FP видно в профілі');
 
   // зняти оформлення
-  assert.equal((await jreq('/api/shop/equip', auth, { item: '' })).status, 200, 'оформлення знімається');
+  assert.equal((await jreq('/api/shop/clear', auth, { what: 'background' })).status, 200, 'знімається');
   assert.ok(!/\.bg\{background:#150f22\}/.test((await req('/me', auth)).body), 'фон повернувся до типового');
+
+  // ціну править лише адміністратор
+  assert.equal((await jreq('/api/shop/price', auth, { item: 'pack.gradient', price: 500 })).status, 403,
+    'звичайний учасник ціну не змінить');
+  const asAdmin = await jreq('/api/shop/price', adm, { item: 'pack.gradient', price: 500 });
+  assert.equal(asAdmin.status, 200, 'адміністратор змінює ціну');
+  assert.ok((await req('/shop', adm)).body.includes('500 ✨FP'), 'нова ціна показана');
 }
-ok('магазин: ✨FP, безкоштовні фони всім, решта — бустерам');
+ok('магазин: набори, категорії ліворуч, ціни від адміністратора');
 
-// 22. персоналізація профілю: опис і банер лише з власним доступом
+// 22. персоналізація профілю: опис усім, картинки — бустерам
 {
-  const { itemsRepo } = await import('../src/database/repositories.js');
-
-  // без покупки — редагувати нічого
-  assert.equal((await jreq('/api/profile', auth, { about: 'привіт' })).status, 403, 'опис замкнено');
-
-  await itemsRepo.give(G, U, 'feat.about', 0);
+  // опис — базова можливість, без покупок
   const saved = await jreq('/api/profile', auth, { about: 'Люблю довгі прогулянки <script>' });
-  assert.equal(saved.status, 200, 'з доступом опис зберігається');
+  assert.equal(saved.status, 200, 'опис зберігається без покупок');
 
   const me = await req('/me', auth);
   assert.ok(me.body.includes('Люблю довгі прогулянки'), 'опис видно на сторінці');
   assert.ok(!me.body.includes('<script>Л') && me.body.includes('&lt;script&gt;'), 'текст екрановано');
   assert.ok(me.body.includes('pf-edit'), 'власник бачить кнопку редагування');
 
-  // банер — лише зі своїх публікацій
-  await itemsRepo.give(G, U, 'feat.banner', 0);
-  const own = (await import('../src/database/repositories.js')).galleryRepo;
-  const mineItems = await own.list(G, { limit: 1, userId: U });
-  if (mineItems.length) {
-    assert.equal((await jreq('/api/profile', auth, { banner: mineItems[0].id })).status, 200, 'свій банер можна');
-    assert.ok((await req('/me', auth)).body.includes('pf-banner'), 'банер на сторінці');
-  }
-  assert.equal((await jreq('/api/profile', auth, { banner: 999999 })).status, 400, 'чужу публікацію — ні');
+  // гардероб — усе придбане в одному місці, з передпереглядом
+  assert.ok(me.body.includes('id="look"'), 'блок оформлення на сторінці');
+  assert.ok(me.body.includes('pf-sw'), 'зразки для вибору');
+  assert.ok(me.body.includes('data-item2'), 'зразок несе дані для передперегляду');
+  assert.ok(me.body.includes('CosmeticPreview'), 'вікно передперегляду підключено');
+
+  // свої картинки — лише бустерам: заливка платна й закрита, а поставити
+  // можна тільки те, що справді твоє (чужий чи вигаданий id не пройде)
+  const alien = await jreq('/api/profile', auth, { background: 999999 });
+  assert.equal(alien.status, 400, 'чужу картинку не поставиш');
+  assert.equal(JSON.parse(alien.body).error, 'not yours', 'і сказано чому');
+  assert.ok(me.body.includes('Заливати свої картинки можуть бустери'), 'сказано, чому замкнено');
 
   // чужий профіль редагувати не можна
   const other = await req(`/u/${OWNER_ID}`, auth);
   assert.ok(!other.body.includes('id="pf-edit"'), 'на чужій сторінці кнопки редагування немає');
+  assert.ok(!other.body.includes('id="look"'), 'і гардероба теж');
 }
-ok('профіль: опис і банер редагує лише власник із доступом');
+ok('профіль: опис усім, гардероб із передпереглядом, картинки — бустерам');
 
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });

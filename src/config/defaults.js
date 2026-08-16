@@ -49,6 +49,12 @@ export const CONFIG_SCHEMA = {
   'verification.cooldownMinutes': { type: 'int', default: 10, label: 'Пауза між перевірками (хв)', group: 'verification' },
   'verification.autoRecheck': { type: 'bool', default: true, label: 'Авто-перевірка при зміні репутації', group: 'verification' },
 
+  // ── Магазин косметики ─────────────────────
+  // Роль бустера Discord видає сам, щойно людина дала серверу буст.
+  'general.boosterRoleIds': { type: 'roles', default: [], label: 'Ролі бустерів', group: 'general' },
+  // Ціни наборів: {'pack.gradient': 240, …}. Правляться на сайті адміністратором.
+  'shop.prices': { type: 'json', default: {}, label: 'Ціни наборів', group: 'general' },
+
   // ── Модерація ─────────────────────────────
   'moderation.aiAdvice': { type: 'bool', default: true, label: 'AI-поради перед покаранням', group: 'moderation' },
   'moderation.requireReason': { type: 'bool', default: true, label: 'Причина обовʼязкова', group: 'moderation' },
