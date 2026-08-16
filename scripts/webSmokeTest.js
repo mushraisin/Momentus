@@ -795,6 +795,25 @@ ok('вибір озвучки, завіса на паузі, перемикач 
 }
 ok('кінотеатр: один стиль керування, без ручного Referer');
 
+// 19.2 автоматична якість у HLS
+{
+  const c = await req('/cinema', adm);
+  // без цього hls.js тримає низьку картинку в невеликому вікні
+  assert.match(c.body, /capLevelToPlayerSize:false/, 'якість не обмежується розміром плеєра');
+  assert.match(c.body, /startLevel:-1/, 'старт із автовибору');
+  assert.match(c.body, /abrEwmaDefaultEstimate:2500000/, 'перші секунди не в найгіршій якості');
+  assert.match(c.body, /abrBandWidthUpFactor:0\.9/, 'рівень підвищується сміливіше');
+  // «Авто» стає першим пунктом меню й повертає рівень −1
+  assert.match(c.body, /levels\.unshift\(\{label:cfg\.autoText\|\|'Авто',index:-1,auto:true\}\)/,
+    '«Авто» додається в меню якості');
+  assert.match(c.body, /setLevel:function\(i\)\{if\(hls\)hls\.currentLevel=Number\(i\)\}/,
+    '−1 повертає автовибір');
+  // поруч зі словом «Авто» видно, на чому плеєр зупинився
+  assert.match(c.body, /LEVEL_SWITCHED/, 'слухаємо перемикання рівня');
+  assert.ok(c.body.includes('data-auto-text="Авто"'), 'підпис «Авто» приходить з перекладу');
+}
+ok('HLS: автоматичне підвищення якості з показом поточного рівня');
+
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
 assert.equal(gone.status, 200);

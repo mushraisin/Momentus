@@ -1290,11 +1290,30 @@ window.CinemaPlayer=(function(){
       /* Safari грає HLS сам, решті потрібен hls.js */
       ready=loadScript('https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js').then(function(){
         if(!window.Hls||!window.Hls.isSupported()){v.src=cfg.src;return}
-        hls=new window.Hls({lowLatencyMode:true});hls.loadSource(cfg.src);hls.attachMedia(v);
+        /* Автоякість. Три речі, без яких hls.js сидить на низькій картинці:
+           capLevelToPlayerSize:false — інакше якість обмежується розміром
+             елемента, і в невеликому вікні 1080p не вмикається ніколи;
+           abrEwmaDefaultEstimate — стартова оцінка каналу; за замовчуванням
+             вона мала, тож перші секунди йдуть у найгіршій якості;
+           abrBandWidthUpFactor — наскільки сміливо підвищувати рівень.
+           Далі hls.js сам піднімає якість, щойно бачить запас каналу. */
+        hls=new window.Hls({
+          lowLatencyMode:true,
+          capLevelToPlayerSize:false,
+          startLevel:-1,
+          abrEwmaDefaultEstimate:2500000,
+          abrBandWidthUpFactor:0.9,
+          abrBandWidthFactor:0.95,
+          maxBufferLength:30,
+        });
+        hls.loadSource(cfg.src);hls.attachMedia(v);
         hls.on(window.Hls.Events.MANIFEST_PARSED,function(){
           /* у стрімі якості приходять із маніфесту — віддаємо їх у меню */
           levels=(hls.levels||[]).map(function(l,i){return {label:(l.height||l.bitrate/1000|0)+(l.height?'p':'k'),index:i}});
           levels.sort(function(a,b){return parseInt(b.label)-parseInt(a.label)});
+          /* Перший пункт — «Авто»: рівень обирає сам плеєр і підвищує його,
+             коли дозволяє канал. Вручну обрана якість це вимикає. */
+          if(levels.length>1)levels.unshift({label:cfg.autoText||'Авто',index:-1,auto:true});
           if(cfg.onLevels)cfg.onLevels(levels);
 
           /* окремі аудіодоріжки — це і є озвучки всередині самого стріму */
@@ -1302,6 +1321,11 @@ window.CinemaPlayer=(function(){
             return {label:a.name||a.lang||('#'+(i+1)),index:i};
           });
           if(tracks.length>1&&cfg.onAudioTracks)cfg.onAudioTracks(tracks);
+        });
+        /* Поки якість обирає плеєр — показуємо, на чому він зараз зупинився. */
+        hls.on(window.Hls.Events.LEVEL_SWITCHED,function(_e,d){
+          var l=(hls.levels||[])[d.level];
+          if(l&&cfg.onLevelSwitch)cfg.onLevelSwitch((l.height||((l.bitrate/1000)|0))+(l.height?'p':'k'),hls.autoLevelEnabled);
         });
       }).catch(function(){v.src=cfg.src});
     }else{ v.src=cfg.src }
@@ -1331,8 +1355,9 @@ window.CinemaPlayer=(function(){
       getVolume:function(){return v.muted?0:v.volume},
       /* плавне підтягування: краще трохи змінити швидкість, ніж смикати позицію */
       rate:function(r){try{v.playbackRate=r}catch(e){}},
-      /* рівень усередині HLS-стріму перемикається без перезавантаження */
-      setLevel:function(i){if(hls)hls.currentLevel=i},
+      /* Рівень усередині HLS-стріму перемикається без перезавантаження.
+         −1 повертає автоматичний вибір: плеєр знову сам підвищуватиме якість. */
+      setLevel:function(i){if(hls)hls.currentLevel=Number(i)},
       setAudioTrack:function(i){if(hls)hls.audioTrack=i},
       onEnded:function(cb){v.addEventListener('ended',cb)},
       /* якості з плейлиста міняємо підміною джерела, зберігаючи позицію */
@@ -1684,6 +1709,7 @@ const CINEMA_JS = `
     };
 
     /* Рівні якості всередині HLS-стріму доїжджають після розбору маніфесту */
+    cfg.autoText=stage.dataset.autoText||'Авто';
     cfg.onLevels=function(levels){
       var box=document.getElementById('cin-qual');
       if(!box||!levels.length)return;
@@ -1691,10 +1717,21 @@ const CINEMA_JS = `
       levels.forEach(function(l,i){
         var b=document.createElement('button');
         b.className='qopt'+(i===0?' on':'');b.dataset.level=l.index;b.dataset.label=l.label;
+        if(l.auto)b.dataset.auto='1';
         b.textContent=l.label;menu.appendChild(b);
       });
       box.hidden=false;
       document.getElementById('cin-qlabel').textContent=levels[0].label;
+    };
+
+    /* Плеєр підняв або опустив якість сам — показуємо це поруч зі словом
+       «Авто», щоб було видно, на чому він зараз зупинився. */
+    cfg.onLevelSwitch=function(label,isAuto){
+      var lab=document.getElementById('cin-qlabel');
+      if(!lab)return;
+      var picked=document.querySelector('#cin-qual .qopt.on');
+      if(!isAuto||!picked||picked.dataset.auto!=='1')return;
+      lab.textContent=(stage.dataset.autoText||'Авто')+' · '+label;
     };
 
     /* Чужий плеєр міг відгукнутись на postMessage — тоді вмикаємо керування,
@@ -2066,7 +2103,8 @@ const CINEMA_JS = `
   var qual=document.getElementById('cin-qual');
   if(qual)qual.addEventListener('click',function(e){
     var b=e.target.closest('.qopt');if(!b||!player)return;
-    /* два випадки: окремий файл на кожну якість або рівень усередині HLS */
+    /* три випадки: «Авто» (рівень −1, плеєр вибирає сам і підвищує),
+       конкретний рівень усередині HLS або окремий файл на кожну якість */
     if(b.dataset.level!==undefined&&player.setLevel)player.setLevel(Number(b.dataset.level));
     else if(b.dataset.url&&player.setQuality)player.setQuality(b.dataset.url);
     else return;
@@ -2848,6 +2886,7 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     <div class="screen${source ? '' : ' idle'}" id="cin-stage" data-cfg="${cfg}"
       data-ok-text="${esc(t(lang, 'cin.controllable'))}"
       data-resume="${esc(t(lang, 'cin.resumeAt'))}"
+      data-auto-text="${esc(t(lang, 'cin.autoQuality'))}"
       data-manual="${esc(t(lang, 'cin.pauseManually'))}">
       ${source ? '' : `<div class="idle-t">${esc(t(lang, 'cin.nothing'))}</div>`}
     </div>
