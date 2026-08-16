@@ -133,6 +133,9 @@ export const PACKS = [FREE_PACK, ...SINGLES];
 /** Скільки своїх картинок можна тримати в кожній категорії. */
 export const UPLOAD_LIMIT = 3;
 
+/** Скільки ілюстрацій вміщає вітрина профілю. */
+export const SHOWCASE_MAX = 6;
+
 /**
  * Пласка мапа речей: id → {…річ, pack}.
  * Для поштучних речей «набором» є вони самі — так покупка й перевірка
@@ -393,6 +396,7 @@ export const cosmeticsService = {
   },
 
   UPLOAD_LIMIT,
+  SHOWCASE_MAX,
 
   /**
    * Свої картинки заливають лише бустери й лише через магазин —
@@ -412,24 +416,25 @@ export const cosmeticsService = {
    * Скільки коштує одна своя картинка: символічний ✨1FP, а якщо
    * адміністратор поставив свою ціну — половина від неї.
    */
-  uploadPrice(guildId) {
-    const base = this.price(guildId, 'pack.custom');
-    return Math.max(1, Math.ceil(base / 2));
+  uploadPrice(askPrice = 1) {
+    const n = Math.max(1, Math.round(Number(askPrice) || 1));
+    return Math.max(1, Math.ceil(n / 2));
   },
 
   /**
-   * Оплатити завантаження. Гроші списуються лише коли місце є
+   * Оплатити публікацію. Гроші списуються лише коли місце є
    * і людина справді має право заливати.
    */
-  async payUpload(guildId, userId, member, kind) {
-    if (!this.canUpload(guildId, member, userId)) return { ok: false, reason: 'booster' };
+  async payUpload(guildId, userId, member, kind, askPrice = 1) {
+    if (!this.canUpload(guildId, member)) return { ok: false, reason: 'booster' };
     if (!await this.uploadsLeft(guildId, userId, kind)) return { ok: false, reason: 'limit' };
 
-    const price = this.uploadPrice(guildId);
-    if (price > 0 && !await walletRepo.spend(guildId, userId, price)) {
+    const listPrice = Math.max(1, Math.round(Number(askPrice) || 1));
+    const price = this.uploadPrice(listPrice);
+    if (!await walletRepo.spend(guildId, userId, price)) {
       return { ok: false, reason: 'funds' };
     }
-    return { ok: true, price };
+    return { ok: true, price, listPrice };
   },
 
   /**
@@ -477,10 +482,22 @@ export const cosmeticsService = {
     const cardId = p.layout?.card ?? null;
     const cd = cardId ? ITEMS.get(cardId) : null;
 
+    // Вітрина ілюстрацій: беремо лише ті картинки, які людина справді має.
+    const ids = Array.isArray(p.layout?.showcase) ? p.layout.showcase.slice(0, SHOWCASE_MAX) : [];
+    const showcase = [];
+    for (const id of ids) {
+      const a = await assetsRepo.meta(Number(id)).catch(() => null);
+      if (!a || a.guild_id !== guildId) continue;
+      const ok = a.user_id === userId || await itemsRepo.has(guildId, userId, `asset:${a.id}`);
+      if (!ok) continue;
+      showcase.push({ id: a.id, url: `/asset/${a.id}`, title: a.title ?? '' });
+    }
+
     return {
       about: p.about ?? '',
       banner: p.banner ?? null,
       bannerUrl: this.imageUrl(p.banner),
+      showcase,
       accent: p.accent ?? null,
       background,
       frame: fr ? { id: fr.id, ...fr.value } : null,

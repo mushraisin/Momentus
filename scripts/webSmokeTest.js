@@ -485,7 +485,9 @@ ok('черга, права на сеанс, тимчасове закриття 
 
   const page = await req('/gallery', auth);
   assert.ok(page.body.includes('form class="up"'), 'форма на сайті лишається');
-  assert.ok(page.body.includes('#галерея'), 'вказано канал, куди все лягає');
+  // пояснення про канал прибрано: людина й так бачить результат
+  assert.ok(!page.body.includes('Медіа зберігається в цьому каналі'), 'опису про канал більше немає');
+  assert.ok(!page.body.includes('class="fromch"'), 'і його блока теж');
 
   // завантаження з сайту має піти в канал, а не в базу
   const up2 = await req('/upload', {
@@ -896,8 +898,15 @@ ok('субтитри: вибір доріжки та вимкнення');
   // колір переходить плавно: два полотна змінюють одне одного
   assert.ok(c.body.includes('id="cin-ambient2"'), 'друге полотно для плавності');
   assert.match(c.body, /\.room\.live \.ambient\.show\{opacity:\.62\}/, 'видиме те, що зверху');
-  assert.match(c.body, /\.room\.live \.ambient\{transition:opacity \.7s ease\}/, 'перехід між кадрами');
+  assert.match(c.body, /\.room\.live \.ambient\{transition:opacity 1\.4s/, 'довгий перехід між кадрами');
   assert.ok(c.body.includes('top=!top;'), 'полотна міняються місцями');
+  assert.match(c.body, /timer=setInterval\(draw,still\?3000:1500\)/,
+    'кадр знімається рідше за перехід — світло не блимає');
+
+  // світло лежить під сценою: інакше верхнє полотно накривало саме відео
+  assert.match(c.body, /\.ambient,\.ambient\.next\{z-index:0\}/, 'полотна на нульовому шарі');
+  assert.match(c.body, /\.stagewrap>\.screen,\.stagewrap>\.curtain\{position:relative;z-index:2\}/,
+    'сцена вище за світло');
 }
 ok('світло залу підхоплює кольори кадру');
 
@@ -1090,7 +1099,31 @@ ok('кастом: вітрина учасників, оплата авторов
 
   // гардероб — усе придбане в одному місці, з передпереглядом
   assert.ok(me.body.includes('id="look"'), 'вікно оформлення на сторінці');
-  assert.ok(me.body.includes('pf-lookopen'), 'кнопка, що його відкриває');
+  // кнопка стоїть у рядку з ніком, а не окремою смугою під графіком
+  assert.match(me.body, /<div class="pf-nrow">[\s\S]{0,200}class="name"[\s\S]{0,200}pf-lookopen/,
+    'кнопка оформлення — праворуч від ніка');
+  assert.match(me.body, /\.pf-nrow\{display:flex/, 'нік і кнопка в одному рядку');
+
+  // блоки сторінки можна вимикати
+  for (const block of ['chart', 'showcase', 'about']) {
+    assert.ok(me.body.includes(`data-block="${block}"`), `перемикач «${block}» є`);
+  }
+  assert.equal((await jreq('/api/profile', auth, { hidden: { chart: true } })).status, 200,
+    'графік ховається');
+  assert.ok(!/class="card pane rise chartbox"/.test((await req('/me', auth)).body),
+    'і його справді немає на сторінці');
+  await jreq('/api/profile', auth, { hidden: { chart: false } });
+  assert.ok(/class="card pane rise chartbox"/.test((await req('/me', auth)).body), 'і повертається');
+
+  // вітрина ілюстрацій: приймаємо лише свої або куплені картинки
+  assert.equal((await jreq('/api/profile', auth, { showcase: [999999] })).status, 200, 'запит проходить');
+  assert.ok(!/class="pf-show"/.test((await req('/me', auth)).body), 'чужу картинку у вітрину не взяли');
+
+  // Поштучна річ не має «items», і сторінка на цьому падала з 500.
+  assert.equal((await jreq('/api/shop/buy', auth, { item: 'card.glass' })).status, 200, 'поштучне береться');
+  const afterSingle = await req('/me', auth);
+  assert.equal(afterSingle.status, 200, 'профіль після покупки поштучного відкривається');
+  assert.ok(afterSingle.body.includes('data-item="card.glass"'), 'річ зʼявилась у гардеробі');
   assert.ok(me.body.includes('pf-sw'), 'зразки для вибору');
   assert.ok(me.body.includes('data-item2'), 'зразок несе дані для передперегляду');
   assert.ok(me.body.includes('CosmeticPreview'), 'вікно передперегляду підключено');

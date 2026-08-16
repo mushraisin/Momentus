@@ -374,13 +374,6 @@ td.num{text-align:right;font-weight:800}
   color:var(--dim);margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--line)}
 .pane-h b{color:var(--text);font-variant-numeric:tabular-nums}
 .signin{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
-/* галерея з Discord-каналу: пояснення замість форми завантаження */
-.fromch{display:flex;align-items:center;gap:14px}
-.fromch-i{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;
-  border-radius:13px;background:rgba(88,101,242,.16);border:1px solid rgba(88,101,242,.35);font-size:20px}
-.fromch-t{font-weight:700;margin-bottom:3px}
-/* підказка про канал іде під формою, відокремлена лінією */
-.chline{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
 .stat b{display:block;font-size:22px;font-weight:800}
 .stat span{font-size:11px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
@@ -557,10 +550,14 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   filter:blur(58px) saturate(1.7);transform:translateZ(0);
   transition:opacity .9s ease}
 /* Два полотна по черзі: нове проявляється поверх старого, тож колір
-   переходить плавно, а не смикається на кожному кадрі. */
-.ambient.next{z-index:1}
+   переходить плавно, а не смикається на кожному кадрі.
+   Обидва лежать НИЖЧЕ сцени: інакше верхнє полотно щосекунди накривало
+   саме відео (у сцени z-index був автоматичний, тобто нижчий). */
+.ambient,.ambient.next{z-index:0}
+.stagewrap>.screen,.stagewrap>.curtain{position:relative;z-index:2}
 .room.live .ambient.show{opacity:.62}
-.room.live .ambient{transition:opacity .7s ease}
+/* довший перехід — світло перетікає, а не блимає */
+.room.live .ambient{transition:opacity 1.4s cubic-bezier(.4,0,.3,1)}
 /* У повному екрані сцена займає весь екран, тож світлу нема куди вийти
    за її межі. Робимо саму сцену прозорою: чорні поля навколо кадру
    перестають бути глухими, і крізь них видно те саме світло. */
@@ -968,8 +965,28 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   background:#6b7cff;flex:none}
 .pv-f{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px}
 
+/* ── Вітрина ілюстрацій ──
+   Кілька картинок на видноті: рівні плитки, підпис проступає при наведенні. */
+/* Нік і кнопка оформлення — в одному рядку. Ніку віддаємо весь залишок,
+   але з правом стиснутись, інакше кнопка зривається на другий рядок. */
+.pf-id{flex:1;min-width:0}
+.pf-nrow{display:flex;align-items:center;gap:10px;min-width:0}
+.pf-nrow .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-showgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.pf-shot-i{position:relative;display:block;border-radius:14px;overflow:hidden;
+  border:1px solid var(--line);aspect-ratio:16/10;animation:fadeUp .5s both;
+  transition:.3s cubic-bezier(.22,.9,.3,1)}
+.pf-shot-i:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.5);
+  box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.pf-shot-i img{width:100%;height:100%;object-fit:cover;display:block;transition:.5s}
+.pf-shot-i:hover img{transform:scale(1.04)}
+.pf-shot-i span{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;font-size:12px;
+  background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.78));
+  opacity:0;transform:translateY(6px);transition:.28s}
+.pf-shot-i:hover span{opacity:1;transform:none}
+
 /* ── Гардероб: окреме вікно, щоб не займати сторінку профілю ── */
-.pf-lookopen{display:block;width:100%;margin:16px 0 0;text-align:center}
+.pf-lookopen{flex:none}
 .pf-lookback{position:fixed;inset:0;z-index:65;display:flex;align-items:center;justify-content:center;
   padding:22px;background:rgba(3,5,10,.82);backdrop-filter:blur(6px);animation:fadeIn .22s both}
 .pf-lookback[hidden]{display:none}
@@ -1003,6 +1020,14 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-sw.frame{background:#0a0d16}
 .pf-sw.frame::before{content:'';position:absolute;left:50%;top:42%;width:30px;height:30px;
   margin:-15px 0 0 -15px;border-radius:50%;border:2px solid var(--c);box-shadow:0 0 14px var(--c)}
+/* Форма публікації: назва, ціна й одразу видно, скільки коштує сама публікація */
+.pf-upform{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.pf-upform input{padding:9px 12px;border-radius:10px;font:inherit;font-size:13px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+.pf-upform input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+#pf-uptitle{flex:1;min-width:160px}
+.pf-upprice{display:flex;align-items:center;gap:8px}
+#pf-upprice{width:100px;text-align:right}
 .pf-up{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .pf-up .btn{cursor:pointer}
 .pf-up .btn.busy{opacity:.6;pointer-events:none}
@@ -2236,7 +2261,9 @@ const CINEMA_JS = `
     }
 
     draw();
-    timer=setInterval(draw,still?2400:600);
+    /* Знімаємо кадр рідше, ніж триває перехід: так одна пляма встигає
+       повністю перетекти в наступну, і світло не блимає. */
+    timer=setInterval(draw,still?3000:1500);
     document.addEventListener('visibilitychange',function(){if(!document.hidden)draw()});
   }
 
@@ -3001,6 +3028,17 @@ const PROFILE_JS = `
     }
     st.textContent=css;
 
+    /* вітрина ілюстрацій: перемальовуємо, коли змінився вибір */
+    var show=document.querySelector('.pf-showgrid');
+    if(show&&look&&look.showcase){
+      show.innerHTML=look.showcase.map(function(s){
+        return '<a class="pf-shot-i" href="'+s.url+'" target="_blank" rel="noopener">'
+          +'<img src="'+s.url+'" alt="">'+(s.title?'<span>'+s.title+'</span>':'')+'</a>';
+      }).join('');
+      var wrap=show.closest('.pf-show');
+      if(wrap)wrap.hidden=!look.showcase.length;
+    }
+
     /* банер угорі картки */
     var head=document.querySelector('.pf-head');
     var old=head?head.querySelector('.pf-banner'):null;
@@ -3034,6 +3072,18 @@ const PROFILE_JS = `
     addEventListener('keydown',function(e){if(e.key==='Escape'&&!win.hidden)show(false)});
     /* із магазину приходять із #look — одразу відкриваємо */
     if(location.hash==='#look')show(true);
+  })();
+
+  /* Скільки коштує сама публікація — половина від призначеної ціни. */
+  (function(){
+    var price=document.getElementById('pf-upprice'),cost=document.getElementById('pf-upcost');
+    if(!price||!cost)return;
+    function show(){
+      var n=Math.max(1,Math.round(Number(price.value)||1));
+      cost.textContent='публікація: '+Math.max(1,Math.ceil(n/2))+' ✨FP';
+    }
+    price.addEventListener('input',show);
+    show();
   })();
 
   /* ── Опис ── */
@@ -3086,6 +3136,35 @@ const PROFILE_JS = `
       return;
     }
 
+    /* які блоки показувати на своїй сторінці */
+    var bl=e.target.closest('.pf-block');
+    if(bl){
+      var vis=!bl.classList.contains('on');
+      var body={hidden:{}};body.hidden[bl.dataset.block]=!vis;
+      post('/api/profile',body).then(function(j){
+        if(j.error)return;
+        bl.classList.toggle('on',vis);
+        /* блок ховаємо одразу, без перезавантаження */
+        var sel={chart:'.chartbox',showcase:'.pf-show',about:'.pf-aboutbox'}[bl.dataset.block];
+        var node=sel?document.querySelector(sel):null;
+        if(node)node.hidden=!vis;
+      });
+      return;
+    }
+
+    /* вітрина: клік по картинці додає або прибирає її */
+    var sp=e.target.closest('#pf-showpick .pf-shot');
+    if(sp){
+      sp.classList.toggle('on');
+      var picked=[].slice.call(document.querySelectorAll('#pf-showpick .pf-shot.on'))
+        .map(function(b){return Number(b.dataset.show)});
+      post('/api/profile',{showcase:picked}).then(function(j){
+        if(j.error){sp.classList.toggle('on');return}
+        paint(j.look);
+      });
+      return;
+    }
+
     /* налаштування: де показувати оформлення */
     var sc=e.target.closest('.pf-scope');
     if(sc){
@@ -3130,7 +3209,12 @@ const PROFILE_JS = `
     var slot=inp.dataset.slot,label=inp.closest('label');
     label.classList.add('busy');
 
-    var fd=new FormData();fd.append('slot',slot);fd.append('file',inp.files[0]);
+    var priceEl=document.getElementById('pf-upprice'),titleEl=document.getElementById('pf-uptitle');
+    var fd=new FormData();
+    fd.append('slot',slot);
+    fd.append('price',priceEl?priceEl.value:'1');
+    fd.append('title',titleEl?titleEl.value:'');
+    fd.append('file',inp.files[0]);
     fetch('/api/profile/asset',{method:'POST',body:fd})
       .then(function(r){return r.json()}).then(function(j){
         label.classList.remove('busy');inp.value='';
@@ -3647,6 +3731,27 @@ export function profilePage(profile, {
     ? `<div class="pf-banner"><img src="${esc(look.bannerUrl)}" alt=""></div>`
     : '';
 
+  // Що людина вирішила сховати зі своєї сторінки.
+  const hidden = look.layout?.hidden ?? {};
+
+  /**
+   * Вітрина ілюстрацій — як у Steam: кілька картинок, які людина сама
+   * поставила на видноту. Беруться зі своїх залитих і куплених робіт.
+   */
+  const shots = look.showcase ?? [];
+  const showcase = (!hidden.showcase && shots.length)
+    ? `<div class="card pane rise pf-show">
+        <div class="pane-h">${esc(t(lang, 'profile.showcase'))}</div>
+        <div class="pf-showgrid">
+          ${shots.map((s, i) => `<a class="pf-shot-i" href="${esc(s.url)}" target="_blank"
+            rel="noopener" style="animation-delay:${(i * 0.05).toFixed(2)}s">
+            <img src="${esc(s.url)}" alt="" loading="lazy">
+            ${s.title ? `<span>${esc(s.title)}</span>` : ''}
+          </a>`).join('')}
+        </div>
+      </div>`
+    : '';
+
   // Опис — базова персоналізація, доступна кожному власнику сторінки.
   const aboutText = String(look.about ?? '').trim();
   const about = (aboutText || mine)
@@ -3712,7 +3817,16 @@ export function profilePage(profile, {
         <div class="pf-group">
           <div class="pf-gt">${esc(t(lang, 'profile.ownImages'))}</div>
           ${wardrobe.canUpload
-    ? `<div class="pf-up">
+    ? `<div class="pf-upform">
+                <input type="text" id="pf-uptitle" maxlength="60"
+                  placeholder="${esc(t(lang, 'shop.workTitle'))}">
+                <div class="pf-upprice">
+                  <input type="number" id="pf-upprice" min="1" max="99999" value="20"
+                    aria-label="${esc(t(lang, 'shop.price'))}">
+                  <span class="hint" id="pf-upcost"></span>
+                </div>
+              </div>
+              <div class="pf-up">
                 <label class="btn ghost sm">
                   ${esc(t(lang, 'profile.uploadBg'))}
                   <input type="file" accept="image/*" data-slot="background" hidden>
@@ -3722,7 +3836,7 @@ export function profilePage(profile, {
                   <input type="file" accept="image/*" data-slot="banner" hidden>
                 </label>
                 <span class="hint">${esc(t(lang, 'profile.uploadCost', {
-      n: wardrobe.uploadPrice, max: wardrobe.uploadLimit,
+      max: wardrobe.uploadLimit,
     }))}</span>
               </div>
               <div class="pf-shots" id="pf-assets">
@@ -3731,6 +3845,32 @@ export function profilePage(profile, {
                   style="background-image:url(${esc(a.url)})"></button>`).join('')}
               </div>`
     : `<div class="hint">🔒 ${esc(t(lang, 'profile.ownLocked'))}</div>`}
+        </div>
+
+        <div class="pf-group">
+          <div class="pf-gt">${esc(t(lang, 'profile.blocks'))}</div>
+          <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.blocksHint'))}</div>
+          <div class="pf-up">
+            ${['chart', 'showcase', 'about'].map((b) => {
+    const on = !hidden[b];
+    return `<button class="btn ghost sm pick-el pf-block${on ? ' on' : ''}" data-block="${b}">
+              ${esc(t(lang, `profile.block.${b}`))}</button>`;
+  }).join('')}
+          </div>
+        </div>
+
+        <div class="pf-group">
+          <div class="pf-gt">${esc(t(lang, 'profile.showcase'))}</div>
+          <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.showcaseHint', {
+    max: wardrobe.showcaseMax ?? 6,
+  }))}</div>
+          ${wardrobe.images.length
+    ? `<div class="pf-shots" id="pf-showpick">
+              ${wardrobe.images.map((a) => `<button class="pf-shot${
+      (look.layout?.showcase ?? []).includes(a.id) ? ' on' : ''}"
+                data-show="${a.id}" style="background-image:url(${esc(a.url)})"></button>`).join('')}
+            </div>`
+    : `<div class="hint">${esc(t(lang, 'profile.showcaseEmpty'))}</div>`}
         </div>
 
         <div class="pf-group">
@@ -3769,8 +3909,14 @@ export function profilePage(profile, {
     ${banner}
     <div class="row">
       <img class="avatar" src="${esc(avatar)}" alt="" style="border-color:${esc(accent)}">
-      <div>
-        <div class="name">${esc(username)}</div>
+      <div class="pf-id">
+        <div class="pf-nrow">
+          <div class="name">${esc(username)}</div>
+          ${mine && wardrobe
+    ? `<button class="btn ghost sm pf-lookopen" id="pf-lookopen"
+              title="${esc(t(lang, 'profile.look'))}">🎨 ${esc(t(lang, 'profile.look'))}</button>`
+    : ''}
+        </div>
         ${roleName ? `<div class="pill" style="color:${esc(accent)};border-color:${esc(accent)}66;background:${esc(accent)}22">${esc(roleName)}</div>` : ''}
         <div class="muted" style="margin-top:5px">${esc(t(lang, 'profile.days', { days: profile.daysOnServer }))}${rank ? ` · #${rank}` : ''}</div>
       </div>
@@ -3785,8 +3931,8 @@ export function profilePage(profile, {
     <div class="tiles">${tiles}</div>
   </div>
   ${about}
-  ${scoreChart(profile, { lang, accent })}
-  ${mine && wardrobe ? `<button class="btn pf-lookopen" id="pf-lookopen">🎨 ${esc(t(lang, 'profile.look'))}</button>` : ''}
+  ${showcase}
+  ${hidden.chart ? '' : scoreChart(profile, { lang, accent })}
   ${wardrobeBox}`;
 }
 
@@ -3983,17 +4129,8 @@ export function galleryPage({
   items, dayTop, monthTop, liked, avatars = {}, session, admin = false,
   lang = 'uk', sort = 'new', maxMb, error, stats = {}, cinema = false, fromChannel = null,
 }) {
-  // Галерея прив'язана до Discord-каналу: медіа завжди лягає туди — і те,
-  // що кинули в канал, і те, що завантажили тут. Сайт лише показує.
-  const channelNote = fromChannel
-    ? `<div class="fromch">
-        <div class="fromch-i">💬</div>
-        <div>
-          <div class="fromch-t">#${esc(fromChannel.name)}</div>
-          <div class="hint">${esc(t(lang, 'gal.fromChannel'))}</div>
-        </div>
-      </div>`
-    : '';
+  // Галерея прив'язана до Discord-каналу, але писати про це на сторінці
+  // не варто: людина й так бачить результат, а пояснення лише займало місце.
 
   const upload = session
     ? `<form class="up" method="post" action="/upload" enctype="multipart/form-data">
@@ -4015,7 +4152,7 @@ export function galleryPage({
   ].map(([n, l]) => `<div class="stat"><b>${fmt(n)}</b><span>${esc(l)}</span></div>`).join('');
 
   const side = `<aside class="gside">
-    <div class="card pane">${upload}${channelNote ? `<div class="chline">${channelNote}</div>` : ''}</div>
+    <div class="card pane">${upload}</div>
     <div class="card pane">
       <div class="stats">${counters}</div>
       <div class="hint" style="margin-top:12px">

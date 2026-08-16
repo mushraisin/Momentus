@@ -746,6 +746,29 @@ async function profileApi(req, res, guild, session) {
     patch.layout = { ...(cur.layout ?? {}), scope };
   }
 
+  // Які блоки сховані на своїй сторінці.
+  if (body.hidden !== undefined) {
+    const cur = await prefsRepo.get(guild.id, session.user_id);
+    const hiddenNow = { ...(cur.layout?.hidden ?? {}) };
+    for (const block of ['chart', 'showcase', 'about']) {
+      if (body.hidden[block] === undefined) continue;
+      if (body.hidden[block]) hiddenNow[block] = true;
+      else delete hiddenNow[block];
+    }
+    patch.layout = { ...(patch.layout ?? cur.layout ?? {}), hidden: hiddenNow };
+  }
+
+  // Вітрина ілюстрацій: список своїх (або куплених) картинок.
+  if (body.showcase !== undefined) {
+    const cur = await prefsRepo.get(guild.id, session.user_id);
+    const ids = Array.isArray(body.showcase) ? body.showcase.map(Number).filter(Boolean) : [];
+    const allowed = [];
+    for (const id of ids.slice(0, cosmeticsService.SHOWCASE_MAX)) {
+      if (await cosmeticsService.ownsItem(guild.id, session.user_id, `asset:${id}`)) allowed.push(id);
+    }
+    patch.layout = { ...(patch.layout ?? cur.layout ?? {}), showcase: allowed };
+  }
+
   if (body.layout !== undefined) {
     // лишаємо тільки відомі блоки, щоб у налаштування не потрапило чуже
     const known = ['about', 'chart', 'stats', 'gallery'];
@@ -788,10 +811,14 @@ async function assetUpload(req, res, guild, session) {
   if (kindOf(file.mime) !== 'image') return json(res, 400, { error: 'image only' });
 
   const kind = String(form.fields?.slot) === 'banner' ? 'banner' : 'background';
+  // Автор одразу каже, за скільки продаватиме роботу; за публікацію
+  // платить половину від цієї суми.
+  const askPrice = Math.max(1, Math.round(Number(form.fields?.price) || 1));
+  const title = String(form.fields?.title ?? '').slice(0, 60);
 
   // Платимо перед заливкою: так не буває картинки, за яку не списано,
   // і не буває списання за картинку, яка не долетіла.
-  const paid = await cosmeticsService.payUpload(guild.id, session.user_id, member, kind);
+  const paid = await cosmeticsService.payUpload(guild.id, session.user_id, member, kind, askPrice);
   if (!paid.ok) return json(res, paid.reason === 'booster' ? 403 : 400, { error: paid.reason });
 
   const name = safeName(`${kind}-${session.user_id}`, extFor(file.mime));
@@ -813,8 +840,12 @@ async function assetUpload(req, res, guild, session) {
     url: stored.url,
     urlExpires: stored.expires,
   });
-  // Залите одразу стає активним — людина платила саме за те, щоб це побачити.
+  // Залите одразу стає активним — людина платила саме за те, щоб це побачити,
+  // і одразу ж потрапляє на вітрину за призначеною ціною.
   await cosmeticsService.setOwnImage(guild.id, session.user_id, { slot: kind, asset: id });
+  await assetsRepo.setListing(guild.id, session.user_id, id, {
+    listed: true, price: paid.listPrice, title: title || null,
+  });
 
   const wallet = await cosmeticsService.wallet(guild.id, session.user_id);
   log.info(`Оформлення → сховище: ${session.username ?? session.user_id}, ${kind}, ${(file.data.length / 1048576).toFixed(2)} MB`);
@@ -1479,17 +1510,33 @@ async function renderProfile(res, guild, session, lang, path, userId) {
   let wardrobe = null;
   if (mine) {
     const owned = new Set(await cosmeticsService.owned(guild.id, userId));
-    // у гардеробі лише те, що людина справді має — власник тут не виняток
+    // У гардеробі лише те, що людина справді має. Поштучна річ — сама собі
+    // «набір» з однією позицією, інакше сторінка падала на p.items.map.
     const packs = cosmeticsService.catalog(guild.id)
       .filter((p) => !p.custom && owned.has(p.id))
-      .map((p) => ({ id: p.id, name: p.name, items: p.items }));
+      .map((p) => ({ id: p.id, name: p.name, items: p.items ?? [p] }));
     const assets = await assetsRepo.list(guild.id, userId, null, 24);
+
+    // Для вітрини годяться і свої картинки, і куплені чужі роботи.
+    // owned — це Set, тож перебираємо його, а не масив
+    const boughtIds = [...owned]
+      .filter((id) => String(id).startsWith('asset:'))
+      .map((id) => Number(String(id).slice(6)));
+    const bought = [];
+    for (const id of boughtIds) {
+      const a = await assetsRepo.meta(id).catch(() => null);
+      if (a?.guild_id === guild.id) bought.push({ id: a.id, kind: a.kind, url: `/asset/${a.id}` });
+    }
+
     wardrobe = {
       packs,
       canUpload: cosmeticsService.canUpload(guild.id, member),
-      uploadPrice: cosmeticsService.uploadPrice(guild.id),
+      // ціну публікації рахує сама сторінка від того, що вписав автор
+      uploadPrice: cosmeticsService.uploadPrice(1),
       uploadLimit: cosmeticsService.UPLOAD_LIMIT,
+      showcaseMax: cosmeticsService.SHOWCASE_MAX,
       assets: assets.map((a) => ({ id: a.id, kind: a.kind, url: `/asset/${a.id}` })),
+      images: [...assets.map((a) => ({ id: a.id, url: `/asset/${a.id}` })), ...bought],
     };
   }
 
