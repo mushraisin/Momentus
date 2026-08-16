@@ -600,9 +600,11 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   animation:menuIn .22s cubic-bezier(.22,.9,.3,1) both}
 /* пункти меню якості й озвучки виглядають однаково — це один і той самий
    спосіб вибору, лише різні списки */
-.qopt,.vopt{padding:8px 28px 8px 11px;border:0;border-radius:8px;background:0;color:var(--text);
+.qopt,.vopt,.sopt{padding:8px 28px 8px 11px;border:0;border-radius:8px;background:0;color:var(--text);
   font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.18s;position:relative}
-.qopt:hover,.vopt:hover{background:rgba(107,124,255,.16)}
+.qopt:hover,.vopt:hover,.sopt:hover{background:rgba(107,124,255,.16)}
+/* увімкнені субтитри видно й по самій кнопці, не лише в списку */
+#cin-subs.lit summary{border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.16);color:#fff}
 /* обрана якість / озвучка — у спільному блоці «обрано / натиснуто» */
 
 /* ── Вікно «зал зачинено» ── */
@@ -883,7 +885,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   min-width:0;white-space:nowrap;font-weight:600;transition:.2s cubic-bezier(.22,.9,.3,1)}
 .pick-el::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
 .pick-el.on,.btn.ghost.pick-el.on,.btn.icon.on,
-.tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on,.vopt.on{
+.tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on,.vopt.on,.sopt.on{
   background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
   border-color:rgba(255,255,255,.35);
   box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
@@ -891,12 +893,12 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pick-el:not(.on){opacity:.72}
 .pick-el:not(.on):hover{opacity:1;transform:translateY(-1px)}
 /* у списках «✓» стоїть праворуч; місце під нього тримає padding-right вище */
-.drop-opt::after,.qopt::after,.vopt::after,.langmenu a::after{content:'✓';position:absolute;
+.drop-opt::after,.qopt::after,.vopt::after,.sopt::after,.langmenu a::after{content:'✓';position:absolute;
   right:10px;font-size:11px;opacity:0;transition:.2s}
-.drop-opt.on::after,.qopt.on::after,.vopt.on::after,.langmenu a.on::after{opacity:.95}
+.drop-opt.on::after,.qopt.on::after,.vopt.on::after,.sopt.on::after,.langmenu a.on::after{opacity:.95}
 /* наведення на вже обране не має його «гасити» */
 .pick-el.on:hover,.tabs a.on:hover,.drop-opt.on:hover,.qopt.on:hover,.vopt.on:hover,
-.btn.icon.on:hover{background:linear-gradient(180deg,#8b97ff,#6675f5)}
+.sopt.on:hover,.btn.icon.on:hover{background:linear-gradient(180deg,#8b97ff,#6675f5)}
 
 /* Натискання відчутне скрізь однаково */
 .pick-el:active,.tabs a:active,.drop-opt:active,.qopt:active,.pick-row:active,.like:active,
@@ -1321,7 +1323,17 @@ window.CinemaPlayer=(function(){
   function Native(box,cfg){
     var v=document.createElement('video');
     v.playsInline=true;v.preload='auto';v.className='cin-media';
+    /* Субтитри окремими файлами (.vtt) чіпляємо як рідні доріжки —
+       далі вони живуть так само, як ті, що прийшли в маніфесті. */
+    (cfg.subtitles||[]).forEach(function(s,i){
+      var tr=document.createElement('track');
+      tr.kind='subtitles';tr.label=s.label||('#'+(i+1));
+      if(s.lang)tr.srclang=s.lang;
+      tr.src=s.url;v.appendChild(tr);
+    });
     box.appendChild(v);
+    /* рідні доріжки браузер вмикає сам — нам потрібен свій перемикач */
+    for(var ti=0;ti<v.textTracks.length;ti++)v.textTracks[ti].mode='disabled';
     var ready=Promise.resolve();
 
     var hls=null,levels=[];
@@ -1360,6 +1372,12 @@ window.CinemaPlayer=(function(){
             return {label:a.name||a.lang||('#'+(i+1)),index:i};
           });
           if(tracks.length>1&&cfg.onAudioTracks)cfg.onAudioTracks(tracks);
+
+          /* субтитри лежать у тому ж маніфесті окремими доріжками */
+          var subs=(hls.subtitleTracks||[]).map(function(s,i){
+            return {label:s.name||s.lang||('#'+(i+1)),index:i};
+          });
+          if(subs.length&&cfg.onSubtitles)cfg.onSubtitles(subs);
         });
         /* Поки якість обирає плеєр — показуємо, на чому він зараз зупинився. */
         hls.on(window.Hls.Events.LEVEL_SWITCHED,function(_e,d){
@@ -1398,6 +1416,27 @@ window.CinemaPlayer=(function(){
          −1 повертає автоматичний вибір: плеєр знову сам підвищуватиме якість. */
       setLevel:function(i){if(hls)hls.currentLevel=Number(i)},
       setAudioTrack:function(i){if(hls)hls.audioTrack=i},
+      /* Субтитри: −1 вимикає. У hls.js доріжки свої, у звичайного відео —
+         рідні textTracks (туди ж потрапляють зовнішні файли .vtt). */
+      setSubtitle:function(i){
+        var n=Number(i);
+        if(hls){
+          hls.subtitleDisplay=n>=0;
+          hls.subtitleTrack=n;
+          if(n<0)return;
+        }
+        var tt=v.textTracks||[];
+        for(var k=0;k<tt.length;k++)tt[k].mode=(k===n?'showing':'disabled');
+      },
+      /* рідні доріжки самого відео — коли субтитри прийшли окремим файлом */
+      nativeSubtitles:function(){
+        var out=[],tt=v.textTracks||[];
+        for(var k=0;k<tt.length;k++){
+          if(tt[k].kind!=='subtitles'&&tt[k].kind!=='captions')continue;
+          out.push({label:tt[k].label||tt[k].language||('#'+(k+1)),index:k});
+        }
+        return out;
+      },
       onEnded:function(cb){v.addEventListener('ended',cb)},
       /* якості з плейлиста міняємо підміною джерела, зберігаючи позицію */
       setQuality:function(url){
@@ -1746,6 +1785,30 @@ const CINEMA_JS = `
       box.hidden=false;
       document.getElementById('cin-vlabel').textContent=tracks[0].label;
     };
+
+    /* ── Субтитри ──
+       Доріжки приходять або з маніфесту, або окремими файлами (.vtt).
+       Вибір особистий, як гучність: спільним лишається тільки час. */
+    cfg.onSubtitles=function(subs){
+      var box=document.getElementById('cin-subs');
+      if(!box||!subs.length)return;
+      var menu=box.querySelector('.qmenu');menu.innerHTML='';
+      var off=document.createElement('button');
+      off.className='sopt on';off.dataset.sub='-1';
+      off.dataset.label=stage.dataset.subsOff||'Вимкнено';
+      off.textContent=off.dataset.label;menu.appendChild(off);
+      subs.forEach(function(s){
+        var b=document.createElement('button');
+        b.className='sopt';b.dataset.sub=s.index;b.dataset.label=s.label;
+        b.textContent=s.label;menu.appendChild(b);
+      });
+      box.hidden=false;
+    };
+    /* доріжки з окремих файлів готові одразу — питаємо їх у самого плеєра */
+    if(player.nativeSubtitles){
+      var own=player.nativeSubtitles();
+      if(own.length)cfg.onSubtitles(own);
+    }
 
     /* Рівні якості всередині HLS-стріму доїжджають після розбору маніфесту */
     cfg.autoText=stage.dataset.autoText||'Авто';
@@ -2156,6 +2219,19 @@ const CINEMA_JS = `
     document.getElementById('cin-qlabel').textContent=b.dataset.label;
     qual.removeAttribute('open');
     setTimeout(function(){applyVolume(savedVol,false);sync(true)},400);
+  });
+
+  /* ── Субтитри (теж особисті: комусь потрібні, комусь заважають) ── */
+  var subs=document.getElementById('cin-subs');
+  if(subs)subs.addEventListener('click',function(e){
+    var b=e.target.closest('.sopt');if(!b||!player||!player.setSubtitle)return;
+    player.setSubtitle(Number(b.dataset.sub));
+    var all=subs.querySelectorAll('.sopt');
+    for(var i=0;i<all.length;i++)all[i].classList.toggle('on',all[i]===b);
+    var lab=document.getElementById('cin-slabel');
+    if(lab)lab.textContent=b.dataset.label;
+    subs.classList.toggle('lit',Number(b.dataset.sub)>=0);
+    subs.removeAttribute('open');
   });
 
   /* ── Замок керування ──
@@ -2918,6 +2994,8 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     canControl, canEdit: state.canEdit, me: session?.user_id ?? null,
     queueLen: (state.queue ?? []).length,
     variants: state.variants ?? [],
+    // субтитри окремими файлами, якщо джерело їх віддало
+    subtitles: state.subtitles ?? [],
     hardPause: state.hardPause !== false,
     failText: t(lang, 'cin.playFailed'), frameText: t(lang, 'cin.showSite'),
   }));
@@ -2955,6 +3033,7 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
       data-ok-text="${esc(t(lang, 'cin.controllable'))}"
       data-resume="${esc(t(lang, 'cin.resumeAt'))}"
       data-auto-text="${esc(t(lang, 'cin.autoQuality'))}"
+      data-subs-off="${esc(t(lang, 'cin.subsOff'))}"
       data-manual="${esc(t(lang, 'cin.pauseManually'))}">
       ${source ? '' : `<div class="idle-t">${esc(t(lang, 'cin.nothing'))}</div>`}
     </div>
@@ -2983,6 +3062,12 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
           ${(state.variants ?? []).map((v, i) => `<button class="vopt${i === 0 ? ' on' : ''}"
             data-i="${i}" data-label="${esc(v.label)}">${esc(v.label)}</button>`).join('')}
         </div>
+      </details>
+
+      <!-- Субтитри: список наповнюється, щойно плеєр розбере доріжки -->
+      <details class="qual" id="cin-subs" hidden>
+        <summary title="${esc(t(lang, 'cin.subs'))}">💬 <b id="cin-slabel">${esc(t(lang, 'cin.subsOff'))}</b></summary>
+        <div class="qmenu"></div>
       </details>
 
       <details class="qual" id="cin-qual"${state.qualities?.length > 1 ? '' : ' hidden'}>

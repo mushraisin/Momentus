@@ -791,6 +791,8 @@ async function cinemaState(guild, session) {
     pageUrl: state?.pageUrl ?? null,
     qualities: state?.qualities ?? [],
     variants: state?.variants ?? [],
+    // субтитри окремими файлами; ті, що всередині потоку, плеєр знайде сам
+    subtitles: state?.subtitles ?? [],
     hardPause: state?.hardPause !== false,
     title: state?.title ?? null,
     playing: !!state?.playing,

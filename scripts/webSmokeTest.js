@@ -195,7 +195,8 @@ ok('у куті — GitHub і Telegram');
     'кнопка файлу в стилі сайту, а не рідна акцентна');
   // місце під «✓» зарезервоване там, де є власні відступи
   assert.match(g.body, /\.langmenu a\{[^}]*padding:9px 28px 9px 11px/, 'галочка не налазить на мову');
-  assert.match(g.body, /\.qopt,\.vopt\{padding:8px 28px 8px 11px/, 'галочка не налазить на якість і озвучку');
+  assert.match(g.body, /\.qopt,\.vopt,\.sopt\{padding:8px 28px 8px 11px/,
+    'галочка не налазить на якість, озвучку й субтитри');
 }
 ok('єдиний стиль кнопок і позначки «обрано»');
 
@@ -785,7 +786,7 @@ ok('вибір озвучки, завіса на паузі, перемикач 
   assert.ok(!c.body.includes('cin-ref'), 'поля Referer більше немає');
   assert.ok(!/setReferer/.test(c.body), 'і підказки про нього теж');
   // вибір якості й озвучки виглядають однаково і мають позначку «обрано»
-  assert.match(c.body, /\.qopt,\.vopt\{padding/, 'озвучка стилізована так само, як якість');
+  assert.match(c.body, /\.qopt,\.vopt,\.sopt\{padding/, 'озвучка стилізована так само, як якість');
   assert.match(c.body, /\.qopt\.on::after,\.vopt\.on::after/, 'позначка «✓» в обох списках');
   assert.match(c.body, /\.pick-el\.on,[^{]*\.btn\.icon\.on/, 'перемикачі панелі у спільному стилі');
   // смуга часу товщає під курсором, але висота елемента стала
@@ -839,6 +840,26 @@ ok('HLS: автоматичне підвищення якості з показ�
   assert.ok(c.body.includes("room.classList.toggle('live'"), 'клас вішає сама синхронізація');
 }
 ok('кінотеатр: налаштування в шухляді, атмосфера залу під час показу');
+
+// 19.4 субтитри: доріжки з потоку й окремі файли
+{
+  const c = await req('/cinema', adm);
+  assert.ok(c.body.includes('id="cin-subs"'), 'кнопка субтитрів у панелі');
+  assert.ok(c.body.includes('data-subs-off="Вимкнено"'), 'підпис «Вимкнено» з перекладу');
+
+  // доріжки з маніфесту
+  assert.match(c.body, /hls\.subtitleTracks\|\|\[\]/, 'субтитри з потоку зчитуються');
+  assert.match(c.body, /hls\.subtitleDisplay=n>=0/, 'вимкнення ховає доріжку');
+  // окремі файли .vtt чіпляються як рідні доріжки
+  assert.match(c.body, /tr\.kind='subtitles'/, 'зовнішні файли стають доріжками');
+  assert.match(c.body, /v\.textTracks\[ti\]\.mode='disabled'/, 'браузер не вмикає їх самовільно');
+  // «Вимкнено» завжди перший пункт
+  assert.match(c.body, /off\.dataset\.sub='-1'/, '«Вимкнено» — окремий пункт');
+  // вигляд той самий, що й у якості з озвучкою
+  assert.match(c.body, /\.qopt,\.vopt,\.sopt\{padding/, 'спільний стиль трьох списків');
+  assert.match(c.body, /\.sopt\.on::after/, 'позначка «обрано» є й тут');
+}
+ok('субтитри: вибір доріжки та вимкнення');
 
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
