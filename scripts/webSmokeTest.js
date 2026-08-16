@@ -183,13 +183,20 @@ ok('у куті — GitHub і Telegram');
 // 9.05 один стиль кнопок на весь сайт
 {
   const g = await req('/gallery', auth);
-  const GRAD = 'linear-gradient(180deg,#7d8bff,#5b6bf0)';
   // «обрано» скрізь однакове: шапка, вкладки, мови, пункти меню, якість
+  const GRAD = 'linear-gradient(180deg,var(--accent-hi),var(--accent-lo))';
   for (const sel of ['nav a.active', '.tabs a.on', '.langmenu a.on', '.drop-opt.on', '.qopt.on']) {
     const rule = new RegExp(`${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{]*\\{[^}]*${GRAD.replace(/[()]/g, '\\$&')}`);
     assert.ok(rule.test(g.body) || g.body.includes(`${sel},`) || g.body.includes(`,${sel}`),
       `${sel} користується спільним стилем вибору`);
   }
+
+  // колір бере токени, тож обраний акцент діє й під курсором,
+  // а не повертається до типового синього
+  assert.match(g.body, /--accent:#6b7cff;--accent-lo:#5b6bf0;--accent-hi:#7d8bff;--accent-up:#8b97ff/,
+    'акцент заданий токенами');
+  assert.ok(!/:hover\{[^}]*linear-gradient\(180deg,#8b97ff/.test(g.body),
+    'наведення не має жорстко вписаного кольору');
   // рідна кнопка вибору файлу не лишилася суцільно фіолетовою
   assert.ok(!/::file-selector-button\{[^}]*background:var\(--accent\)/.test(g.body),
     'кнопка файлу в стилі сайту, а не рідна акцентна');
@@ -629,7 +636,7 @@ ok('панель модерації на сайті: кнопка й сторі�
   assert.ok(!/<div class="me active"/.test(g.body), 'на інших сторінках — ні');
 
   // головні дії — той самий стиль, що й «обрано»
-  assert.match(g.body, /\.btn\{[^}]*linear-gradient\(180deg,#7d8bff,#5b6bf0\)/,
+  assert.match(g.body, /\.btn\{[^}]*linear-gradient\(180deg,var\(--accent-hi\),var\(--accent-lo\)\)/,
     '«Опублікувати» / «Застосувати» у спільному стилі');
   const home = await req('/', adm);
   assert.ok(home.body.includes('class="dbtn site"'), 'кнопка «Рейтинг» у стилі сайту');
@@ -906,7 +913,7 @@ ok('світло залу підхоплює кольори кадру');
   const p = await req('/me', auth);
   assert.equal(p.status, 200);
   assert.ok(!p.body.includes('class="cat"'), 'розкладу по категоріях більше немає');
-  assert.match(p.body, /class="score"><b>\d+</, 'загальне число лишилось');
+  assert.match(p.body, /class="score">\s*<b>\d+</, 'загальне число лишилось');
 
   assert.ok(p.body.includes('class="chart"'), 'графік намальовано');
   // лінія тепер плавна — сегменти йдуть кривими, а не ламаною
@@ -981,7 +988,7 @@ ok('профіль: загальне число й графік динаміки
   const me = await req('/me', auth);
   assert.ok(me.body.includes('id="stars"') && me.body.includes('id="fog"'), 'зорі й дим на місці');
   assert.match(me.body, /#fog\{opacity:\.34/, 'дим притлумлено, щоб не забивав колір');
-  assert.ok(me.body.includes('class="score fp"'), 'FP видно в профілі');
+  assert.ok(me.body.includes('class="fpchip"'), 'FP видно в профілі окремим чипом');
 
   // зняти оформлення
   assert.equal((await jreq('/api/shop/clear', auth, { what: 'background' })).status, 200, 'знімається');
@@ -1008,7 +1015,8 @@ ok('магазин: набори, категорії ліворуч, ціни в
   assert.ok(me.body.includes('pf-edit'), 'власник бачить кнопку редагування');
 
   // гардероб — усе придбане в одному місці, з передпереглядом
-  assert.ok(me.body.includes('id="look"'), 'блок оформлення на сторінці');
+  assert.ok(me.body.includes('id="look"'), 'вікно оформлення на сторінці');
+  assert.ok(me.body.includes('pf-lookopen'), 'кнопка, що його відкриває');
   assert.ok(me.body.includes('pf-sw'), 'зразки для вибору');
   assert.ok(me.body.includes('data-item2'), 'зразок несе дані для передперегляду');
   assert.ok(me.body.includes('CosmeticPreview'), 'вікно передперегляду підключено');

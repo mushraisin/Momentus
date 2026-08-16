@@ -730,8 +730,11 @@ async function assetUpload(req, res, guild, session) {
   const member = guild.members.cache.get(session.user_id)
     ?? await guild.members.fetch(session.user_id).catch(() => null);
 
-  const form = await parseMultipart(req, maxUploadMb(guild) * 1048576).catch(() => null);
-  const file = form?.files?.[0];
+  // parseMultipart приймає опції обʼєктом і повертає один file, а не масив —
+  // саме через це заливка мовчки падала
+  const form = await parseMultipart(req, { maxBytes: maxUploadMb(guild) * 1048576 })
+    .catch((e) => { log.warn('Розбір форми не вдався', e.message); return null; });
+  const file = form?.file;
   if (!file) return json(res, 400, { error: 'no file' });
   if (kindOf(file.mime) !== 'image') return json(res, 400, { error: 'image only' });
 
@@ -1427,13 +1430,14 @@ async function renderProfile(res, guild, session, lang, path, userId) {
   let wardrobe = null;
   if (mine) {
     const owned = new Set(await cosmeticsService.owned(guild.id, userId));
+    // у гардеробі лише те, що людина справді має — власник тут не виняток
     const packs = cosmeticsService.catalog(guild.id)
-      .filter((p) => !p.custom && (owned.has(p.id) || userId === OWNER_ID))
+      .filter((p) => !p.custom && owned.has(p.id))
       .map((p) => ({ id: p.id, name: p.name, items: p.items }));
     const assets = await assetsRepo.list(guild.id, userId, null, 24);
     wardrobe = {
       packs,
-      canUpload: cosmeticsService.canUpload(guild.id, member, userId),
+      canUpload: cosmeticsService.canUpload(guild.id, member),
       uploadPrice: cosmeticsService.uploadPrice(guild.id),
       uploadLimit: cosmeticsService.UPLOAD_LIMIT,
       assets: assets.map((a) => ({ id: a.id, kind: a.kind, url: `/asset/${a.id}` })),
@@ -1444,7 +1448,7 @@ async function renderProfile(res, guild, session, lang, path, userId) {
     R.profilePage(profile, {
       username, avatar, roleName, roleColor, rank, lang, look, mine, wardrobe,
     }),
-    false, mine ? 'me' : null, og);
+    false, mine ? 'me' : 'u', og, look);
 }
 
 async function topRows(guild, limit) {
@@ -1477,7 +1481,8 @@ function ogFor(guild, path, title, description, image) {
   };
 }
 
-async function html(res, code, guild, session, lang, path, title, body, gallery = false, page = null, og = null) {
+async function html(res, code, guild, session, lang, path, title, body,
+  gallery = false, page = null, og = null, lookOverride = null) {
   const hasCustomCss = !!(await siteAssetsRepo.get(guild.id, '/custom.css').catch(() => null));
   const pages = await sitePagesRepo.list(guild.id).catch(() => []);
 
@@ -1498,9 +1503,10 @@ async function html(res, code, guild, session, lang, path, title, body, gallery 
   ];
 
   // Особисте оформлення їде з людиною по всіх сторінках, а не лише в профілі.
-  const look = session
-    ? await cosmeticsService.look(guild.id, session.user_id).catch(() => null)
-    : null;
+  // На чужій сторінці перевагу має оформлення її власника: ми в гостях,
+  // тож бачимо те, як людина себе оформила.
+  const look = lookOverride
+    ?? (session ? await cosmeticsService.look(guild.id, session.user_id).catch(() => null) : null);
 
   const out = R.layout({
     title: `${title} · ${guild.name}`,

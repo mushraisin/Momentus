@@ -23,7 +23,11 @@ export const BASE_CSS = `
 :root{
   --bg0:#05070d;--card:rgba(22,27,40,.72);--line:rgba(255,255,255,.08);
   --text:#eef2f9;--dim:#8e9bb3;--good:#43c47b;--mid:#e9b949;--bad:#ef5350;
-  --accent:#6b7cff;--discord:#5865f2;
+  /* Акцент задано трьома токенами: основний, світліший (наведення) і темніший
+     (низ градієнта). Усе оформлення бере саме їх, тож обраний колір діє
+     і в спокої, і під курсором — інакше hover повертав би типовий синій. */
+  --accent:#6b7cff;--accent-lo:#5b6bf0;--accent-hi:#7d8bff;--accent-up:#8b97ff;
+  --discord:#5865f2;
 }
 *{box-sizing:border-box}
 
@@ -81,10 +85,10 @@ nav a{padding:8px 15px;border-radius:999px;background:rgba(255,255,255,.04);
   border:1px solid var(--line);font-size:14px;transition:.28s cubic-bezier(.22,.9,.3,1)}
 nav a:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.12);transform:translateY(-2px)}
 /* поточна сторінка в шапці — той самий вигляд «обрано», що й усюди */
-nav a.active{background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
+nav a.active{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
   border-color:rgba(255,255,255,.35);
   box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
-nav a.active:hover{background:linear-gradient(180deg,#8b97ff,#6675f5)}
+nav a.active:hover{background:linear-gradient(180deg,var(--accent-up),var(--accent))}
 nav a:active{transform:scale(.96)}
 
 /* ── Загальне шліфування ──
@@ -236,7 +240,7 @@ nav:has(.langs[open]){overflow:visible}
    і код мови, і назва мають бути світлими, інакше зливаються */
 .langmenu a.on b{color:rgba(255,255,255,.85)}
 .langmenu a.on span{color:#fff}
-.langmenu a.on:hover{background:linear-gradient(180deg,#7d8bff,#5b6bf0)}
+.langmenu a.on:hover{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo))}
 @keyframes menuIn{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
 
 .me{display:flex;align-items:center;gap:9px;padding:5px 6px 5px 5px;border-radius:999px;
@@ -251,7 +255,7 @@ nav:has(.langs[open]){overflow:visible}
 .me-out{padding:2px 7px;border-radius:999px;color:var(--dim);font-size:12px;border:0;background:0}
 .me-out:hover{color:#fff;background:rgba(255,255,255,.08)}
 /* ми на сторінці профілю — чип світиться, як активна кнопка в шапці */
-.me.active{background:linear-gradient(180deg,#7d8bff,#5b6bf0);border-color:rgba(255,255,255,.35);
+.me.active{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));border-color:rgba(255,255,255,.35);
   box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
 .me.active span{color:#fff}
 .me.active img{border-color:rgba(255,255,255,.7)}
@@ -300,6 +304,11 @@ nav:has(.langs[open]){overflow:visible}
 .score{margin-left:auto;text-align:center}
 .score b{display:block;font-size:38px;line-height:1;color:#fff}
 .score span{font-size:11px;color:var(--dim);letter-spacing:.14em}
+/* Гаманець — не другий рейтинг: дрібний чип під числом, а не рівний блок поруч */
+.fpchip{display:inline-flex;align-items:center;gap:5px;margin-top:9px;padding:4px 10px;
+  border-radius:999px;font-size:12px;font-weight:700;color:#f0d79a;
+  background:rgba(224,180,92,.12);border:1px solid rgba(224,180,92,.3)}
+.fpchip i{font-style:normal;font-size:11px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
 .tile{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:14px;padding:15px;
   transition:.3s;animation:fadeUp .5s both}
@@ -498,7 +507,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 /* розділювач перед групою правих кнопок */
 .cbar .vol{margin-left:6px;padding-left:14px;border-left:1px solid var(--line)}
 .btn.play{width:46px;height:46px;padding:0;border-radius:50%;font-size:16px;flex:none;
-  background:linear-gradient(180deg,#7d8bff,#5b6bf0);box-shadow:0 8px 22px rgba(107,124,255,.35)}
+  background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));box-shadow:0 8px 22px rgba(107,124,255,.35)}
 .btn.play:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 12px 28px rgba(107,124,255,.5)}
 .btn.play:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 .btn.ghost{background:rgba(255,255,255,.05);border:1px solid var(--line)}
@@ -789,11 +798,11 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
    що й «обрано»: акцентна заливка, світла рамка й кільце. Один стиль
    на весь сайт, тож нові кнопки просто беруть .btn і виглядають так само. */
 .btn{display:inline-block;padding:12px 22px;border-radius:12px;
-  background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
+  background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
   border:1px solid rgba(255,255,255,.35);font-weight:700;font:inherit;cursor:pointer;
   box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28);
   transition:.3s cubic-bezier(.22,.9,.3,1)}
-.btn:hover{transform:translateY(-2px);background:linear-gradient(180deg,#8b97ff,#6675f5);
+.btn:hover{transform:translateY(-2px);background:linear-gradient(180deg,var(--accent-up),var(--accent));
   box-shadow:0 0 0 3px rgba(107,124,255,.24),0 12px 28px rgba(107,124,255,.42)}
 .btn:disabled{opacity:.5;box-shadow:none;transform:none;cursor:default}
 /* другорядні кнопки лишаються тихими — акцент має бути один на екран */
@@ -954,8 +963,17 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   background:#6b7cff;flex:none}
 .pv-f{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px}
 
-/* ── Гардероб: усе придбане в одному місці ── */
-.pf-look .pane-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+/* ── Гардероб: окреме вікно, щоб не займати сторінку профілю ── */
+.pf-lookopen{display:block;width:100%;margin:16px 0 0;text-align:center}
+.pf-lookback{position:fixed;inset:0;z-index:65;display:flex;align-items:center;justify-content:center;
+  padding:22px;background:rgba(3,5,10,.82);backdrop-filter:blur(6px);animation:fadeIn .22s both}
+.pf-lookback[hidden]{display:none}
+.pf-lookwin{width:min(760px,94vw);max-height:88vh;overflow:auto;padding:20px 22px;
+  border-radius:20px;background:var(--card);border:1px solid var(--line);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
+.pf-lookh{display:flex;align-items:center;gap:10px}
+.pf-lookh .gate-x{position:static}
+.pf-lookwin .pane-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .pf-group{margin-top:16px}
 .pf-gt{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:9px}
 .pf-sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
@@ -1123,7 +1141,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pick-el::after{content:'✓';font-size:12px;opacity:0;transition:.2s}
 .pick-el.on,.btn.ghost.pick-el.on,.btn.icon.on,
 .tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on,.vopt.on,.sopt.on{
-  background:linear-gradient(180deg,#7d8bff,#5b6bf0);color:#fff;
+  background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
   border-color:rgba(255,255,255,.35);
   box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
 .pick-el.on::after{opacity:.9}
@@ -1135,17 +1153,17 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .drop-opt.on::after,.qopt.on::after,.vopt.on::after,.sopt.on::after,.langmenu a.on::after{opacity:.95}
 /* наведення на вже обране не має його «гасити» */
 .pick-el.on:hover,.tabs a.on:hover,.drop-opt.on:hover,.qopt.on:hover,.vopt.on:hover,
-.sopt.on:hover,.btn.icon.on:hover{background:linear-gradient(180deg,#8b97ff,#6675f5)}
+.sopt.on:hover,.btn.icon.on:hover{background:linear-gradient(180deg,var(--accent-up),var(--accent))}
 
 /* Натискання відчутне скрізь однаково */
 .pick-el:active,.tabs a:active,.drop-opt:active,.qopt:active,.pick-row:active,.like:active,
 .lbnav:active,.lbclose:active,.gbtn:active,.dbtn:active,.langmenu a:active{transform:scale(.96)}
 
 /* Головна дія на головній сторінці — у кольорах сайту, а не Discord */
-.dbtn.site{background:linear-gradient(180deg,#7d8bff,#5b6bf0);
+.dbtn.site{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));
   border:1px solid rgba(255,255,255,.35);
   box-shadow:0 0 0 3px rgba(107,124,255,.2),0 10px 30px rgba(107,124,255,.36)}
-.dbtn.site:hover{background:linear-gradient(180deg,#8b97ff,#6675f5);
+.dbtn.site:hover{background:linear-gradient(180deg,var(--accent-up),var(--accent));
   box-shadow:0 0 0 3px rgba(107,124,255,.26),0 16px 42px rgba(107,124,255,.5)}
 `;
 
@@ -2845,7 +2863,15 @@ const PROFILE_JS = `
     if(bg&&bg.type==='motion')css+='.bg{background:linear-gradient(120deg,'+bg.from+','+bg.to+','+bg.from+');background-size:300% 300%;animation:flow 18s ease-in-out infinite}';
     if(bg&&bg.type==='image')css+='.bg{background:#05070d url('+bg.url+') center/cover no-repeat fixed}';
     if(bg)css+='#fog{opacity:.34;mix-blend-mode:screen}#stars{opacity:.7}';
-    if(look&&look.accent)css+=':root{--accent:'+look.accent+'}';
+    if(look&&look.accent){
+      var sh=function(hex,d){
+        var n=parseInt(String(hex).replace('#',''),16);
+        var p=[(n>>16)&255,(n>>8)&255,n&255].map(function(v){return Math.max(0,Math.min(255,v+d))});
+        return '#'+p.map(function(v){return v.toString(16).padStart(2,'0')}).join('');
+      };
+      css+=':root{--accent:'+look.accent+';--accent-hi:'+sh(look.accent,18)
+        +';--accent-lo:'+sh(look.accent,-18)+';--accent-up:'+sh(look.accent,30)+'}';
+    }
     if(look&&look.frame)css+='.avatar{border-color:'+look.frame.color+'!important;box-shadow:0 0 0 4px '+look.frame.color+'33,0 0 26px '+look.frame.color+'66}';
     if(look&&look.card){
       var c=look.card;
@@ -2875,6 +2901,20 @@ const PROFILE_JS = `
       b.classList.toggle('on',on);
     });
   }
+
+  /* ── Вікно оформлення ── */
+  (function(){
+    var win=document.getElementById('look'),open=document.getElementById('pf-lookopen');
+    if(!win||!open)return;
+    function show(on){win.hidden=!on;document.body.style.overflow=on?'hidden':''}
+    open.addEventListener('click',function(){show(true)});
+    win.addEventListener('click',function(e){
+      if(e.target===win||e.target.closest('.pf-lookx'))show(false);
+    });
+    addEventListener('keydown',function(e){if(e.key==='Escape'&&!win.hidden)show(false)});
+    /* із магазину приходять із #look — одразу відкриваємо */
+    if(location.hash==='#look')show(true);
+  })();
 
   /* ── Опис ── */
   var box=document.getElementById('pf-about'),edit=document.getElementById('pf-edit');
@@ -3243,7 +3283,9 @@ function metaTags({ title, description, image, url, type = 'website' }) {
  */
 function skinCss(look, { page = null } = {}) {
   if (!look) return '';
-  const here = page === 'me';                 // ми на власній сторінці
+  // «Тут» — будь-яка сторінка профілю: своя або чужа. На чужій ми показуємо
+  // оформлення її власника, тож обмеження «лише в профілі» діє й там.
+  const here = page === 'me' || page === 'u';
   const scope = look.scope ?? {};
   // Кожну частину оформлення можна лишити тільки в профілі — це вибір людини
   // в налаштуваннях; за замовчуванням усе діє на всьому сайті.
@@ -3270,13 +3312,12 @@ function skinCss(look, { page = null } = {}) {
   if (bg) rules.push('#fog{opacity:.34;mix-blend-mode:screen}#stars{opacity:.7}');
 
   if (look.accent && show('accent')) {
-    rules.push(`:root{--accent:${look.accent}}`);
-    // спільна мова «обрано» теж має підхопити новий колір
-    rules.push(
-      '.pick-el.on,.btn.ghost.pick-el.on,.btn.icon.on,.tabs a.on,.langmenu a.on,'
-      + '.drop-opt.on,.qopt.on,.vopt.on,.sopt.on,nav a.active,.me.active,.btn{'
-      + `background:linear-gradient(180deg,${look.accent},${shade(look.accent, -18)})}`,
-    );
+    // Перевизначаємо самі токени — далі все оформлення підхоплює їх само,
+    // включно зі станом під курсором.
+    rules.push(`:root{--accent:${look.accent};`
+      + `--accent-hi:${shade(look.accent, 18)};`
+      + `--accent-lo:${shade(look.accent, -18)};`
+      + `--accent-up:${shade(look.accent, 30)}}`);
   }
 
   if (look.card && show('card')) {
@@ -3530,11 +3571,15 @@ export function profilePage(profile, {
       data-item2="${full}" title="${esc(it.name)}" style="${style}"><span>${esc(it.name)}</span></button>`;
   };
 
-  // Гардероб: усе придбане в одному місці — вибираємо тут, а не в магазині.
+  // Гардероб живе в окремому вікні: на самій сторінці він займав пів екрана
+  // й заважав дивитися профіль, заради якого сюди й заходять.
   const wardrobeBox = mine && wardrobe
-    ? `<div class="card pane rise pf-look" id="look">
+    ? `<div class="pf-lookback" id="look" hidden><div class="pf-lookwin">
         <div class="pane-h">${esc(t(lang, 'profile.look'))}
-          <a class="btn ghost sm" href="/shop">✨ ${esc(t(lang, 'nav.shop'))}</a>
+          <span class="pf-lookh">
+            <a class="btn ghost sm" href="/shop">✨ ${esc(t(lang, 'nav.shop'))}</a>
+            <button class="gate-x pf-lookx" aria-label="×">×</button>
+          </span>
         </div>
 
         ${wardrobe.packs.length
@@ -3587,7 +3632,7 @@ export function profilePage(profile, {
     `<button class="btn ghost sm pf-clear" data-what="${w}">${esc(t(lang, `profile.clear.${w}`))}</button>`).join('')}
           </div>
         </div>
-      </div>`
+      </div></div>`
     : '';
   // Розклад по категоріях більше не показуємо: назовні йде саме загальне
   // число, а як воно рухалося — видно з графіка нижче.
@@ -3609,15 +3654,19 @@ export function profilePage(profile, {
         ${roleName ? `<div class="pill" style="color:${esc(accent)};border-color:${esc(accent)}66;background:${esc(accent)}22">${esc(roleName)}</div>` : ''}
         <div class="muted" style="margin-top:5px">${esc(t(lang, 'profile.days', { days: profile.daysOnServer }))}${rank ? ` · #${rank}` : ''}</div>
       </div>
-      <div class="score"><b>${profile.aiScore}</b><span>${esc(t(lang, 'profile.rating'))}</span></div>
-      ${Number.isFinite(look.balance)
-    ? `<div class="score fp"><b>${fmt(look.balance)}</b><span>✨ FP</span></div>`
+      <div class="score">
+        <b>${profile.aiScore}</b>
+        <span>${esc(t(lang, 'profile.rating'))}</span>
+        ${Number.isFinite(look.balance)
+    ? `<div class="fpchip" title="✨FP"><i>✨</i>${fmt(look.balance)}</div>`
     : ''}
+      </div>
     </div>
     <div class="tiles">${tiles}</div>
   </div>
   ${about}
   ${scoreChart(profile, { lang, accent })}
+  ${mine && wardrobe ? `<button class="btn pf-lookopen" id="pf-lookopen">🎨 ${esc(t(lang, 'profile.look'))}</button>` : ''}
   ${wardrobeBox}`;
 }
 

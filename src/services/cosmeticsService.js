@@ -180,7 +180,6 @@ export const cosmeticsService = {
    */
   isBooster(guildId, member) {
     if (!member) return false;
-    if (member.id === OWNER_ID) return true;
     if (member.premiumSince || member.premiumSinceTimestamp) return true;
     const roles = configService.get(guildId, 'general.boosterRoleIds') ?? [];
     return roles.some((id) => member.roles?.cache?.has(id));
@@ -198,7 +197,8 @@ export const cosmeticsService = {
   async buy(guildId, userId, member, packId) {
     const pack = BY_PACK.get(packId);
     if (!pack) return { ok: false, reason: 'unknown' };
-    if (pack.booster && !this.isBooster(guildId, member) && userId !== OWNER_ID) {
+    // буст відкриває саме можливість купити, платити все одно доводиться
+    if (pack.booster && !this.isBooster(guildId, member)) {
       return { ok: false, reason: 'booster' };
     }
     if (await itemsRepo.has(guildId, userId, packId)) return { ok: false, reason: 'owned' };
@@ -213,11 +213,16 @@ export const cosmeticsService = {
     return { ok: true, balance: w.balance, pack: packId };
   },
 
-  /** Чи є в людини набір, до якого належить річ. */
+  /**
+   * Чи є в людини набір, до якого належить річ.
+   *
+   * Власник тут без жодних привілеїв: інакше в нього все виглядало б
+   * купленим і він не бачив би магазин таким, яким його бачать інші.
+   * Буст лише відкриває можливість КУПИТИ бустерське, а не дає його даром.
+   */
   async ownsItem(guildId, userId, itemId) {
     const it = ITEMS.get(itemId);
     if (!it) return false;
-    if (userId === OWNER_ID) return true;
     return itemsRepo.has(guildId, userId, it.pack);
   },
 
@@ -260,8 +265,8 @@ export const cosmeticsService = {
    * Свої картинки заливають лише бустери й лише через магазин —
    * по одному FP за штуку, не більше трьох у кожній категорії.
    */
-  canUpload(guildId, member, userId = member?.id) {
-    return userId === OWNER_ID || this.isBooster(guildId, member);
+  canUpload(guildId, member) {
+    return this.isBooster(guildId, member);
   },
 
   /** Скільки ще можна залити в цю категорію. */
