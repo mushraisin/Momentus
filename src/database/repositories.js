@@ -99,9 +99,16 @@ export const reputationRepo = {
     `, { ...rep, ai_score: Math.round(rep.ai_score), guild_id: guildId, user_id: userId, now: Date.now() });
   },
 
+  /**
+   * Рейтинг разом зі статистикою: сторінка показує на картці ще й
+   * повідомлення, голосові хвилини та скільки людина на сервері. Беремо це
+   * тим самим запитом — окремий похід по кожного учасника перетворив би
+   * одну сторінку на десятки звернень до бази.
+   */
   leaderboard(guildId, limit = 100) {
     return all(`
-      SELECT r.user_id, r.ai_score, u.username
+      SELECT r.user_id, r.ai_score, u.username,
+             u.total_messages, u.voice_minutes, u.joined_at, u.first_seen_at
       FROM reputation r JOIN users u ON u.guild_id = r.guild_id AND u.user_id = r.user_id
       WHERE r.guild_id = ?
       ORDER BY r.ai_score DESC

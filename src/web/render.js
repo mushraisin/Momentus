@@ -1066,11 +1066,17 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tpwrap{display:flex;flex-direction:column;gap:14px;margin-top:4px}
 .tp-podium{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
 .tp-rest{display:flex;flex-direction:column;gap:10px}
+/* Картка живе в оформленні СВОГО власника: --tp-* приходять із його стилю
+   вікон. Відкат тут навмисно нейтральний, а не на токени сайту: інакше
+   картка людини без свого стилю переймала б стиль того, хто дивиться, —
+   і рейтинг показував би не її оформлення, а чуже. */
 .tp{position:relative;display:block;overflow:hidden;padding:14px 16px;
-  border-radius:var(--radius);border:var(--line-w,1px) solid var(--line);
-  background:var(--card);backdrop-filter:blur(var(--blur));
+  border-radius:var(--tp-r,18px);
+  border:var(--tp-w,1px) solid var(--tp-l,rgba(255,255,255,.09));
+  background:rgba(16,20,30,.72);backdrop-filter:blur(14px);
+  box-shadow:var(--tp-s,none);
   animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
-.tp:hover{transform:translateY(-3px);border-color:rgba(var(--accent-rgb),.45)}
+.tp:hover{transform:translateY(-3px);border-color:var(--c)}
 /* банер учасника — тлом картки, притлумлений, щоб не зʼїдав текст */
 .tp-bg{position:absolute;inset:0;background:center/cover no-repeat;opacity:.30;
   transition:opacity .35s,transform .6s cubic-bezier(.22,.9,.3,1)}
@@ -1103,9 +1109,33 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tp-1{box-shadow:0 0 0 1px rgba(224,180,92,.45),0 18px 46px rgba(224,180,92,.20)}
 .tp-2{box-shadow:0 0 0 1px rgba(200,210,228,.38),0 16px 40px rgba(200,210,228,.14)}
 .tp-3{box-shadow:0 0 0 1px rgba(205,127,80,.38),0 16px 40px rgba(205,127,80,.14)}
+/* тонка кольорова смужка зліва — акцент учасника видно навіть краєм ока */
+.tp::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;z-index:3;
+  background:linear-gradient(180deg,var(--c),transparent);opacity:.85}
+
+/* ── Статистика на картці ──
+   Повідомлення, голос і скільки людина на сервері — заради цих чисел
+   у рейтинг і заходять, тож вони стоять просто на картці. */
+.tp-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:11px;
+  border-top:1px solid rgba(255,255,255,.09)}
+.tp-stat{display:flex;align-items:baseline;gap:6px;padding:5px 10px;border-radius:999px;
+  background:rgba(5,7,13,.5);border:1px solid rgba(255,255,255,.07);
+  backdrop-filter:blur(4px);white-space:nowrap}
+.tp-stat i{font-style:normal;font-size:11px;opacity:.75;align-self:center}
+.tp-stat b{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.tp-stat em{font-style:normal;font-size:10px;color:var(--dim);letter-spacing:.06em}
+.tp-top .tp-stats{margin-top:14px}
+/* у рядках нижче трійки статистика тулиться праворуч, у той самий рядок */
+@media(min-width:760px){
+  .tp:not(.tp-top){display:flex;align-items:center;gap:16px}
+  .tp:not(.tp-top) .tp-body{flex:1;min-width:0}
+  .tp:not(.tp-top) .tp-stats{margin:0;padding:0;border:0;flex:none}
+  .tp:not(.tp-top) .tp-place{position:static;order:-1;width:34px;text-align:center}
+}
 @media(max-width:600px){
   .tp-top{min-height:150px}
   .tp-top .tp-face{width:58px;height:58px}
+  .tp-stat em{display:none}
 }
 
 /* ── Рівень ──
@@ -4500,15 +4530,40 @@ export function leaderboardPage(rows, lang = 'uk') {
 
   const medals = ['🥇', '🥈', '🥉'];
 
+  /** Години з хвилин — «1240 хв» нікому ні про що не говорить. */
+  const hrs = (min) => (min >= 60
+    ? t(lang, 'games.hours', { n: Math.round(min / 6) / 10 })
+    : t(lang, 'games.minutes', { n: Math.round(min) }));
+
   const card = (r, i) => {
     const place = i + 1;
     const top = place <= 3;
     const accent = r.accent || '#6b7cff';
     const frame = r.frame || accent;
 
-    return `<a class="tp${top ? ` tp-top tp-${place}` : ''}" href="/u/${esc(r.user_id)}"
-        style="--c:${esc(accent)};--f:${esc(frame)};animation-delay:${Math.min(i * 0.035, 0.6)}s">
-      <span class="tp-bg"${r.banner ? ` style="background-image:url(${esc(r.banner)})"` : ''}></span>
+    // Стиль вікон учасника діє на його ж картку: радіус, товщина рамки,
+    // колір межі й тінь — тим самим набором, що й у нього в профілі.
+    const c = r.card ?? {};
+    const skin = [
+      `--c:${esc(accent)}`,
+      `--f:${esc(frame)}`,
+      c.radius != null ? `--tp-r:${Number(c.radius)}px` : '',
+      c.width != null ? `--tp-w:${Number(c.width)}px` : '',
+      c.line ? `--tp-l:${esc(c.line)}` : '',
+      c.shadow ? `--tp-s:${esc(c.shadow)}` : '',
+      `animation-delay:${Math.min(i * 0.035, 0.6)}s`,
+    ].filter(Boolean).join(';');
+
+    // тло: банер, а без нього — обраний фон сторінки
+    const bg = r.banner
+      ? ` style="background-image:url(${esc(r.banner)})"`
+      : (r.bgCss ? ` style="background:${esc(r.bgCss)}"` : '');
+
+    const stat = (icon, value, label) => `<span class="tp-stat" title="${esc(label)}">
+      <i>${icon}</i><b>${esc(value)}</b><em>${esc(label)}</em></span>`;
+
+    return `<a class="tp${top ? ` tp-top tp-${place}` : ''}" href="/u/${esc(r.user_id)}" style="${skin}">
+      <span class="tp-bg"${bg}></span>
       <span class="tp-place">${top ? medals[i] : `#${place}`}</span>
       <span class="tp-body">
         <img class="tp-face" src="${esc(avatarUrl(r.user_id, r.avatar, top ? 128 : 64))}"
@@ -4522,6 +4577,11 @@ export function leaderboardPage(rows, lang = 'uk') {
           <b>${r.ai_score}</b>
           <span>${esc(t(lang, 'top.score'))}</span>
         </span>
+      </span>
+      <span class="tp-stats">
+        ${stat('✉', fmt(r.messages ?? 0), t(lang, 'profile.messages'))}
+        ${stat('🎧', hrs(r.voice ?? 0), t(lang, 'profile.voice'))}
+        ${stat('◷', fmt(r.days ?? 0), t(lang, 'top.days'))}
       </span>
     </a>`;
   };
@@ -4940,8 +5000,6 @@ function levelBar(level, { lang = 'uk', mine = false } = {}) {
   // скільки зібрано на наступний рівень
   const pct = Math.max(0, Math.min(100, Math.round((bal / next) * 100)));
 
-  const perk = (level.perks ?? []).find((p) => !p.unlocked);
-
   return `<div class="lvbar">
     <div class="lvchip" title="${esc(t(lang, 'lvl.title'))}">
       <i>◆</i><b>${cur}</b><span>${esc(t(lang, 'lvl.short'))}</span>
@@ -4949,10 +5007,7 @@ function levelBar(level, { lang = 'uk', mine = false } = {}) {
     ${mine
     ? `<div class="lvgrow">
         <div class="lvtrack"><i style="width:${pct}%"></i></div>
-        <div class="lvnote">
-          ${esc(t(lang, 'lvl.next', { n: cur + 1, cost: next }))}
-          ${perk ? ` · ${esc(t(lang, 'lvl.perkAt', { n: perk.level, name: perk.name }))}` : ''}
-        </div>
+        <div class="lvnote">${esc(t(lang, 'lvl.next', { n: cur + 1, cost: next }))}</div>
       </div>
       <button class="btn sm lvup" id="pf-levelup" ${ready ? '' : 'disabled'}
         data-cost="${next}">${esc(t(lang, 'lvl.up', { cost: next }))}</button>`

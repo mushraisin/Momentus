@@ -199,6 +199,7 @@ const DICT = {
     'top.title': 'Рейтинг',
     'top.member': 'Учасник',
     'top.score': 'Рейтинг',
+    'top.days': 'на сервері',
     'top.empty': 'Даних ще немає.',
 
     // ── галерея ──
@@ -500,6 +501,7 @@ const DICT = {
     'top.title': 'Leaderboard',
     'top.member': 'Member',
     'top.score': 'Rating',
+    'top.days': 'on server',
     'top.empty': 'No data yet.',
 
     'gal.title': 'Gallery',

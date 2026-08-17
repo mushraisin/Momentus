@@ -1779,11 +1779,34 @@ async function topRows(guild, limit) {
   ]);
   const levelOf = new Map(levels.map((l) => [l.user_id, Math.max(1, Number(l.level) || 1)]));
 
+  const now = Date.now();
+
   return rows.map((r) => {
     const m = guild.members.cache.get(r.user_id);
     const p = prefs.get(r.user_id) ?? {};
-    const frameId = p.layout?.frame ?? null;
-    const frame = frameId ? cosmeticsService.item(frameId) : null;
+
+    const frame = p.layout?.frame ? cosmeticsService.item(p.layout.frame) : null;
+    const card = p.layout?.card ? cosmeticsService.item(p.layout.card) : null;
+
+    // Фон картки: свій банер, а якщо його немає — обраний фон сторінки.
+    // Так навіть без банера картка лишається його, а не однаковою для всіх.
+    const bannerRef = String(p.banner ?? '');
+    const banner = bannerRef.startsWith('asset:') ? `/asset/${bannerRef.slice(6)}` : null;
+
+    let bgCss = null;
+    if (!banner && p.background) {
+      const bg = String(p.background).startsWith('asset:')
+        ? { type: 'image', url: `/asset/${String(p.background).slice(6)}` }
+        : cosmeticsService.item(p.background)?.value ?? null;
+      if (bg?.type === 'image' && bg.url) bgCss = `url(${bg.url}) center/cover no-repeat`;
+      else if (bg?.type === 'solid') bgCss = bg.color;
+      else if (bg?.type === 'gradient' || bg?.type === 'motion') {
+        bgCss = `linear-gradient(${bg.angle ?? 160}deg,${bg.from},${bg.to})`;
+      }
+    }
+
+    const since = Number(r.joined_at || r.first_seen_at || 0);
+    const days = since ? Math.max(0, Math.floor((now - since) / 86400_000)) : 0;
 
     return {
       user_id: r.user_id,
@@ -1791,12 +1814,16 @@ async function topRows(guild, limit) {
       avatar: m?.user?.avatar ?? null,
       ai_score: r.ai_score,
       level: levelOf.get(r.user_id) ?? 1,
-      // оформлення: банер, акцент і колір рамки аватара
-      banner: String(p.banner ?? '').startsWith('asset:')
-        ? `/asset/${String(p.banner).slice(6)}`
-        : null,
+      // статистика просто на картці — заради неї й заходять у рейтинг
+      messages: Number(r.total_messages) || 0,
+      voice: Number(r.voice_minutes) || 0,
+      days,
+      // оформлення: банер або фон, акцент, рамка й стиль вікон
+      banner,
+      bgCss,
       accent: p.accent ?? null,
       frame: frame?.value?.color ?? null,
+      card: card?.value ?? null,
       about: String(p.about ?? '').slice(0, 120),
     };
   });

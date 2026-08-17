@@ -1470,6 +1470,24 @@ ok('персоналізація діє на весь сайт; каталог �
   assert.ok(!/<table>[\s\S]*<th>/.test(top.body), 'таблиці більше немає');
   assert.match(top.body, /--f:/, 'колір рамки учасника доїжджає в картку');
 
+  // статистика просто на картці — заради неї в рейтинг і заходять
+  assert.ok(top.body.includes('class="tp-stats"'), 'блок статистики є');
+  assert.equal((top.body.match(/class="tp-stat"/g) ?? []).length % 3, 0,
+    'на кожній картці три показники');
+  for (const label of ['повідомлень', 'у голосових', 'на сервері']) {
+    assert.ok(top.body.includes(label), `показано «${label}»`);
+  }
+
+  // Оформлення на картці — власника, а не того, хто дивиться: людина без
+  // свого стилю має лишатись нейтральною, інакше рейтинг показував би чуже.
+  assert.match(top.body, /\.tp\{[^}]*border-radius:var\(--tp-r,18px\)/,
+    'відкат стилю картки нейтральний');
+  assert.ok(!/\.tp\{[^}]*var\(--tp-r,var\(--radius\)\)/.test(top.body),
+    'картка не переймає стиль глядача');
+
+  // підказка про плюшку 10-го рівня зі смуги прибрана
+  assert.ok(!meLvl.body.includes('на 10-му:'), 'опису плюшки в смузі рівня немає');
+
   // ── ілюстрації: gif і відео, вітрина на все полотно ──
   const vid = await assetsRepo.add(G, U, {
     kind: 'art', mime: 'video/mp4', sizeBytes: 10, objectKey: 'ch/v',
