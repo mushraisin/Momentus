@@ -42,11 +42,31 @@ const card = (id, name, value) => ({ id, name, kind: 'card', value });
  */
 export const CATEGORIES = [
   { id: 'bg', name: 'Фони', hint: 'Тло сторінок: рівний колір, градієнт або живий перелив' },
+  { id: 'banner', name: 'Банери', hint: 'Смуга вгорі картки профілю' },
+  { id: 'art', name: 'Ілюстрації', hint: 'Картинки для вітрини у вашому профілі' },
   { id: 'accent', name: 'Акцентні кольори', hint: 'Колір кнопок, підсвітки й активних вкладок' },
   { id: 'frame', name: 'Рамки', hint: 'Кільце навколо аватара' },
   { id: 'card', name: 'Вікна', hint: 'Вигляд карток: щільні, контурні, мʼякі чи майже невидимі' },
-  { id: 'custom', name: 'Кастом', hint: 'Те, що виклали самі учасники — гроші йдуть автору' },
 ];
+
+/**
+ * Що саме бустер може залити й куди це лягає в магазині.
+ *
+ * Раніше всі роботи учасників звалювались в окрему категорію «Кастом»,
+ * тож фон від учасника лежав не поряд з іншими фонами, а десь унизу
+ * сторінки. Тепер робота потрапляє в той самий розділ, що й каталожні
+ * речі того ж призначення.
+ */
+export const UPLOAD_KINDS = [
+  { kind: 'background', category: 'bg', name: 'Фон', slot: 'background' },
+  { kind: 'banner', category: 'banner', name: 'Банер', slot: 'banner' },
+  { kind: 'art', category: 'art', name: 'Ілюстрація', slot: null },
+];
+
+/** Категорія магазину для залитої роботи. */
+export function categoryOfKind(kind) {
+  return UPLOAD_KINDS.find((k) => k.kind === kind)?.category ?? 'bg';
+}
 
 /**
  * Безкоштовний набір. Це єдине, що купується цілком: вісім спокійних
@@ -159,6 +179,8 @@ export const cosmeticsService = {
   },
 
   CATEGORIES,
+  UPLOAD_KINDS,
+  categoryOfKind,
   FREE_PACK,
 
   /** Ціна речі: спершу з конфігу гільдії, потім із коду. */
@@ -316,21 +338,28 @@ export const cosmeticsService = {
     return { ok: true };
   },
 
-  /** Вітрина «Кастом»: чужі роботи, які можна купити. */
+  /**
+   * Роботи учасників, які можна купити. Кожна лягає в розділ за своїм
+   * призначенням: фон — до фонів, банер — до банерів, ілюстрація — до
+   * ілюстрацій. Окремого звалища «Кастом» більше немає.
+   */
   async market(guildId, limit = 60) {
     const rows = await assetsRepo.market(guildId, limit).catch(() => []);
-    return rows.map((a) => ({
-      id: `asset:${a.id}`,
-      assetId: a.id,
-      name: a.title || (a.kind === 'banner' ? 'Банер' : 'Фон'),
-      kind: a.kind === 'banner' ? 'banner' : 'background',
-      category: 'custom',
-      price: Number(a.price ?? 0),
-      booster: false,
-      author: a.user_id,
-      sales: Number(a.sales ?? 0),
-      value: { type: 'image', url: `/asset/${a.id}` },
-    }));
+    return rows.map((a) => {
+      const spec = UPLOAD_KINDS.find((k) => k.kind === a.kind) ?? UPLOAD_KINDS[0];
+      return {
+        id: `asset:${a.id}`,
+        assetId: a.id,
+        name: a.title || spec.name,
+        kind: spec.kind,
+        category: spec.category,
+        price: Number(a.price ?? 0),
+        booster: false,
+        author: a.user_id,
+        sales: Number(a.sales ?? 0),
+        value: { type: 'image', url: `/asset/${a.id}` },
+      };
+    });
   },
 
   /**

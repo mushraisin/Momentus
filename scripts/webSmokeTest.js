@@ -953,14 +953,16 @@ ok('профіль: загальне число й графік динаміки
   assert.equal(shop.status, 200, 'сторінка магазину відкривається');
   assert.ok(shop.body.includes('sh-balance'), 'баланс FP на видноті');
 
-  // категорії списком ліворуч: пʼять справжніх розділів плюс два службові
-  // зрізи — «Усе» та «Моє». Тепер це фільтр, а не якір: показується лише
-  // обраний розділ, тож магазин перестав бути одним довгим сувоєм.
+  // Категорії списком ліворуч: шість розділів за призначенням плюс два
+  // службові зрізи — «Усе» та «Моє». Окремого звалища «Кастом» більше немає:
+  // робота учасника лягає в той самий розділ, що й каталожні речі того ж
+  // призначення. Це фільтр, а не якір — показується лише обраний розділ.
   assert.ok(shop.body.includes('class="sh-side"'), 'категорії окремим списком');
-  for (const cat of ['Фони', 'Акцентні кольори', 'Рамки', 'Вікна', 'Кастом']) {
+  for (const cat of ['Фони', 'Банери', 'Ілюстрації', 'Акцентні кольори', 'Рамки', 'Вікна']) {
     assert.ok(shop.body.includes(`>${cat}<`), `категорія «${cat}» показана`);
   }
-  assert.equal((shop.body.match(/class="sh-cat/g) ?? []).length, 7, 'пʼять розділів + «Усе» і «Моє»');
+  assert.ok(!shop.body.includes('>Кастом<'), 'окремого «Кастому» більше немає');
+  assert.equal((shop.body.match(/class="sh-cat/g) ?? []).length, 8, 'шість розділів + «Усе» і «Моє»');
   assert.ok(shop.body.includes('data-cat="all"'), 'зріз «Усе»');
   assert.ok(shop.body.includes('data-cat="mine"'), 'зріз «Моє»');
   assert.ok(!/<a class="sh-cat[^"]*" href="#/.test(shop.body), 'категорія більше не якір, а фільтр');
@@ -983,7 +985,9 @@ ok('профіль: загальне число й графік динаміки
   // бустерське видно всім, але замкнене й позначене
   assert.ok(shop.body.includes('sh-card locked'), 'бустерське замкнене');
   assert.ok(shop.body.includes('Лише бустерам'), 'зрозуміло, чому замкнено');
-  assert.ok(shop.body.includes('class="sh-badge"'), 'позначка «лише для бустерів» на картці');
+  // позначки стоять чипами в рядку з назвою, а не плитою поверх прев'ю
+  assert.ok(shop.body.includes('sh-chip boost'), 'позначка «лише для бустерів» на картці');
+  assert.ok(!shop.body.includes('sh-badge'), 'накладених плит більше немає');
 
   // анонім у магазин не заходить
   assert.equal((await req('/shop')).status, 302, 'без входу — на сторінку входу');
@@ -1166,8 +1170,10 @@ ok('профіль: опис усім, гардероб із передпере�
   assert.ok(shop.body.includes('data-cat="all"') && shop.body.includes('data-cat="mine"'),
     'зрізи «Усе» та «Моє»');
   assert.ok(shop.body.includes('id="sh-empty"'), 'є що показати, коли розділ порожній');
-  assert.ok(shop.body.includes('class="sh-prevbtn'), 'перегляд окремою кнопкою на картці');
-  assert.ok(shop.body.includes('sh-count'), 'видно, скільки зразків у наборі');
+  // перегляд — у ряду дій, поруч із покупкою, а не плитою під курсором
+  assert.ok(shop.body.includes('sh-prev'), 'перегляд окремою кнопкою на картці');
+  assert.ok(!shop.body.includes('sh-prevbtn'), 'кнопка більше не лежить поверх прев’ю');
+  assert.ok(shop.body.includes('sh-chip">У наборі'), 'видно, скільки зразків у наборі');
   // без бусту заливка замкнена; сам перехід «одразу на вкладку заливки»
   // перевіряємо нижче, на розмітці профілю
   assert.ok(shop.body.includes('🔒'), 'без бусту заливка замкнена');
@@ -1188,8 +1194,28 @@ ok('профіль: опис усім, гардероб із передпере�
   }
   assert.ok(!shop.body.includes("funds:'Не вистачає FP'"), 'вписаних у скрипт текстів більше немає');
 
-  // ── заливка: спершу видно, що публікуєш, і лише потім списання ──
-  const { profilePage } = await import('../src/web/render.js');
+  // ── заливка живе тільки в магазині ──
+  const { shopPage, profilePage } = await import('../src/web/render.js');
+  const { cosmeticsService } = await import('../src/services/cosmeticsService.js');
+  const upKinds = cosmeticsService.UPLOAD_KINDS;
+  const shopBoost = shopPage({
+    items: [], categories: cosmeticsService.CATEGORIES, market: [], mine: [],
+    owned: [], booster: true, kinds: upKinds, lang: 'uk',
+    uploads: { background: 2, banner: 3, art: 1 }, uploadLimit: 3,
+  });
+  assert.ok(shopBoost.includes('id="sh-upwin"'), 'вікно заливки в магазині');
+  assert.ok(shopBoost.includes('id="sh-upfile"'), 'вибір файлу');
+  assert.ok(shopBoost.includes('id="sh-upshot"'), 'передперегляд самої картинки');
+  assert.ok(shopBoost.includes('id="sh-upgo"'), 'публікацію треба підтвердити');
+  assert.ok(/id="sh-upgo"[^>]*disabled/.test(shopBoost), 'без файлу підтвердити не можна');
+  for (const k of ['background', 'banner', 'art']) {
+    assert.ok(shopBoost.includes(`data-kind="${k}"`), `можна залити «${k}»`);
+  }
+  assert.ok((shopBoost.match(/sh-upopen/g) ?? []).length >= 3,
+    'заливка є в заголовку кожного розділу, куди робота й лягає');
+  assert.ok(shopBoost.includes('2/3') && shopBoost.includes('1/3'), 'видно залишок лімітів');
+
+  // у профілі заливки більше немає — там лише вибір із залитого
   const kinds = [
     { id: 'b1', name: 'Фон', kind: 'background', value: { type: 'solid', color: '#111' } },
     { id: 'a1', name: 'Акцент', kind: 'accent', value: { color: '#43c47b' } },
@@ -1203,24 +1229,37 @@ ok('профіль: опис усім, гардероб із передпере�
       look: { scope: {}, layout: {}, showcase: [] },
       wardrobe: {
         packs: [{ id: 'p', name: 'Набір', items: kinds }],
-        canUpload: true, uploads: { background: 2, banner: 3 }, uploadLimit: 3,
-        showcaseMax: 6, assets: [], images: [],
+        canUpload: true, showcaseMax: 6, kinds: upKinds,
+        assets: [
+          { id: 1, kind: 'background', url: '/asset/1' },
+          { id: 2, kind: 'banner', url: '/asset/2' },
+          { id: 3, kind: 'art', url: '/asset/3' },
+        ],
+        bought: [], images: [],
       },
     },
   );
-  assert.ok(page.includes('id="pf-upfile"'), 'вибір файлу');
-  assert.ok(page.includes('id="pf-upwin"'), 'вікно підтвердження');
-  assert.ok(page.includes('id="pf-upshot"'), 'передперегляд самої картинки');
-  assert.ok(page.includes('id="pf-upgo"') && page.includes('id="pf-upcancel"'),
-    'публікацію можна підтвердити або скасувати');
-  assert.ok(!/data-slot="banner" hidden/.test(page), 'миттєвої заливки за вибором файлу немає');
-  assert.ok(page.includes('фонів 2') && page.includes('банерів 3'), 'видно залишок лімітів');
+  assert.ok(!page.includes('id="pf-upfile"'), 'у профілі файл більше не заливають');
+  assert.ok(!page.includes('id="pf-upwin"'), 'і вікна публікації там немає');
+  assert.ok(page.includes('/shop#upload'), 'звідти ведуть у магазин');
 
-  // речі згруповані за призначенням, а не за набором, у якому куплені
+  // свої картинки розкладені за призначенням
+  for (const g of ['Фон', 'Банер', 'Ілюстрація']) {
+    assert.ok(page.includes(`<span>${g}</span>`), `свої картинки: група «${g}»`);
+  }
+  assert.ok(page.includes('data-slot="background"') && page.includes('data-slot="banner"'),
+    'фон і банер вдягаються кліком');
+  assert.ok(page.includes('data-show="3"'), 'ілюстрація йде у вітрину');
+
+  // куплені речі згруповані за призначенням, а не за набором
   for (const g of ['Фони', 'Акценти', 'Рамки аватара', 'Стиль вікон']) {
     assert.ok(page.includes(`<span>${g}</span>`), `група «${g}»`);
   }
   assert.ok(!page.includes('<span>Набір</span>'), 'назва набору більше не заголовок');
+
+  // емодзі вкладок мають селектор подання — без нього браузер малює рамку
+  assert.ok(page.includes('🖼️') && page.includes('⚙️'), 'емодзі вкладок із U+FE0F');
+  assert.ok(!/[^️]🖼[^️]/.test(page) && !/[^️]⚙[^️]/.test(page), 'голих варіантів не лишилось');
 
   // ── hls.js їде з нашого сервера, а не з чужого CDN ──
   const cin = await req('/cinema', auth);

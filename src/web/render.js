@@ -1025,23 +1025,6 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-lookwin{display:flex;flex-direction:column}
 .pf-scroll{overflow:auto;min-height:230px;margin:0 -6px;padding:2px 6px 4px}
 
-/* ── Публікація своєї картинки: спершу видно, що саме публікуєш ──
-   Раніше вибір файлу одразу списував FP і заливав — відступити було нікуди. */
-.pf-updrop{margin-top:4px}
-.pf-upwin{margin-top:12px;padding:14px;border-radius:16px;
-  background:rgba(255,255,255,.04);border:1px solid var(--line);animation:pop .3s both}
-.pf-upwin[hidden]{display:none}
-.pf-uprow{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
-.pf-upshot{width:190px;height:112px;flex:none;border-radius:12px;border:1px solid var(--line);
-  background:#0a0d16 center/cover no-repeat;box-shadow:0 10px 26px rgba(0,0,0,.4)}
-.pf-upfields{flex:1;min-width:210px;display:flex;flex-direction:column;gap:8px}
-.pf-upfields input{padding:9px 12px;border-radius:10px;font:inherit;font-size:13px;width:100%;
-  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
-.pf-upfields input:focus{outline:0;border-color:rgba(107,124,255,.6)}
-.pf-upkind{display:flex;gap:8px}
-.pf-upfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;
-  margin-top:12px;flex-wrap:wrap}
-.pf-upfoot .hint{flex:1;min-width:180px}
 .pf-sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
 .pf-sw{position:relative;height:62px;border-radius:12px;border:1px solid var(--line);
   cursor:pointer;overflow:hidden;padding:0;color:#fff;font:inherit;
@@ -1064,14 +1047,6 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-sw.frame{background:#0a0d16}
 .pf-sw.frame::before{content:'';position:absolute;left:50%;top:42%;width:30px;height:30px;
   margin:-15px 0 0 -15px;border-radius:50%;border:2px solid var(--c);box-shadow:0 0 14px var(--c)}
-/* Форма публікації: назва, ціна й одразу видно, скільки коштує сама публікація */
-.pf-upform{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.pf-upform input{padding:9px 12px;border-radius:10px;font:inherit;font-size:13px;
-  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
-.pf-upform input:focus{outline:0;border-color:rgba(107,124,255,.6)}
-#pf-uptitle{flex:1;min-width:160px}
-.pf-upprice{display:flex;align-items:center;gap:8px}
-#pf-upprice{width:100px;text-align:right}
 .pf-up{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .pf-up .btn{cursor:pointer}
 .pf-up .btn.busy{opacity:.6;pointer-events:none}
@@ -1127,25 +1102,46 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-sec[hidden]{display:none}
 .sh-side .sh-cat{cursor:pointer;border:1px solid transparent;background:0;
   text-align:left;font:inherit;width:100%}
-/* «Уже ваше» окремою позначкою — видно ще до того, як дочитаєш кнопку */
-.sh-card.mine{border-color:rgba(67,196,123,.4)}
-.sh-own-tag{position:absolute;left:10px;top:10px;padding:3px 9px;border-radius:999px;
-  font-size:11px;color:#7fe0a4;background:rgba(67,196,123,.16);
-  border:1px solid rgba(67,196,123,.4);backdrop-filter:blur(4px)}
-/* скільки зразків усередині набору — одразу на картці */
-.sh-count{position:absolute;right:10px;top:10px;padding:3px 9px;border-radius:999px;
-  font-size:11px;color:var(--dim);background:rgba(8,11,18,.7);border:1px solid var(--line);
-  backdrop-filter:blur(4px)}
-.sh-card{position:relative}
-/* Прев'ю тепер окремою кнопкою на картці, а не прихованим кліком по зразках */
-.sh-prevbtn{position:absolute;left:50%;top:64px;transform:translate(-50%,6px);
-  padding:7px 14px;border-radius:999px;font-size:12px;cursor:pointer;
-  background:rgba(8,11,18,.82);border:1px solid var(--line);color:var(--text);
-  font-family:inherit;opacity:0;transition:.25s cubic-bezier(.22,.9,.3,1);backdrop-filter:blur(6px)}
-.sh-card:hover .sh-prevbtn,.sh-prevbtn:focus-visible{opacity:1;transform:translate(-50%,0)}
-.sh-prevbtn:hover{border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.2)}
-/* на дотикових екранах наведення немає — кнопка просто видима */
-@media(hover:none){.sh-prevbtn{opacity:1;transform:translate(-50%,0)}}
+/* ── Позначки картки ──
+   Раніше «Уже ваше» й «У наборі» лежали плитами поверх прев'ю: вони різались
+   об край картки, затуляли самі зразки й були чужі решті сайту. Тепер це
+   звичайні чипи в рядку з назвою — тим самим стилем, що й скрізь. */
+.sh-card.mine{border-color:rgba(67,196,123,.35)}
+.sh-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.sh-chip{padding:3px 9px;border-radius:999px;font-size:11px;line-height:1.5;
+  color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line);
+  white-space:nowrap}
+.sh-chip.good{color:#7fe0a4;background:rgba(67,196,123,.13);border-color:rgba(67,196,123,.34)}
+.sh-chip.boost{color:#d9b8ff;background:rgba(155,107,255,.13);border-color:rgba(155,107,255,.32)}
+/* дії в ряд: спершу подивитись, потім узяти */
+.sh-a{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sh-a .btn{flex:1;min-width:110px;justify-content:center;text-align:center}
+/* залишок заливок просто в кнопці, дрібним */
+.sh-left{margin-left:7px;font-size:11px;opacity:.75}
+
+/* ── Заливка своєї роботи (тільки в магазині) ── */
+.sh-upbox{width:min(560px,94vw)}
+.sh-upbody{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.sh-upkinds{display:flex;gap:8px;flex-wrap:wrap}
+.sh-upwhere{margin:-4px 0 0}
+.sh-updrop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  min-height:170px;padding:14px;border-radius:14px;cursor:pointer;
+  border:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.03);
+  transition:.25s cubic-bezier(.22,.9,.3,1)}
+.sh-updrop:hover{border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.07)}
+.sh-updrop.has{border-style:solid;border-color:rgba(107,124,255,.45)}
+.sh-upshot{display:none;width:100%;height:150px;border-radius:11px;
+  background:#0a0d16 center/contain no-repeat}
+.sh-updrop.has .sh-upshot{display:block}
+.sh-updrop.has .sh-uppick{font-size:12px;color:var(--dim)}
+.sh-uppick{font-size:14px;color:var(--dim)}
+.sh-upfields{display:flex;gap:10px;flex-wrap:wrap}
+.sh-upfields input{padding:10px 12px;border-radius:11px;font:inherit;font-size:13px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+.sh-upfields input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+#sh-uptitle{flex:1;min-width:180px}
+#sh-upprice{width:130px;text-align:right}
+.sh-upacts{display:flex;gap:8px;align-items:center}
 
 /* ── Стрічка варіантів у передперегляді ──
    Набір показував по одному зразку за клік із підказкою «клікайте ще» —
@@ -1171,10 +1167,6 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-h h2{margin:0 0 2px;font-size:19px;letter-spacing:-.01em}
 .sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(226px,1fr));gap:16px}
 
-/* позначка «лише для бустерів» — прямо на картці */
-.sh-badge{position:absolute;left:12px;top:12px;font-size:14px;line-height:1;
-  padding:4px 7px;border-radius:9px;background:rgba(155,107,255,.24);
-  border:1px solid rgba(155,107,255,.45)}
 .sh-by{font-size:12px;color:var(--dim);margin-top:4px}
 .sh-by b{color:var(--text);font-weight:600}
 .sh-prev i.im{background:center/cover no-repeat}
@@ -2972,6 +2964,27 @@ const SHOP_JS = `
   /* тексти відмов приходять зі сторінки — вони перекладені */
   var say=window.errText||function(c){return c};
 
+  /* Позначка «лише бустерам» тепер чип у рядку з назвою, а не плита поверх
+     прев'ю, тож ставимо й знімаємо її саме там. */
+  function setBoost(card,on){
+    if(!card)return;
+    var chips=card.querySelector('.sh-chips');
+    var chip=chips?chips.querySelector('.sh-chip.boost'):null;
+    if(on&&!chip){
+      if(!chips){
+        chips=document.createElement('div');chips.className='sh-chips';
+        var n=card.querySelector('.sh-n');
+        if(n&&n.parentNode)n.parentNode.insertBefore(chips,n.nextSibling);
+      }
+      chip=document.createElement('span');chip.className='sh-chip boost';
+      chip.textContent=(document.querySelector('.shop')||{dataset:{}}).dataset.boost||'💜';
+      chips.appendChild(chip);
+    }else if(!on&&chip){
+      chip.remove();
+      if(chips&&!chips.children.length)chips.remove();
+    }
+  }
+
   function post(url,payload){
     return fetch(url,{method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify(payload)}).then(function(r){return r.json()})
@@ -3015,6 +3028,91 @@ const SHOP_JS = `
   /* прийшли за посиланням на конкретний розділ — одразу показуємо його */
   var start=(location.hash||'').slice(1);
   if(start&&cats.some(function(c){return c.dataset.cat===start}))filter(start);
+
+  /* ── Заливка своєї роботи ──
+     Живе тільки тут: результат потрапляє саме в магазин, тож і заливати
+     логічно звідси. Спершу видно картинку, призначення й ціну — списання
+     відбувається лише після підтвердження. */
+  (function(){
+    var win=document.getElementById('sh-upwin');
+    if(!win)return;
+    var file=document.getElementById('sh-upfile'),drop=document.getElementById('sh-updrop'),
+        shot=document.getElementById('sh-upshot'),title=document.getElementById('sh-uptitle'),
+        price=document.getElementById('sh-upprice'),go=document.getElementById('sh-upgo'),
+        hint=document.getElementById('sh-uphint'),where=document.getElementById('sh-upwhere');
+    var chosen=null,kind='background',tpl=go.dataset.tpl||'{n}',explain=hint.textContent;
+
+    /* куди саме лягне робота — видно ще до заливки */
+    var CATS={};
+    [].slice.call(document.querySelectorAll('.sh-cat')).forEach(function(c){
+      CATS[c.dataset.cat]=(c.querySelector('.sh-cn')||{}).textContent||'';
+    });
+    var KIND2CAT={background:'bg',banner:'banner',art:'art'};
+
+    function cost(){return Math.max(1,Math.ceil(Math.max(1,Math.round(Number(price.value)||1))/2))}
+    function refresh(){
+      go.textContent=tpl.replace('{n}',cost());
+      go.disabled=!chosen;
+      var cat=(CATS[KIND2CAT[kind]]||'').trim();
+      where.textContent=cat?('→ '+cat):'';
+    }
+
+    function open(k){
+      kind=k||'background';
+      document.querySelectorAll('.sh-upkind').forEach(function(b){
+        b.classList.toggle('on',b.dataset.kind===kind);
+      });
+      win.hidden=false;document.body.style.overflow='hidden';
+      hint.textContent=explain;refresh();
+    }
+    function shut(){
+      win.hidden=true;document.body.style.overflow='';
+      chosen=null;file.value='';shot.style.backgroundImage='';
+      drop.classList.remove('has');go.classList.remove('busy');refresh();
+    }
+
+    document.addEventListener('click',function(e){
+      var opener=e.target.closest('.sh-upopen');
+      if(opener){open(opener.dataset.kind);return}
+      if(!win.hidden&&(e.target===win||e.target.closest('.sh-upx'))){shut();return}
+      var k=e.target.closest('.sh-upkind');
+      if(k){kind=k.dataset.kind;
+        document.querySelectorAll('.sh-upkind').forEach(function(b){b.classList.toggle('on',b===k)});
+        refresh();}
+    });
+    addEventListener('keydown',function(e){if(e.key==='Escape'&&!win.hidden)shut()});
+
+    file.addEventListener('change',function(){
+      var f=file.files&&file.files[0];
+      if(!f)return;
+      chosen=f;
+      var fr=new FileReader();
+      fr.onload=function(){shot.style.backgroundImage='url('+fr.result+')';drop.classList.add('has')};
+      fr.readAsDataURL(f);
+      if(!title.value)title.value=f.name.replace(/\\.[^.]+$/,'').slice(0,60);
+      refresh();
+    });
+    price.addEventListener('input',refresh);
+
+    go.addEventListener('click',function(){
+      if(!chosen)return;
+      go.classList.add('busy');go.disabled=true;
+      var fd=new FormData();
+      fd.append('slot',kind);fd.append('price',price.value||'1');
+      fd.append('title',title.value||'');fd.append('file',chosen);
+      fetch('/api/profile/asset',{method:'POST',body:fd})
+        .then(function(r){return r.json()}).then(function(j){
+          if(j.error){hint.textContent=say(j.error);go.classList.remove('busy');go.disabled=false;return}
+          /* робота вже в магазині — показуємо її в тому самому розділі */
+          location.reload();
+        }).catch(function(){
+          hint.textContent=say('net');go.classList.remove('busy');go.disabled=false;
+        });
+    });
+
+    /* з профілю приходять по «залити своє» — одразу відкриваємо вікно */
+    if((location.hash||'')==='#upload')open('background');
+  })();
 
   document.addEventListener('click',function(e){
     /* ── отримати набір: картка міняється на місці ── */
@@ -3077,11 +3175,7 @@ const SHOP_JS = `
         flag.classList.toggle('on',j.booster);
         var card=document.querySelector('.sh-card[data-id="'+flag.dataset.item+'"]');
         if(card){
-          var badge=card.querySelector('.sh-badge');
-          if(j.booster&&!badge){
-            var s=document.createElement('span');s.className='sh-badge';s.textContent='💜';
-            card.insertBefore(s,card.querySelector('.sh-b'));
-          }else if(!j.booster&&badge)badge.remove();
+          setBoost(card,j.booster);
         }
       });
       return;
@@ -3108,11 +3202,7 @@ const SHOP_JS = `
           if(p)p.textContent=it.price?it.price+' ✨FP':'безкоштовно';
           var b=card.querySelector('.sh-buy');
           if(b)b.textContent=it.price?it.price+' ✨':'Взяти';
-          var badge=card.querySelector('.sh-badge');
-          if(it.booster&&!badge){
-            var s=document.createElement('span');s.className='sh-badge';s.textContent='💜';
-            card.insertBefore(s,card.querySelector('.sh-b'));
-          }else if(!it.booster&&badge)badge.remove();
+          setBoost(card,it.booster);
         });
         save.classList.add('done');
         setTimeout(function(){save.classList.remove('done')},900);
@@ -3248,77 +3338,6 @@ const PROFILE_JS = `
     tabs.forEach(function(t){t.addEventListener('click',function(){go(t.dataset.tab)})});
     /* із магазину приходять по «залити своє» — одразу потрібна вкладка */
     if(location.hash==='#upload')go('images');
-  })();
-
-  /* ── Публікація своєї картинки ──
-     Спершу показуємо картинку, назву й ціну, і лише після натискання
-     «Опублікувати» щось списується. */
-  (function(){
-    var file=document.getElementById('pf-upfile'),win=document.getElementById('pf-upwin');
-    if(!file||!win)return;
-    var shot=document.getElementById('pf-upshot'),price=document.getElementById('pf-upprice'),
-        title=document.getElementById('pf-uptitle'),go=document.getElementById('pf-upgo'),
-        cancel=document.getElementById('pf-upcancel'),hint=document.getElementById('pf-uphint');
-    var chosen=null,slot='background',tpl=go.dataset.tpl||'{n} ✨FP',explain=hint.textContent;
-
-    function cost(){return Math.max(1,Math.ceil(Math.max(1,Math.round(Number(price.value)||1))/2))}
-    function refresh(){go.textContent=tpl.replace('{n}',cost())}
-
-    function reset(){
-      chosen=null;win.hidden=true;file.value='';shot.style.backgroundImage='';
-      hint.textContent=explain;go.classList.remove('busy');go.disabled=false;
-    }
-
-    file.addEventListener('change',function(){
-      var f=file.files&&file.files[0];
-      if(!f)return;
-      chosen=f;
-      /* показуємо саме той файл, який обрали, ще до будь-яких списань */
-      var fr=new FileReader();
-      fr.onload=function(){shot.style.backgroundImage='url('+fr.result+')'};
-      fr.readAsDataURL(f);
-      win.hidden=false;refresh();
-      if(!title.value)title.value=f.name.replace(/\\.[^.]+$/,'').slice(0,60);
-      title.focus();
-    });
-
-    price.addEventListener('input',refresh);
-    cancel.addEventListener('click',reset);
-
-    document.addEventListener('click',function(e){
-      var s=e.target.closest('.pf-upslot');
-      if(!s)return;
-      slot=s.dataset.slot;
-      document.querySelectorAll('.pf-upslot').forEach(function(b){b.classList.toggle('on',b===s)});
-    });
-
-    go.addEventListener('click',function(){
-      if(!chosen)return;
-      go.classList.add('busy');go.disabled=true;
-      var fd=new FormData();
-      fd.append('slot',slot);fd.append('price',price.value||'1');
-      fd.append('title',title.value||'');fd.append('file',chosen);
-      fetch('/api/profile/asset',{method:'POST',body:fd})
-        .then(function(r){return r.json()}).then(function(j){
-          if(j.error){
-            hint.textContent=(window.errText||function(c){return c})(j.error);
-            go.classList.remove('busy');go.disabled=false;
-            return;
-          }
-          var list=document.getElementById('pf-assets');
-          if(list){
-            var b=document.createElement('button');
-            b.className='pf-shot on';b.dataset.asset=j.id;b.dataset.slot=j.kind;
-            b.style.backgroundImage='url(/asset/'+j.id+')';
-            list.prepend(b);
-          }
-          reset();title.value='';
-          paint(j.look);
-        }).catch(function(){
-          hint.textContent=(window.errText||function(c){return c})('net');
-          go.classList.remove('busy');go.disabled=false;
-        });
-    });
   })();
 
   /* ── Опис ── */
@@ -4088,57 +4107,56 @@ export function profilePage(profile, {
     ? ['background', 'accent', 'frame', 'card'].map(kindGroup).join('')
     : `<div class="muted">${esc(t(lang, 'profile.noPacks'))}</div>`;
 
-  const imagesPanel = wardrobe?.canUpload
-    ? `<div class="pf-updrop">
-        <label class="btn ghost sm">
-          ${esc(t(lang, 'profile.upPick'))}
-          <input type="file" accept="image/*" id="pf-upfile" hidden>
-        </label>
-        <span class="hint" style="margin-left:10px">${esc(t(lang, 'profile.upLeft', {
-    bg: wardrobe.uploads?.background ?? wardrobe.uploadLimit,
-    ban: wardrobe.uploads?.banner ?? wardrobe.uploadLimit,
-    max: wardrobe.uploadLimit,
-  }))}</span>
-      </div>
+  // Свої картинки — розкладені за призначенням: фон, банер, ілюстрація.
+  // Раніше вони лежали однією купою, і зрозуміти, що з чого стане банером,
+  // а що піде у вітрину, було неможливо.
+  //
+  // Заливка сюди більше не входить: вона живе в магазині, бо саме туди
+  // робота й потрапляє. Тут лишається чистий вибір із уже залитого.
+  const allMine = [...(wardrobe?.assets ?? []), ...(wardrobe?.bought ?? [])];
+  const picked = look.layout?.showcase ?? [];
 
-      <!-- Спершу показуємо, ЩО саме публікуємо і скільки це коштує, і лише
-           після підтвердження списуємо FP. Раніше вибір файлу одразу
-           знімав гроші й заливав — передумати було вже нікуди. -->
-      <div class="pf-upwin" id="pf-upwin" hidden>
-        <div class="pf-uprow">
-          <span class="pf-upshot" id="pf-upshot"></span>
-          <div class="pf-upfields">
-            <div class="pf-upkind">
-              <button class="btn ghost sm pick-el pf-upslot on" data-slot="background">
-                ${esc(t(lang, 'profile.scope.background'))}</button>
-              <button class="btn ghost sm pick-el pf-upslot" data-slot="banner">
-                ${esc(t(lang, 'profile.banner'))}</button>
-            </div>
-            <input type="text" id="pf-uptitle" maxlength="60"
-              placeholder="${esc(t(lang, 'profile.upNamePh'))}">
-            <input type="number" id="pf-upprice" min="1" max="99999" value="20"
-              placeholder="${esc(t(lang, 'profile.upPricePh'))}"
-              aria-label="${esc(t(lang, 'shop.price'))}">
-          </div>
-        </div>
-        <div class="pf-upfoot">
-          <span class="hint" id="pf-uphint">${esc(t(lang, 'profile.upExplain'))}</span>
-          <span class="pf-up" style="margin:0">
-            <button class="btn ghost sm" id="pf-upcancel">${esc(t(lang, 'profile.upCancel'))}</button>
-            <button class="btn sm" id="pf-upgo" data-tpl="${esc(t(lang, 'profile.upConfirm', { n: '{n}' }))}"></button>
-          </span>
-        </div>
+  const imageGroup = (spec) => {
+    const list = allMine.filter((a) => a.kind === spec.kind);
+    const isArt = spec.slot === null;
+    if (!list.length) {
+      return `<div class="pf-group">
+        <div class="pf-gt"><span>${esc(spec.name)}</span></div>
+        <div class="hint">${esc(t(lang, 'profile.kindEmpty'))}</div>
+      </div>`;
+    }
+    return `<div class="pf-group">
+      <div class="pf-gt"><span>${esc(spec.name)}</span>
+        ${isArt ? `<span class="hint" style="text-transform:none;letter-spacing:0">${
+    esc(t(lang, 'profile.artHint', { max: wardrobe?.showcaseMax ?? 6 }))}</span>` : ''}
       </div>
+      <div class="pf-shots"${isArt ? ' id="pf-showpick"' : ''}>
+        ${list.map((a) => {
+    // фон і банер вдягаються, ілюстрація — потрапляє у вітрину
+    const on = isArt
+      ? picked.includes(a.id)
+      : (look.background?.id === `asset:${a.id}` || look.banner === `asset:${a.id}`);
+    const attrs = isArt
+      ? `data-show="${a.id}"`
+      : `data-asset="${a.id}" data-slot="${esc(spec.slot)}"`;
+    return `<button class="pf-shot${on ? ' on' : ''}" ${attrs}
+          style="background-image:url(${esc(a.url)})"></button>`;
+  }).join('')}
+      </div>
+    </div>`;
+  };
 
-      <div class="pf-group">
-        <div class="pf-gt"><span>${esc(t(lang, 'profile.ownImages'))}</span></div>
-        <div class="pf-shots" id="pf-assets">
-          ${(wardrobe.assets ?? []).map((a) => `<button class="pf-shot${look.background?.id === `asset:${a.id}` || look.banner === `asset:${a.id}` ? ' on' : ''}"
-            data-asset="${a.id}" data-slot="${esc(a.kind)}"
-            style="background-image:url(${esc(a.url)})"></button>`).join('')}
-        </div>
-      </div>`
-    : `<div class="hint">🔒 ${esc(t(lang, 'profile.ownLocked'))}</div>`;
+  const KINDS = wardrobe?.kinds ?? [];
+  const imagesPanel = `
+    <div class="hint" style="margin-bottom:4px">${esc(t(lang, 'profile.imagesHint'))}</div>
+    ${allMine.length
+    ? KINDS.map(imageGroup).join('')
+    : `<div class="muted">${esc(t(lang, 'profile.noImages'))}</div>`}
+    <div class="pf-up" style="margin-top:14px">
+      ${wardrobe?.canUpload
+    ? `<a class="btn sm" href="/shop#upload">＋ ${esc(t(lang, 'shop.upload'))}</a>`
+    : `<span class="hint">🔒 ${esc(t(lang, 'profile.ownLocked'))}</span>`}
+    </div>`;
 
   const pagePanel = `
     <div class="pf-group">
@@ -4155,16 +4173,7 @@ export function profilePage(profile, {
 
     <div class="pf-group">
       <div class="pf-gt"><span>${esc(t(lang, 'profile.showcase'))}</span></div>
-      <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.showcaseHint', {
-    max: wardrobe?.showcaseMax ?? 6,
-  }))}</div>
-      ${wardrobe?.images?.length
-    ? `<div class="pf-shots" id="pf-showpick">
-          ${wardrobe.images.map((a) => `<button class="pf-shot${
-      (look.layout?.showcase ?? []).includes(a.id) ? ' on' : ''}"
-            data-show="${a.id}" style="background-image:url(${esc(a.url)})"></button>`).join('')}
-        </div>`
-    : `<div class="hint">${esc(t(lang, 'profile.showcaseEmpty'))}</div>`}
+      <div class="hint">${esc(t(lang, 'profile.showcaseWhere'))}</div>
     </div>`;
 
   const settingsPanel = `
@@ -4190,11 +4199,14 @@ export function profilePage(profile, {
       </div>
     </div>`;
 
+  // Емодзі обовʼязково з селектором U+FE0F. Без нього 🖼 і ⚙ мають текстове
+  // подання за замовчуванням: браузер бере їх зі шрифту тексту й малює
+  // порожньою рамкою або блідим значком — саме це й було видно на вкладках.
   const TABS = [
     ['look', '🎨', t(lang, 'profile.tab.look'), ownedItems.length],
-    ['images', '🖼', t(lang, 'profile.tab.images'), wardrobe?.assets?.length ?? 0],
+    ['images', '🖼️', t(lang, 'profile.tab.images'), allMine.length],
     ['page', '🧩', t(lang, 'profile.tab.page'), null],
-    ['settings', '⚙', t(lang, 'profile.tab.settings'), null],
+    ['settings', '⚙️', t(lang, 'profile.tab.settings'), null],
   ];
 
   const wardrobeBox = mine && wardrobe
@@ -4609,7 +4621,7 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
       <div class="room-r">
         ${channel ? `<div class="vc"><span class="dotlive"></span>${esc(channel.name)}</div>` : ''}
         <button class="btn icon" id="cin-settings"
-          title="${esc(t(lang, 'cin.settings'))}" aria-label="${esc(t(lang, 'cin.settings'))}">⚙</button>
+          title="${esc(t(lang, 'cin.settings'))}" aria-label="${esc(t(lang, 'cin.settings'))}">⚙️</button>
       </div>
     </div>
 
@@ -4846,7 +4858,7 @@ export function dropdown(id, options, label = '') {
  */
 export function shopPage({
   items = [], categories = [], market = [], authors = {}, mine = [],
-  owned = [], booster = false, admin = false,
+  owned = [], booster = false, admin = false, kinds = [],
   balance = 0, lang = 'uk', uploads = {}, uploadLimit = 3,
 }) {
   const has = new Set(owned);
@@ -4872,7 +4884,9 @@ export function shopPage({
   const card = (entry, i) => {
     const owns = has.has(entry.id);
     const locked = entry.booster && !booster;
-    const isMarket = entry.category === 'custom';
+    // Робота учасника впізнається за автором, а не за категорією: тепер вона
+    // лежить у звичайному розділі поряд із каталожними речами.
+    const isMarket = !!entry.author;
 
     const action = locked
       ? `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`
@@ -4893,37 +4907,50 @@ export function shopPage({
 
     const count = entry.pack ? (entry.items?.length ?? 0) : 0;
 
+    // Позначки стоять у рядку з назвою, а не плитою поверх прев'ю: накладені
+    // плашки різались об край картки й затуляли самі зразки, заради яких
+    // сюди й дивляться. Перегляд теж переїхав у ряд дій — його стало видно
+    // одразу, а не лише під курсором.
+    const chips = [
+      owns ? `<span class="sh-chip good">✓ ${esc(t(lang, 'shop.owned'))}</span>` : '',
+      count > 1 ? `<span class="sh-chip">${esc(t(lang, 'shop.variants', { n: count }))}</span>` : '',
+      entry.booster ? `<span class="sh-chip boost" title="${esc(t(lang, 'shop.boosterOnly'))}">💜 ${esc(t(lang, 'shop.boosterOnly'))}</span>` : '',
+    ].filter(Boolean).join('');
+
     return `<article class="sh-card${locked ? ' locked' : ''}${owns ? ' mine' : ''}"
         data-id="${esc(entry.id)}" data-items="${payload}"
         style="animation-delay:${Math.min(i * 0.04, 0.35)}s">
       ${preview(entry)}
-      ${owns ? `<span class="sh-own-tag">✓ ${esc(t(lang, 'shop.owned'))}</span>` : ''}
-      ${count > 1 ? `<span class="sh-count">${esc(t(lang, 'shop.variants', { n: count }))}</span>` : ''}
-      <button class="sh-prevbtn sh-prev" type="button">👁 ${esc(t(lang, 'shop.preview'))}</button>
-      ${entry.booster ? `<span class="sh-badge" title="${esc(t(lang, 'shop.boosterOnly'))}">💜</span>` : ''}
       <div class="sh-b">
         <div>
           <div class="sh-n">${esc(entry.name)}</div>
+          ${chips ? `<div class="sh-chips">${chips}</div>` : ''}
           ${entry.hint ? `<div class="hint">${esc(entry.hint)}</div>` : ''}
           ${by}
         </div>
         <div class="sh-p">${entry.price ? `${entry.price} ✨FP` : esc(t(lang, 'shop.free'))}</div>
       </div>
-      <div class="sh-a">${action}</div>
+      <div class="sh-a">
+        <button class="btn ghost sm sh-prev" type="button">${esc(t(lang, 'shop.preview'))}</button>
+        ${action}
+      </div>
     </article>`;
   };
 
-  // Розділи: категорія → її речі. «Кастом» наповнюють самі учасники.
+  // Розділи: категорія → каталог і роботи учасників разом. Раніше все залите
+  // людьми звалювалось в окремий «Кастом», тож фон від учасника лежав не поряд
+  // з іншими фонами, а десь унизу сторінки.
   const sections = categories.map((c) => {
-    const list = c.id === 'custom' ? market : items.filter((i) => i.category === c.id);
-    const own = c.id === 'custom' && mine.length
+    const spec = kinds.find((k) => k.category === c.id) ?? null;
+    const list = [...items.filter((i) => i.category === c.id), ...market.filter((m) => m.category === c.id)];
+
+    // Свої роботи саме цього призначення — тут-таки, з ціною й перемикачем вітрини.
+    const ownList = spec ? mine.filter((a) => a.kind === spec.kind) : [];
+    const own = ownList.length
       ? `<div class="sh-own">
           <div class="sh-gt">${esc(t(lang, 'shop.yourWorks'))}</div>
-          <div class="hint" style="margin-bottom:10px">${esc(t(lang, 'shop.uploadsLeft', {
-        bg: uploads.background ?? uploadLimit, ban: uploads.banner ?? uploadLimit, max: uploadLimit,
-      }))}</div>
           <div class="sh-mine">
-            ${mine.map((a) => `<div class="sh-my${a.listed ? ' listed' : ''}" data-asset="${a.id}">
+            ${ownList.map((a) => `<div class="sh-my${a.listed ? ' listed' : ''}" data-asset="${a.id}">
               <span class="sh-myimg" style="background-image:url(${esc(a.url)})"></span>
               <input class="sh-mytitle" type="text" maxlength="60" value="${esc(a.title)}"
                 placeholder="${esc(t(lang, 'shop.workTitle'))}">
@@ -4935,10 +4962,13 @@ export function shopPage({
         </div>`
       : '';
 
-    // ведемо одразу на вкладку заливки, а не просто у вікно оформлення
-    const upload = c.id === 'custom'
+    // Заливка стоїть у заголовку саме того розділу, куди робота й потрапить.
+    const upload = spec
       ? (booster
-        ? `<a class="btn sm" href="/me#upload">${esc(t(lang, 'shop.upload'))}</a>`
+        ? `<button class="btn sm sh-upopen" data-kind="${esc(spec.kind)}" type="button">
+            ＋ ${esc(t(lang, 'shop.upload'))}
+            <span class="sh-left">${uploads[spec.kind] ?? uploadLimit}/${uploadLimit}</span>
+          </button>`
         : `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`)
       : '';
 
@@ -4967,7 +4997,8 @@ export function shopPage({
     </button>
     ${categories.map((c) => `<button class="sh-cat" data-cat="${esc(c.id)}" type="button">
       <span class="sh-cn">${esc(c.name)}</span>
-      <span class="sh-cc">${c.id === 'custom' ? market.length : items.filter((x) => x.category === c.id).length}</span>
+      <span class="sh-cc">${items.filter((x) => x.category === c.id).length
+    + market.filter((x) => x.category === c.id).length}</span>
     </button>`).join('')}
     <button class="sh-cat" data-cat="mine" type="button">
       <span class="sh-cn">✓ ${esc(t(lang, 'shop.mineOnly'))}</span>
@@ -4994,6 +5025,54 @@ export function shopPage({
     </div>`;
   };
 
+  /**
+   * Заливка своєї роботи. Живе тільки тут: раніше вона була захована у вікні
+   * оформлення профілю, хоча її результат потрапляє саме в магазин — тож
+   * доводилось ходити туди-сюди й вгадувати, куди воно дінеться.
+   *
+   * Спершу видно саму картинку, її призначення й ціну, і лише після
+   * підтвердження щось списується.
+   */
+  const uploadWin = booster
+    ? `<div class="pv-back" id="sh-upwin" hidden><div class="pv sh-upbox">
+        <div class="pv-h"><b>${esc(t(lang, 'shop.upload'))}</b>
+          <button class="gate-x sh-upx" aria-label="×">×</button></div>
+
+        <div class="sh-upbody">
+          <div class="sh-upkinds">
+            ${kinds.map((k, i) => `<button class="btn ghost sm pick-el sh-upkind${i === 0 ? ' on' : ''}"
+              data-kind="${esc(k.kind)}" type="button">${esc(k.name)}
+              <span class="sh-left">${uploads[k.kind] ?? uploadLimit}/${uploadLimit}</span>
+            </button>`).join('')}
+          </div>
+          <div class="hint sh-upwhere" id="sh-upwhere"></div>
+
+          <label class="sh-updrop" id="sh-updrop">
+            <span class="sh-upshot" id="sh-upshot"></span>
+            <span class="sh-uppick">${esc(t(lang, 'profile.upPick'))}</span>
+            <input type="file" accept="image/*" id="sh-upfile" hidden>
+          </label>
+
+          <div class="sh-upfields">
+            <input type="text" id="sh-uptitle" maxlength="60"
+              placeholder="${esc(t(lang, 'profile.upNamePh'))}">
+            <input type="number" id="sh-upprice" min="1" max="99999" value="20"
+              placeholder="${esc(t(lang, 'profile.upPricePh'))}"
+              aria-label="${esc(t(lang, 'shop.price'))}">
+          </div>
+        </div>
+
+        <div class="pv-f">
+          <span class="hint" id="sh-uphint">${esc(t(lang, 'profile.upExplain'))}</span>
+          <span class="sh-upacts">
+            <button class="btn ghost sm sh-upx" type="button">${esc(t(lang, 'profile.upCancel'))}</button>
+            <button class="btn sm" id="sh-upgo" type="button" disabled
+              data-tpl="${esc(t(lang, 'profile.upConfirm', { n: '{n}' }))}"></button>
+          </span>
+        </div>
+      </div></div>`
+    : '';
+
   const priceWin = admin
     ? `<div class="pv-back" id="sh-prices" hidden><div class="pv sh-pricewin">
         <div class="pv-h"><b>${esc(t(lang, 'shop.prices'))}</b>
@@ -5015,14 +5094,14 @@ export function shopPage({
       </div></div>`
     : '';
 
-  return `<div class="shop">
+  return `<div class="shop" data-boost="💜 ${esc(t(lang, 'shop.boosterOnly'))}">
     <div class="card pane sh-wallet rise">
       <div class="sh-bal">
         <span class="sh-coin">✨</span>
         <b id="sh-balance">${fmt(balance)}</b>
         <span>FP</span>
       </div>
-      ${admin ? `<button class="btn ghost sm sh-openprices" id="sh-openprices">⚙ ${esc(t(lang, 'shop.prices'))}</button>` : ''}
+      ${admin ? `<button class="btn ghost sm sh-openprices" id="sh-openprices">⚙️ ${esc(t(lang, 'shop.prices'))}</button>` : ''}
     </div>
     <div class="sh-layout">
       ${side}
@@ -5032,6 +5111,7 @@ export function shopPage({
       </div>
     </div>
     <div class="err" id="sh-err" hidden></div>
+    ${uploadWin}
     ${priceWin}
   </div>`;
 }

@@ -714,9 +714,12 @@ async function renderShop(res, guild, session, lang, path) {
     admin: isAdmin(guild, session),
     balance: wallet.balance,
     uploadLimit: cosmeticsService.UPLOAD_LIMIT,
+    // Заливка тепер живе саме тут, тож магазину потрібні всі три ліміти.
+    kinds: cosmeticsService.UPLOAD_KINDS,
     uploads: {
       background: await cosmeticsService.uploadsLeft(guild.id, session.user_id, 'background'),
       banner: await cosmeticsService.uploadsLeft(guild.id, session.user_id, 'banner'),
+      art: await cosmeticsService.uploadsLeft(guild.id, session.user_id, 'art'),
     },
     // свої роботи — щоб можна було виставити їх на вітрину прямо тут
     mine: (await assetsRepo.list(guild.id, session.user_id, null, 24)).map((a) => ({
@@ -900,7 +903,12 @@ async function assetUpload(req, res, guild, session) {
   if (!file) return json(res, 400, { error: 'no file' });
   if (kindOf(file.mime) !== 'image') return json(res, 400, { error: 'image only' });
 
-  const kind = String(form.fields?.slot) === 'banner' ? 'banner' : 'background';
+  // Фон, банер або ілюстрація для вітрини. Ілюстрація нікуди не «вдягається» —
+  // вона просто стає доступною для вітрини профілю.
+  const asked = String(form.fields?.slot ?? '');
+  const spec = cosmeticsService.UPLOAD_KINDS.find((k) => k.kind === asked)
+    ?? cosmeticsService.UPLOAD_KINDS[0];
+  const kind = spec.kind;
   // Автор одразу каже, за скільки продаватиме роботу; за публікацію
   // платить половину від цієї суми.
   const askPrice = Math.max(1, Math.round(Number(form.fields?.price) || 1));
@@ -932,7 +940,11 @@ async function assetUpload(req, res, guild, session) {
   });
   // Залите одразу стає активним — людина платила саме за те, щоб це побачити,
   // і одразу ж потрапляє на вітрину за призначеною ціною.
-  await cosmeticsService.setOwnImage(guild.id, session.user_id, { slot: kind, asset: id });
+  // Ілюстрація не «вдягається»: для неї місця в оформленні немає, вона просто
+  // стає доступною для вітрини профілю.
+  if (spec.slot) {
+    await cosmeticsService.setOwnImage(guild.id, session.user_id, { slot: spec.slot, asset: id });
+  }
   await assetsRepo.setListing(guild.id, session.user_id, id, {
     listed: true, price: paid.listPrice, title: title || null,
   });
@@ -1643,19 +1655,19 @@ async function renderProfile(res, guild, session, lang, path, userId) {
 
     wardrobe = {
       packs,
+      // Заливка живе тільки в магазині — тут лишається сам вибір із залитого,
+      // тож ліміти й ціни профілю більше не потрібні.
       canUpload: cosmeticsService.canUpload(guild.id, member),
-      // Скільки заливок ще лишилось — раніше це число знав лише магазин,
-      // хоча заливка живе саме тут.
-      uploads: {
-        background: await cosmeticsService.uploadsLeft(guild.id, userId, 'background'),
-        banner: await cosmeticsService.uploadsLeft(guild.id, userId, 'banner'),
-      },
-      // ціну публікації рахує сама сторінка від того, що вписав автор
-      uploadPrice: cosmeticsService.uploadPrice(1),
-      uploadLimit: cosmeticsService.UPLOAD_LIMIT,
       showcaseMax: cosmeticsService.SHOWCASE_MAX,
+      // Види заливки потрібні, щоб розкласти свої картинки по призначенню:
+      // фон окремо, банер окремо, ілюстрація окремо. Передаємо опис цілком —
+      // профіль і магазин мають бачити те саме, інакше поле, потрібне одному,
+      // тихо зникає в другого.
+      kinds: cosmeticsService.UPLOAD_KINDS,
       assets: assets.map((a) => ({ id: a.id, kind: a.kind, url: `/asset/${a.id}` })),
-      images: [...assets.map((a) => ({ id: a.id, url: `/asset/${a.id}` })), ...bought],
+      // куплені чужі роботи теж свої — і для вітрини, і для вибору
+      bought: bought.map((a) => ({ id: a.id, kind: a.kind, url: a.url })),
+      images: [...assets.map((a) => ({ id: a.id, kind: a.kind, url: `/asset/${a.id}` })), ...bought],
     };
   }
 
