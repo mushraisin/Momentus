@@ -76,9 +76,15 @@ a{color:inherit;text-decoration:none}
 .rise{animation:fadeUp .55s cubic-bezier(.22,.9,.3,1) both}
 
 /* ── Тло: дим + зірки ── */
-.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg0)}
-#fog{position:absolute;inset:-12%;width:124%;height:124%;filter:blur(34px);opacity:.62}
-#stars{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+/* ── Тло ──
+   Шари розставлені явно, і це важливо: затемнювальна накладка для власної
+   картинки раніше йшла після полотен у порядку документа, тож малювалась
+   ПОВЕРХ них — дим і зорі зникали, щойно людина ставила свій фон.
+   Тепер накладка сидить під ними й гасить лише саму картинку. */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg0);isolation:isolate}
+.bg::after{z-index:0}
+#fog{position:absolute;inset:-12%;width:124%;height:124%;filter:blur(34px);opacity:.62;z-index:1}
+#stars{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;z-index:2}
 
 /* ── Каркас ── */
 .wrap{max-width:1060px;margin:0 auto;padding:22px 18px 70px;position:relative}
@@ -1031,8 +1037,8 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   align-items:center;justify-content:center;background:#05070d}
 .pf-big-m{width:100%;height:100%;object-fit:cover;display:block;
   animation:fadeIn .4s both}
-.pf-bigcap{position:absolute;left:0;right:0;bottom:0;padding:26px 16px 12px;font-size:14px;
-  background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.78));pointer-events:none}
+/* Вітрина без заголовка й підпису — сама картинка й є вітриною. */
+.pf-showbare{padding:12px}
 .pf-bigopen{position:absolute;right:10px;top:10px;width:34px;height:34px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;font-size:15px;
   background:rgba(8,11,18,.7);border:1px solid var(--line);backdrop-filter:blur(6px);
@@ -1056,6 +1062,10 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .gmbar i{display:block;height:100%;border-radius:999px;
   background:linear-gradient(90deg,var(--accent-lo),var(--accent-up));
   animation:grow .7s cubic-bezier(.22,.9,.3,1) both;transform-origin:left}
+/* «зараз грає» — жива крапка, щоб було видно, що стеження працює */
+.gmrow.now .gmname{color:#fff}
+.gmdot{display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;
+  background:var(--good);box-shadow:0 0 8px var(--good);animation:beat 2s ease-in-out infinite}
 .gmh{flex:none;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:56px;
   text-align:right}
 @media(max-width:520px){.gmbar{flex-basis:22%}}
@@ -1105,7 +1115,20 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   box-shadow:0 0 0 4px var(--tp-bg,rgba(16,20,30,.9)),0 0 22px color-mix(in srgb,var(--f) 45%,transparent)}
 .tp-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:20px}
 .tp-id b{font-size:16px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tp-id i{font-style:normal;font-size:11px;color:var(--c);letter-spacing:.06em;text-transform:uppercase}
+.tp-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.tp-lvl{font-style:normal;font-size:11px;color:var(--c);letter-spacing:.06em;text-transform:uppercase}
+/* Найвища роль — у її ж кольорі, з крапкою, як у списку учасників Discord:
+   так її впізнають одразу, не читаючи. */
+.tp-role{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;
+  font-size:11px;line-height:1.6;color:var(--r);max-width:100%;
+  background:color-mix(in srgb,var(--r) 15%,transparent);
+  border:1px solid color-mix(in srgb,var(--r) 42%,transparent)}
+.tp-role i{width:7px;height:7px;flex:none;border-radius:50%;background:var(--r);
+  box-shadow:0 0 8px var(--r)}
+.tp-role{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* у профілі той самий чип, лише трохи більший */
+.pf-role{margin-top:6px;font-size:13px;padding:4px 12px}
+.pf-role i{width:8px;height:8px}
 .tp-id em{font-style:normal;font-size:12px;color:var(--dim);overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .tp-score{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;
@@ -1661,12 +1684,27 @@ const BG_JS = `
          обертається — тому спільного напрямку немає взагалі, дим просто
          клубочиться на місці. ox/oy — радіуси орбіти, w1/w2 — її частоти,
          rot — швидкість обертання (у сусідніх шарів різні знаки). */
+      /* Дим підхоплює обраний акцент: тло перестає жити окремо від
+         оформлення й починає з ним гармоніювати. Без вибору лишається
+         типовий синьо-фіолетовий. */
+      var acc=(getComputedStyle(document.documentElement)
+        .getPropertyValue('--accent-rgb')||'107,124,255').trim().split(',').map(Number);
+      if(acc.length!==3||acc.some(isNaN))acc=[107,124,255];
+      /* світліший і темніший родичі акценту — щоб шари не злилися в пляму */
+      var lift=function(v,d){return Math.max(0,Math.min(255,Math.round(v+d)))};
+      var tintA=acc.map(function(v){return lift(v,26)});
+      var tintB=[lift(acc[0],42),lift(acc[1],-12),lift(acc[2],20)];
+      var tintC=[lift(acc[0],-34),lift(acc[1],28),lift(acc[2],6)];
+
       layers=[
-        {t:tile(256,[128,146,242],(Math.random()*9999)|0,2.4),sc:2.6,a:.26,pa:.06,
+        /* дуже великий повільний шар — дає глибину, якої раніше бракувало */
+        {t:tile(256,tintA,(Math.random()*9999)|0,2.1),sc:4.2,a:.14,pa:.05,
+         ox:22,oy:16,w1:.021,w2:-.017,rot:.004,ph:R(0,6.3)},
+        {t:tile(256,tintA,(Math.random()*9999)|0,2.4),sc:2.6,a:.26,pa:.06,
          ox:30,oy:22,w1:.048,w2:.036,rot:.008,ph:R(0,6.3)},
-        {t:tile(256,[168,120,228],(Math.random()*9999)|0,2.8),sc:1.5,a:.16,pa:.045,
+        {t:tile(256,tintB,(Math.random()*9999)|0,2.8),sc:1.5,a:.17,pa:.045,
          ox:38,oy:29,w1:-.038,w2:.055,rot:-.012,ph:R(0,6.3)},
-        {t:tile(192,[ 96,164,220],(Math.random()*9999)|0,3.2),sc:0.85,a:.09,pa:.03,
+        {t:tile(192,tintC,(Math.random()*9999)|0,3.2),sc:0.85,a:.10,pa:.03,
          ox:46,oy:35,w1:.064,w2:-.045,rot:.016,ph:R(0,6.3)}
       ];
     }
@@ -1714,9 +1752,12 @@ const BG_JS = `
       /* Приглушене світло згори-зліва: дим під ним трохи яскравіший, і сцена
          перестає бути пласкою. Множимо лише те, що вже намальовано. */
       fx.globalCompositeOperation='source-atop';
-      var lg=fx.createRadialGradient(fw*.22,-fh*.1,0,fw*.22,-fh*.1,diag*.85);
-      lg.addColorStop(0,'rgba(150,170,255,.22)');
-      lg.addColorStop(.5,'rgba(120,110,210,.06)');
+      /* Джерело світла повільно ходить — раніше воно стояло намертво в
+         одному куті, і дим під ним здавався нерухомою плівкою. */
+      var lx=fw*(.22+Math.sin(s*.031)*.10),ly=-fh*.1+fh*Math.cos(s*.024)*.06;
+      var lg=fx.createRadialGradient(lx,ly,0,lx,ly,diag*.85);
+      lg.addColorStop(0,'rgba(150,170,255,.24)');
+      lg.addColorStop(.5,'rgba(120,110,210,.07)');
       lg.addColorStop(1,'rgba(0,0,0,0)');
       fx.fillStyle=lg;fx.fillRect(0,0,fw,fh);
 
@@ -3101,8 +3142,7 @@ const SHOWCASE_JS = `
 (function(){
   var stage=document.getElementById('pf-stage');
   if(!stage)return;
-  var big=stage.querySelector('.pf-big'),cap=stage.querySelector('.pf-bigcap'),
-      open=stage.querySelector('.pf-bigopen');
+  var big=stage.querySelector('.pf-big'),open=stage.querySelector('.pf-bigopen');
 
   document.addEventListener('click',function(e){
     var th=e.target.closest('.pf-th');
@@ -3113,12 +3153,6 @@ const SHOWCASE_JS = `
       ? '<video class="pf-big-m" src="'+url+'" autoplay muted loop playsinline></video>'
       : '<img class="pf-big-m" src="'+url+'" alt="">';
     if(open)open.href=url;
-    var title=th.dataset.title||'';
-    if(cap){cap.textContent=title;cap.hidden=!title}
-    else if(title){
-      cap=document.createElement('div');cap.className='pf-bigcap';cap.textContent=title;
-      stage.insertBefore(cap,open||null);
-    }
     /* смуга мініатюр — сусід сцени, а не її вміст, тож шукаємо від спільного
        батька: інакше позначка «обрано» лишалась би на першій назавжди */
     var strip=th.closest('.pf-strip');
@@ -3659,8 +3693,13 @@ const PROFILE_JS = `
     if(bg&&bg.type==='solid')css+='.bg{background:'+bg.color+'}';
     if(bg&&bg.type==='gradient')css+='.bg{background:linear-gradient('+(bg.angle||160)+'deg,'+bg.from+','+bg.to+')}';
     if(bg&&bg.type==='motion')css+='.bg{background:linear-gradient(120deg,'+bg.from+','+bg.to+','+bg.from+');background-size:300% 300%;animation:flow 18s ease-in-out infinite}';
-    if(bg&&bg.type==='image')css+='.bg{background:#05070d url('+bg.url+') center/cover no-repeat fixed}';
-    if(bg)css+='#fog{opacity:.34;mix-blend-mode:screen}#stars{opacity:.7}';
+    if(bg&&bg.type==='image'){
+      css+='.bg{background:#05070d url('+bg.url+') center/cover no-repeat fixed}';
+      /* накладка під полотнами, інакше вона гасить дим і зорі */
+      css+='.bg::after{content:"";position:absolute;inset:0;z-index:0;'
+        +'background:linear-gradient(180deg,rgba(4,6,12,.62),rgba(4,6,12,.48))}';
+    }
+    if(bg)css+='#fog{opacity:.5;mix-blend-mode:screen}#stars{opacity:.85;mix-blend-mode:screen}';
     if(look&&look.accent){
       var sh=function(hex,d){
         var n=parseInt(String(hex).replace('#',''),16);
@@ -3706,8 +3745,6 @@ const PROFILE_JS = `
         }
         var open=stage.querySelector('.pf-bigopen');
         if(open)open.href=first.url;
-        var cap=stage.querySelector('.pf-bigcap');
-        if(cap){cap.textContent=first.title||'';cap.hidden=!first.title}
 
         var strip=stage.parentNode.querySelector('.pf-strip');
         if(strip){
@@ -4256,10 +4293,14 @@ function skinCss(look, { page = null } = {}) {
   // тоді у CSS ішло url(null) і фон ставав просто зламаним правилом.
   if (bg?.type === 'image' && bg.url) {
     rules.push(`.bg{background:#05070d url(${bg.url}) center/cover no-repeat fixed}`);
-    // під власною картинкою текст мусить лишатися читабельним
-    rules.push('.bg::after{content:"";position:absolute;inset:0;background:rgba(4,6,12,.55)}');
+    // під власною картинкою текст мусить лишатися читабельним; накладка сидить
+    // під полотнами (z-index:0), тож гасить саму картинку, а не дим із зорями
+    rules.push('.bg::after{content:"";position:absolute;inset:0;z-index:0;'
+      + 'background:linear-gradient(180deg,rgba(4,6,12,.62),rgba(4,6,12,.48))}');
   }
-  if (bg) rules.push('#fog{opacity:.34;mix-blend-mode:screen}#stars{opacity:.7}');
+  // Дим і зорі лишаються завжди — вони й є обличчям сайту. Над власним фоном
+  // дим переходить у «screen»: світиться поверх кольору, а не забиває його.
+  if (bg) rules.push('#fog{opacity:.5;mix-blend-mode:screen}#stars{opacity:.85;mix-blend-mode:screen}');
 
   if (look.accent && show('accent')) {
     // Перевизначаємо самі токени — далі все оформлення підхоплює їх само,
@@ -4587,7 +4628,13 @@ export function leaderboardPage(rows, lang = 'uk') {
           alt="" loading="lazy">
         <span class="tp-id">
           <b>${esc(r.username ?? r.user_id)}</b>
-          <i>◆ ${Number(r.level) || 1} ${esc(t(lang, 'lvl.short'))}</i>
+          <span class="tp-meta">
+            ${r.roleName
+    ? `<span class="tp-role" style="--r:${esc(r.roleColor || accent)}">
+                <i></i>${esc(r.roleName)}</span>`
+    : ''}
+            <i class="tp-lvl">◆ ${Number(r.level) || 1} ${esc(t(lang, 'lvl.short'))}</i>
+          </span>
           ${top && r.about ? `<em>${esc(r.about)}</em>` : ''}
         </span>
         <span class="tp-score">
@@ -4659,12 +4706,12 @@ export function profilePage(profile, {
     ? `<video class="pf-big-m" src="${esc(s.url)}" autoplay muted loop playsinline></video>`
     : `<img class="pf-big-m" src="${esc(s.url)}" alt="" loading="lazy">`);
 
+  // Ні заголовка «Вітрина», ні підпису під ілюстрацією: сама картинка й є
+  // вітриною, а зайві написи з лінією лише розбивали її на дві частини.
   const showcase = (!hidden.showcase && shots.length)
-    ? `<div class="card pane rise pf-show">
-        <div class="pane-h">${esc(t(lang, 'profile.showcase'))}</div>
+    ? `<div class="card pane rise pf-show pf-showbare">
         <div class="pf-stage" id="pf-stage" data-i="0">
           <div class="pf-big">${bigOf(shots[0])}</div>
-          ${shots[0].title ? `<div class="pf-bigcap">${esc(shots[0].title)}</div>` : ''}
           <a class="pf-bigopen" href="${esc(shots[0].url)}" target="_blank" rel="noopener"
             aria-label="${esc(t(lang, 'profile.openFull'))}">⤢</a>
         </div>
@@ -4965,7 +5012,12 @@ export function profilePage(profile, {
               title="${esc(t(lang, 'profile.look'))}">🎨 ${esc(t(lang, 'profile.look'))}</button>`
     : ''}
         </div>
-        ${roleName ? `<div class="pill" style="color:${esc(accent)};border-color:${esc(accent)}66;background:${esc(accent)}22">${esc(roleName)}</div>` : ''}
+        <!-- Роль у ВЛАСНОМУ кольорі, а не в кольорі акценту: саме так її
+             видно в списку учасників Discord, і профіль має збігатися. -->
+        ${roleName
+    ? `<span class="tp-role pf-role" style="--r:${esc(roleColor || accent)}">
+        <i></i>${esc(roleName)}</span>`
+    : ''}
         <div class="muted" style="margin-top:5px">${esc(t(lang, 'profile.days', { days: profile.daysOnServer }))}${rank ? ` · #${rank}` : ''}</div>
       </div>
       <div class="score">
@@ -5005,8 +5057,9 @@ function gamesBox(games, lang = 'uk') {
   return `<div class="card pane rise gmbox">
     <div class="pane-h">${esc(t(lang, 'games.title'))}</div>
     <div class="gmlist">
-      ${games.map((g, i) => `<div class="gmrow" style="animation-delay:${(i * 0.05).toFixed(2)}s">
-        <span class="gmname">${esc(g.game)}</span>
+      ${games.map((g, i) => `<div class="gmrow${g.now ? ' now' : ''}"
+          style="animation-delay:${(i * 0.05).toFixed(2)}s">
+        <span class="gmname">${g.now ? '<i class="gmdot"></i>' : ''}${esc(g.game)}</span>
         <span class="gmbar"><i style="width:${Math.max(4, Math.round((g.minutes / max) * 100))}%"></i></span>
         <span class="gmh">${g.hours >= 1
     ? esc(t(lang, 'games.hours', { n: g.hours }))
@@ -5042,7 +5095,7 @@ function levelBar(level, { lang = 'uk', mine = false } = {}) {
       </div>
       <button class="btn sm lvup" id="pf-levelup" ${ready ? '' : 'disabled'}
         data-cost="${next}">${esc(t(lang, 'lvl.up', { cost: next }))}</button>`
-    : `<div class="lvgrow"><div class="lvnote">${esc(t(lang, 'lvl.theirs'))}</div></div>`}
+    : ''}
   </div>`;
 }
 

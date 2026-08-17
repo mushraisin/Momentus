@@ -22,10 +22,11 @@ export function hubPanel(guild) {
   return {
     embeds: [E.hubEmbed(guild)],
     components: [
+      // «Репутація» і «Перевірка» прибрані: розклад репутації тепер закритий
+      // для всіх, а поступ до наступної ролі видно просто в картці профілю —
+      // тож окремі кнопки лише дублювали б те, що й так під рукою.
       ...rows([
         button({ id: cid(NS.PROFILE, 'open'), label: 'Профіль', emoji: '👤', style: ButtonStyle.Primary }),
-        button({ id: cid(NS.REP, 'open'), label: 'Репутація', emoji: '📊' }),
-        button({ id: cid(NS.VERIFY, 'run'), label: 'Перевірка', emoji: '🎖️', style: ButtonStyle.Success }),
         button({ id: cid(NS.MOD, 'home'), label: 'Модерація', emoji: '🛡️', style: ButtonStyle.Danger }),
       ]),
       ...rows([
@@ -66,8 +67,6 @@ function nav(active) {
     });
   return rows([
     mk(NS.PROFILE, 'open', 'Профіль', '👤'),
-    mk(NS.REP, 'open', 'Репутація', '📊'),
-    mk(NS.VERIFY, 'run', 'Перевірка', '🎖️'),
     mk(NS.MOD, 'home', 'Модерація', '🛡️'),
     linkButton({ label: 'Сайт', url: SITE_URL(), emoji: '🌐' }),
   ]);
@@ -83,12 +82,27 @@ export async function profileView(guild, userId, user) {
   const username = member?.displayName ?? user?.displayName ?? user?.username ?? profile.username ?? '';
   const avatarUrl = (member ?? user)?.displayAvatarURL?.({ extension: 'png', size: 256 }) ?? null;
 
+  // банер і рівень — ті самі, що показує сайт, щоб картки збігалися
+  const { prefsRepo, walletRepo, assetsRepo } = await import('../database/repositories.js');
+  const prefs = await prefsRepo.get(guild.id, userId).catch(() => ({}));
+  const wallet = await walletRepo.get(guild.id, userId).catch(() => ({ level: 1 }));
+
+  let bannerUrl = null;
+  if (String(prefs.banner ?? '').startsWith('asset:')) {
+    const a = await assetsRepo.meta(Number(String(prefs.banner).slice(6))).catch(() => null);
+    // у боті беремо пряме посилання зі сховища — сайт для цього не потрібен
+    if (a?.guild_id === guild.id) bannerUrl = a.url ?? null;
+  }
+
   const card = await cards.profileCard(profile, {
     username,
     avatarUrl,
     roleName: role?.name,
     roleColor: role?.color,
     accent: memberAccent(member),
+    bannerUrl,
+    level: wallet.level ?? 1,
+    nextRole: nextRoleProgress(guild, member, profile),
   });
 
   return card
@@ -158,12 +172,52 @@ function roleDisplay(guild, tier) {
 }
 
 /** Найвища привʼязана роль рівня — для показу в профілі. */
+/**
+ * Найвища роль учасника — та сама, що фарбує його нік у списку Discord
+ * і показана на сайті. Беремо найвищу серед КОЛЬОРОВИХ: найвищі за позицією
+ * зазвичай службові й безбарвні.
+ */
+function topRole(member) {
+  const roles = [...(member?.roles?.cache?.values?.() ?? [])]
+    .filter((r) => r && r.name !== '@everyone')
+    .sort((a, b) => (b.position ?? 0) - (a.position ?? 0));
+  if (!roles.length) return null;
+  const role = roles.find((r) => r.color) ?? roles[0];
+  return { name: role.name, color: role.color ? role.hexColor : null };
+}
+
 async function currentRole(guild, member) {
   try {
     if (!member) return null;
     await ensureRoles(guild);
-    const tier = verificationService.tiers(guild.id).find((t) => t.roleId && member.roles.cache.has(t.roleId));
-    return tier ? roleDisplay(guild, tier) : null;
+    return topRole(member);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Поступ до наступної ролі. Показуємо саме частку виконаних вимог, а не самі
+ * оцінки: розклад репутації тепер закритий, тож людина бачить «скільки
+ * лишилось», але не бачить, з чого це складається.
+ */
+function nextRoleProgress(guild, member, profile) {
+  try {
+    const ev = verificationService.evaluate(
+      guild.id, profile, [...(member?.roles?.cache?.keys?.() ?? [])],
+    );
+    if (!ev.next) return null;
+    const checks = ev.next.checks ?? [];
+    if (!checks.length) return null;
+
+    const done = checks.filter((c) => c.ok).length;
+    return {
+      name: ev.next.tier.name,
+      color: ev.next.tier.color ?? null,
+      done,
+      total: checks.length,
+      percent: Math.round((done / checks.length) * 100),
+    };
   } catch {
     return null;
   }

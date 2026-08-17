@@ -50,6 +50,8 @@ const guild = {
   id: G,
   name: 'Тестова Спільнота',
   premiumTier: 0,
+  // потрібен панелям бота: вони кладуть іконку сервера у підвал ембеда
+  iconURL: () => null,
   members: { cache: new Map(), fetch: async () => null },
   roles: { cache: new Map() },
   channels: { cache: new Map([['vc-1', voiceChannel]]), fetch: async () => null },
@@ -1559,6 +1561,61 @@ ok('персоналізація діє на весь сайт; каталог �
   assert.ok(!meLvl.body.includes('gmbox'), 'вимкнене — блока ігор немає взагалі');
 }
 ok('рівні за FP, рейтинг картками, вітрина на все полотно, стиль у галереї й залі');
+
+// 27. тло, ролі, картка бота й вимоги до довіреної
+{
+  const me = await req('/me', auth);
+
+  // ── Дим і зорі не мають зникати під власним фоном ──
+  // Накладка для картинки раніше йшла після полотен у порядку документа,
+  // тож малювалась поверх них — фон «зʼїдав» усю атмосферу сайту.
+  assert.match(me.body, /#fog\{[^}]*z-index:1/, 'дим має свій шар');
+  assert.match(me.body, /#stars\{[^}]*z-index:2/, 'зорі поверх диму');
+  assert.match(me.body, /\.bg::after\{z-index:0\}/, 'накладка — під полотнами');
+  assert.ok(me.body.includes('--accent-rgb'), 'дим бере колір з акценту');
+  assert.match(me.body, /getPropertyValue\('--accent-rgb'\)/, 'і читає його на льоту');
+
+  // ── Найвища роль у своєму кольорі ──
+  assert.ok(me.body.includes('tp-role'), 'чип ролі є в профілі');
+  const top = await req('/top', auth);
+  assert.ok(top.body.includes('tp-role') || top.body.includes('tp-meta'),
+    'і на картках рейтингу');
+  assert.match(top.body, /\.tp-role\{[^}]*color:var\(--r\)/, 'роль у власному кольорі');
+
+  // ── Вітрина без заголовка й підпису ──
+  const { prefsRepo, assetsRepo } = await import('../src/database/repositories.js');
+  const art = await assetsRepo.add(G, U, {
+    kind: 'art', mime: 'image/png', sizeBytes: 1, objectKey: 'ch/art2',
+  });
+  await prefsRepo.save(G, U, { layout: { showcase: [art] } });
+  const shown = await req('/me', auth);
+  assert.ok(shown.body.includes('pf-showbare'), 'вітрина без зайвої обгортки');
+  assert.ok(!/pf-show[^b][^>]*>\s*<div class="pane-h">/.test(shown.body),
+    'заголовка «Вітрина» з лінією немає');
+  assert.ok(!shown.body.includes('pf-bigcap'), 'підпису під ілюстрацією немає');
+  await prefsRepo.save(G, U, { layout: {} });
+
+  // ── Бот: кнопки прибрані, маршрути закриті ──
+  const panels = await import('../src/ui/panels.js');
+  const hub = panels.hubPanel(guild);
+  const labels = hub.components.flatMap((row) => (row.components ?? []).map((c) => c.data?.label));
+  assert.ok(!labels.includes('Репутація'), 'кнопки «Репутація» більше немає');
+  assert.ok(!labels.includes('Перевірка'), 'кнопки «Перевірка» теж');
+  assert.ok(labels.includes('Профіль'), 'профіль лишився');
+
+  // ── Вимоги до довіреної ролі знижено ──
+  const { DEFAULT_TIERS } = await import('../src/config/roleTiers.js');
+  const trusted = DEFAULT_TIERS.find((t) => t.key === 'trusted');
+  assert.ok(trusted.req.minScore <= 500, `рейтинг знижено (${trusted.req.minScore})`);
+  assert.ok(trusted.req.minMessages <= 150, `повідомлень знижено (${trusted.req.minMessages})`);
+  assert.ok(trusted.req.minDays <= 14, `днів знижено (${trusted.req.minDays})`);
+  assert.ok(trusted.req.minSamples <= 60, `проаналізованих знижено (${trusted.req.minSamples})`);
+  // але не нижче за косметичну — порядок рівнів має лишатись осмисленим
+  const cosmetic = DEFAULT_TIERS.find((t) => t.key === 'cosmetic');
+  assert.ok(trusted.req.minScore > cosmetic.req.minScore, 'довірена все ще вища за косметичну');
+  assert.ok(trusted.req.minMessages > cosmetic.req.minMessages, 'і за повідомленнями теж');
+}
+ok('тло не гасне під фоном, роль у своєму кольорі, бот без зайвих кнопок, довірена доступніша');
 
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });

@@ -126,6 +126,29 @@ function publicUrl() {
   return process.env.WEB_PUBLIC_URL?.replace(/\/$/, '') ?? '';
 }
 
+/**
+ * Найвища роль учасника — саме та, що визначає його колір у Discord.
+ *
+ * Беремо найвищу за позицією, але серед КОЛЬОРОВИХ: у більшості серверів
+ * найвищі ролі — службові й безбарвні, тож без цього уточнення на сайті
+ * показувалася б технічна роль замість тієї, яку видно в списку учасників.
+ * Якщо кольорових немає — просто найвища за позицією.
+ */
+function topRoleOf(member) {
+  const roles = [...(member?.roles?.cache?.values?.() ?? [])]
+    .filter((r) => r && r.name !== '@everyone')
+    .sort((a, b) => (b.position ?? 0) - (a.position ?? 0));
+  if (!roles.length) return null;
+
+  const role = roles.find((r) => r.color) ?? roles[0];
+  return {
+    id: role.id,
+    name: role.name,
+    color: role.color ? role.hexColor : null,
+    position: role.position ?? 0,
+  };
+}
+
 // ─────────────────────────────────────────────
 //  Кеш каркаса сторінки
 // ─────────────────────────────────────────────
@@ -1682,16 +1705,12 @@ async function renderProfile(res, guild, session, lang, path, userId) {
   const member = guild.members.cache.get(userId) ?? await guild.members.fetch(userId).catch(() => null);
   const rank = await reputationRepo.rank(guild.id, userId);
 
-  let roleName = null;
-  let roleColor = member?.displayHexColor && member.displayHexColor !== '#000000' ? member.displayHexColor : null;
-  if (member) {
-    const tier = verificationService.tiers(guild.id).find((x) => x.roleId && member.roles.cache.has(x.roleId));
-    const role = tier?.roleId ? guild.roles.cache.get(tier.roleId) : null;
-    if (role) {
-      roleName = role.name;
-      roleColor = role.color ? role.hexColor : roleColor;
-    }
-  }
+  // Показуємо саме найвищу роль людини, а не рівень верифікації: у списку
+  // учасників Discord видно її, і профіль має збігатися з тим, що звично.
+  const top = topRoleOf(member);
+  const roleName = top?.name ?? null;
+  const roleColor = top?.color
+    ?? (member?.displayHexColor && member.displayHexColor !== '#000000' ? member.displayHexColor : null);
 
   const username = member?.displayName ?? profile.username ?? userId;
   const avatar = member?.user
@@ -1810,6 +1829,7 @@ async function topRows(guild, limit) {
 
     const since = Number(r.joined_at || r.first_seen_at || 0);
     const days = since ? Math.max(0, Math.floor((now - since) / 86400_000)) : 0;
+    const role = topRoleOf(m);
 
     return {
       user_id: r.user_id,
@@ -1828,6 +1848,9 @@ async function topRows(guild, limit) {
       frame: frame?.value?.color ?? null,
       card: card?.value ?? null,
       about: String(p.about ?? '').slice(0, 120),
+      // найвища роль — та сама, що фарбує нік у списку учасників Discord
+      roleName: role?.name ?? null,
+      roleColor: role?.color ?? null,
     };
   });
 }

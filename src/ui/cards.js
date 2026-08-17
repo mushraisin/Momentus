@@ -242,6 +242,73 @@ async function avatar(ctx, url, x, cy, size, borderColor) {
   ctx.stroke();
 }
 
+/**
+ * Смуга банера вгорі картки — така сама, як на сторінці рейтингу.
+ * Без банера лишається градієнт у кольорі ролі: смуга не має бути порожньою.
+ */
+async function bannerStrip(ctx, url, h, tint) {
+  ctx.save();
+  roundRectTop(ctx, 0, 0, W, h, 0);
+  ctx.clip();
+
+  const g = ctx.createLinearGradient(0, 0, W, h);
+  g.addColorStop(0, hexA(tint, 0.55));
+  g.addColorStop(1, '#0a0d16');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, h);
+
+  if (url) {
+    try {
+      const img = await loadImage(url);
+      // вписуємо «по ширині», центруючи по висоті — як background-size:cover
+      const scale = Math.max(W / img.width, h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, (W - dw) / 2, (h - dh) / 2, dw, dh);
+    } catch { /* лишається градієнт */ }
+  }
+
+  // низ смуги розчиняється в картці — стик не має бути різким
+  const fade = ctx.createLinearGradient(0, h * 0.35, 0, h);
+  fade.addColorStop(0, 'rgba(13,16,23,0)');
+  fade.addColorStop(1, C.bg0);
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, h * 0.35, W, h * 0.65);
+  ctx.restore();
+}
+
+function roundRectTop(ctx, x, y, w, h) {
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.closePath();
+}
+
+/** Чип статистики: значок, число, підпис — як на сторінці рейтингу. */
+function statChip(ctx, x, cy, icon, value, label) {
+  const vSize = 19;
+  const lSize = 14;
+  const wIcon = measure(ctx, icon, 15, 400);
+  const wVal = measure(ctx, value, vSize, 700);
+  const wLab = measure(ctx, label, lSize, 400);
+  const w = 14 + wIcon + 8 + wVal + 7 + wLab + 14;
+  const h = 34;
+
+  roundRect(ctx, x, cy - h / 2, w, h, h / 2);
+  ctx.fillStyle = 'rgba(5,7,13,0.5)';
+  ctx.fill();
+  ctx.strokeStyle = C.line;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  let cx = x + 14;
+  txt(ctx, icon, cx, cy, { size: 15, color: C.dim });
+  cx += wIcon + 8;
+  txt(ctx, value, cx, cy, { size: vSize, weight: 700 });
+  cx += wVal + 7;
+  txt(ctx, label, cx, cy, { size: lSize, color: C.dim });
+  return w;
+}
+
 /** Пігулка з назвою ролі, центрована по `cy`. */
 function pill(ctx, label, x, cy, color, size = 18) {
   const h = 30;
@@ -263,76 +330,82 @@ async function attach(canvas, name) {
 // ─────────────────────────────────────────────
 //  ПРОФІЛЬ
 // ─────────────────────────────────────────────
-export async function profileCard(profile, { username, avatarUrl, roleName, roleColor, accent: tone }) {
+/**
+ * Картка профілю — та сама, що й на сторінці рейтингу: смуга банера, аватар
+ * унахлест, нік із роллю та рівнем, рейтинг праворуч і чипи статистики.
+ *
+ * Розкладу репутації тут навмисно немає: він закритий для всіх. Замість нього
+ * — смуга поступу до наступної ролі: видно, скільки лишилось, але не видно
+ * самих оцінок.
+ */
+export async function profileCard(profile, {
+  username, avatarUrl, roleName, roleColor, accent: tone,
+  bannerUrl = null, level = 1, nextRole = null,
+} = {}) {
   if (!canRender) return null;
   try {
-    // tone — колір найвищої ролі учасника (тон картки); accent — колір ролі рівня
-    const tint = tone || roleColor || C.accent;
+    const tint = roleColor || tone || C.accent;
     const accent = roleColor || tone || C.faint;
-    const H = 440;
+
+    const headH = 150;
+    // Висота рахується від вмісту, а не «на око»: інакше внизу лишалася
+    // порожня смуга, коли поступу до наступної ролі немає.
+    const H = nextRole ? 376 : 286;
     const { canvas, ctx } = makeCanvas(H);
     backdrop(ctx, H, tint);
 
-    // ── Шапка: аватар | ім'я+роль | кільце ──
-    const headCy = 84;
-    const avSize = 88;
-    await avatar(ctx, avatarUrl, PAD, headCy, avSize, accent);
+    // ── Смуга банера ──
+    await bannerStrip(ctx, bannerUrl, headH, tint);
 
+    // ── Аватар унахлест на смугу ──
+    const avSize = 96;
+    const avCy = headH + 6;
+    await avatar(ctx, avatarUrl, PAD, avCy, avSize, accent);
+
+    // ── Нік, роль, рівень ──
     const textX = PAD + avSize + 20;
-    const ringCx = W - PAD - 60;
-    const nameMax = ringCx - 70 - textX;
+    const scoreRight = W - PAD;
+    const nameMax = scoreRight - 130 - textX;
 
-    txt(ctx, username, textX, headCy - 20, { size: 31, weight: 700, maxWidth: nameMax });
+    txt(ctx, username, textX, avCy + 6, { size: 30, weight: 700, maxWidth: nameMax });
+
+    let metaX = textX;
     if (roleName) {
-      pill(ctx, fitText2(ctx, roleName, nameMax - 8, 18), textX, headCy + 18, accent);
-    } else {
-      txt(ctx, `На сервері ${profile.daysOnServer} дн.`, textX, headCy + 18, { size: 18, color: C.dim });
+      metaX += pill(ctx, fitText2(ctx, roleName, nameMax - 90, 16), textX, avCy + 40, accent, 16) + 8;
     }
+    pill(ctx, `◆ ${level} рівень`, metaX, avCy + 40, tint, 16);
 
-    scoreRing(ctx, ringCx, headCy, profile.aiScore, { tint });
-
-    // ── Плитки: рівні колонки з однаковим кроком ──
-    const contentW = W - PAD * 2;
-    const gap = 12;
-    const tileW = (contentW - gap * 3) / 4;
-    const tileH = 88;
-    const tileY = 160;
-
-    const tiles = [
-      [fmt(profile.totalMessages), 'повідомлень'],
-      [fmt(profile.messages30d), 'за 30 днів'],
-      [`${Math.round(profile.voiceMinutes / 60)} год`, 'голосові'],
-      [fmt(profile.activeDays), 'активних днів'],
-    ];
-    tiles.forEach((t, i) => {
-      const x = PAD + i * (tileW + gap);
-      panel(ctx, x, tileY, tileW, tileH, 14, C.card, tint);
-      txt(ctx, t[0], x + 16, tileY + 34, { size: 28, weight: 700, maxWidth: tileW - 32 });
-      txt(ctx, t[1], x + 16, tileY + 64, { size: 16, color: C.dim, maxWidth: tileW - 32 });
+    // ── Рейтинг праворуч ──
+    txt(ctx, String(profile.aiScore), scoreRight, avCy - 2, {
+      size: 40, weight: 700, align: 'right', color: tint,
     });
+    txt(ctx, 'РЕЙТИНГ', scoreRight, avCy + 30, { size: 13, align: 'right', color: C.dim });
 
-    // ── Категорії: спільна сітка рядків ──
-    const rowsY = tileY + tileH + 20;
-    const rowH = 40;
-    const keys = [
-      ['Довіра', profile.rep.trust],
-      ['Комунікація', profile.rep.communication],
-      ['Допомога', profile.rep.helpfulness],
-    ];
-    const boxH = keys.length * rowH + INNER * 2 - 8;
-    panel(ctx, PAD, rowsY, contentW, boxH, 16, C.card, tint);
+    // ── Чипи статистики ──
+    const chipCy = avCy + avSize / 2 + 34;
+    let cx = PAD;
+    cx += statChip(ctx, cx, chipCy, '✉', fmt(profile.totalMessages), 'повідомлень') + 10;
+    // 🎧 — той самий значок, що й на сайті; символ ♪ у наявних шрифтах
+    // малювався порожньою рамкою
+    cx += statChip(ctx, cx, chipCy, '🎧', `${Math.round(profile.voiceMinutes / 60)} год`, 'у голосових') + 10;
+    statChip(ctx, cx, chipCy, '◷', fmt(profile.daysOnServer), 'на сервері');
 
-    const labelX = PAD + INNER;
-    const valueRight = W - PAD - INNER;
-    const barX = PAD + 190;
-    const barW = valueRight - 52 - barX;
+    // ── Поступ до наступної ролі ──
+    // Показуємо саме поступ, а не оцінки: скільки вимог виконано з усіх.
+    if (nextRole) {
+      const boxY = chipCy + 34;
+      const contentW = W - PAD * 2;
+      panel(ctx, PAD, boxY, contentW, 74, 16, C.card, tint);
 
-    keys.forEach(([label, val], i) => {
-      const cy = rowsY + INNER + rowH / 2 - 4 + i * rowH;
-      txt(ctx, label, labelX, cy, { size: 20, maxWidth: barX - labelX - 14 });
-      bar(ctx, barX, cy, barW, val, levelColor(val));
-      txt(ctx, Math.round(val), valueRight, cy, { size: 20, weight: 600, color: C.dim, align: 'right' });
-    });
+      const rc = nextRole.color || C.accent;
+      txt(ctx, `До ролі «${nextRole.name}»`, PAD + INNER, boxY + 26, {
+        size: 18, weight: 600, maxWidth: contentW - INNER * 2 - 90,
+      });
+      txt(ctx, `${nextRole.done} / ${nextRole.total}`, W - PAD - INNER, boxY + 26, {
+        size: 18, weight: 700, align: 'right', color: rc,
+      });
+      bar(ctx, PAD + INNER, boxY + 52, contentW - INNER * 2, nextRole.percent, rc, 10);
+    }
 
     return attach(canvas, 'profile.png');
   } catch (err) {

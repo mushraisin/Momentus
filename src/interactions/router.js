@@ -89,18 +89,20 @@ async function handleComponent(interaction) {
   const guild = interaction.guild;
 
   switch (ns) {
-    // Профіль/репутація/перевірка — публічні: видно всім, кнопки під кожним
-    // повідомленням, щоб бот не «загубився» в історії каналу.
+    // Профіль публічний: кнопка під кожним повідомленням, щоб бот
+    // не «загубився» в історії каналу.
     case NS.PROFILE: {
       await interaction.deferReply().catch(() => {});
       return interaction.editReply(await panels.profileView(guild, interaction.user.id, interaction.user));
     }
-    case NS.REP: {
-      await interaction.deferReply().catch(() => {});
-      return interaction.editReply(await panels.reputationView(guild, interaction.user.id));
-    }
+
+    // Розклад репутації закритий для всіх, а перевірка йде сама за розкладом.
+    // Кнопки прибрані, але маршрути лишаємо закритими свідомо: custom_id
+    // легко підробити, тож самого зникнення кнопки замало.
+    case NS.REP:
     case NS.VERIFY:
-      return runVerification(interaction);
+      return ephemeral(interaction, 'ℹ️ Ролі тепер видаються автоматично. '
+        + 'Поступ до наступної видно в картці профілю.');
     case NS.GAL:
       return galleryHandlers(interaction, action, args);
     case NS.MOD:

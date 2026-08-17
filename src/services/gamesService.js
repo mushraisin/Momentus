@@ -28,9 +28,14 @@ export function gamesEnabled() {
 /** userId → { guildId, game, since } — незакриті сесії. */
 const open = new Map();
 
-/** Раз на стільки скидаємо накопичене, щоб перезапуск не з'їдав годину. */
-const FLUSH_MS = 5 * 60_000;
+/**
+ * Раз на стільки зараховуємо накопичене. Хвилина, а не пʼять: інакше після
+ * старту гри в профілі довго не було взагалі нічого, і здавалося, що стеження
+ * не працює.
+ */
+const FLUSH_MS = 60_000;
 let timer = null;
+let seenAny = false;
 
 /** Назва гри з присутності: беремо саме гру, а не музику чи стрім. */
 function playingOf(presence) {
@@ -66,9 +71,25 @@ async function flush() {
   }
 }
 
+/** Почати відлік для однієї людини. */
+function begin(guildId, userId, game) {
+  open.set(userId, { guildId, game, since: Date.now() });
+  if (!seenAny) {
+    seenAny = true;
+    log.info(`Присутність надходить — перша гра: «${game}». Стеження працює.`);
+  }
+}
+
 export function startGames(client) {
   stopGames();
   if (!gamesEnabled()) return null;
+
+  // Намір привілейований: без дозволу в Developer Portal Discord не надішле
+  // жодної присутності, і стеження мовчки нічого не рахуватиме.
+  const hasIntent = !!client.options?.intents?.has?.('GuildPresences');
+  if (!hasIntent) {
+    log.warn('TRACK_GAMES=true, але наміру GuildPresences немає — перезапустіть бота');
+  }
 
   client.on('presenceUpdate', (_old, presence) => {
     try {
@@ -83,14 +104,32 @@ export function startGames(client) {
       if (cur && cur.game === game) return;          // та сама гра — нічого не змінилось
 
       // змінили гру: попередню закриваємо, нову починаємо
-      close(userId).then(() => open.set(userId, { guildId, game, since: Date.now() }))
-        .catch(() => {});
+      close(userId).then(() => begin(guildId, userId, game)).catch(() => {});
     } catch { /* присутність — річ ненадійна, падати через неї не варто */ }
   });
 
+  // Ті, хто вже грає на момент запуску, події не надішлють — присутність
+  // приходить лише при ЗМІНІ. Тож підбираємо їх із кешу одразу.
+  let already = 0;
+  for (const guild of client.guilds?.cache?.values?.() ?? []) {
+    for (const p of guild.presences?.cache?.values?.() ?? []) {
+      const game = playingOf(p);
+      const userId = p?.userId ?? p?.user?.id;
+      if (game && userId && !open.has(userId)) { begin(guild.id, userId, game); already++; }
+    }
+  }
+
   timer = setInterval(() => flush().catch(() => {}), FLUSH_MS);
-  log.info('Стеження за іграми увімкнено — години рахуються з цього моменту');
+  log.info(`Стеження за іграми увімкнено${already ? `, вже грають: ${already}` : ''}`
+    + ' — години рахуються з цього моменту');
   return timer;
+}
+
+/** Що людина грає прямо зараз і скільки вже триває сесія. */
+export function playingNow(guildId, userId) {
+  const s = open.get(userId);
+  if (!s || s.guildId !== guildId) return null;
+  return { game: s.game, minutes: (Date.now() - s.since) / 60_000 };
 }
 
 export function stopGames() {
@@ -99,14 +138,34 @@ export function stopGames() {
   open.clear();
 }
 
-/** Ігри людини для сторінки профілю. */
+/**
+ * Ігри людини для сторінки профілю.
+ *
+ * Поточна сесія додається до збереженого: інакше людина запускає гру, йде
+ * в профіль — і не бачить нічого, бо в базу ще нічого не записано. Саме
+ * через це здавалося, що стеження не працює зовсім.
+ */
 export async function gamesOf(guildId, userId, limit = 6) {
   if (!gamesEnabled()) return null;
-  const rows = await gamesRepo.list(guildId, userId, limit).catch(() => []);
-  return rows.map((r) => ({
+
+  const rows = await gamesRepo.list(guildId, userId, 50).catch(() => []);
+  const list = rows.map((r) => ({
     game: r.game,
     minutes: Number(r.minutes) || 0,
-    hours: Math.round((Number(r.minutes) || 0) / 6) / 10,
     lastSeen: Number(r.last_seen) || 0,
+    now: false,
   }));
+
+  const live = playingNow(guildId, userId);
+  if (live) {
+    const found = list.find((g) => g.game === live.game);
+    if (found) { found.minutes += live.minutes; found.now = true; } else {
+      list.push({ game: live.game, minutes: live.minutes, lastSeen: Date.now(), now: true });
+    }
+  }
+
+  return list
+    .sort((a, b) => b.minutes - a.minutes)
+    .slice(0, limit)
+    .map((g) => ({ ...g, hours: Math.round(g.minutes / 6) / 10 }));
 }
