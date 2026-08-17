@@ -1617,6 +1617,80 @@ ok('рівні за FP, рейтинг картками, вітрина на в�
 }
 ok('тло не гасне під фоном, роль у своєму кольорі, бот без зайвих кнопок, довірена доступніша');
 
+// 28. голосування на сторінці рейтингу й щоденні нагороди за місця
+{
+  const { usersRepo: ur, walletRepo: wr, duelRepo, reputationRepo: rr } = await import('../src/database/repositories.js');
+  const V = await import('../src/services/voteService.js');
+
+  // учасники для пари + бот, який не має в неї потрапити
+  for (const [id, name] of [['701', 'Аня'], ['702', 'Борис'], ['703', 'Влад']]) {
+    await ur.ensure(G, id, name, Date.now() - 50 * 86400_000);
+    guild.members.cache.set(id, { id, displayName: name, user: { bot: false } });
+  }
+  await ur.ensure(G, 'botX', 'Робот', Date.now());
+  guild.members.cache.set('botX', { id: 'botX', displayName: 'Робот', user: { bot: true } });
+
+  // ── пара ──
+  const d = await V.duelFor(guild, '701');
+  assert.ok(d && d.a && d.b, 'пара випала');
+  assert.notEqual(d.a.userId, d.b.userId, 'двоє різних');
+  assert.ok(![d.a.userId, d.b.userId].includes('701'), 'сам себе не пропонується');
+  assert.ok(![d.a.userId, d.b.userId].includes('botX'), 'ботів у парі немає');
+
+  const same = await V.duelFor(guild, '701');
+  assert.equal(same.a.userId, d.a.userId, 'пара не перекидається до голосу');
+
+  // ── голос: обидва отримують по 1 FP, голосуючий нічого не витрачає ──
+  const mine = (await wr.get(G, '701')).balance;
+  const theirs = (await wr.get(G, d.a.userId)).balance;
+  const voted = await V.castVote(guild, '701', d.a.userId);
+  assert.ok(voted.ok, 'голос зараховано');
+  assert.equal((await wr.get(G, d.a.userId)).balance, theirs + 1, 'обраному +1 FP');
+  assert.equal((await wr.get(G, '701')).balance, mine + 1, 'голосуючому теж +1 FP');
+  assert.equal(Number((await ur.get(G, d.a.userId)).votes_got), 1, 'голос порахований');
+
+  const twice = await V.castVote(guild, '701', d.b.userId);
+  assert.equal(twice.reason, 'cooldown', 'двічі за добу не можна');
+  assert.equal((await V.duelFor(guild, '701')).canVote, false, 'нова пара — лише за добу');
+
+  // голос повз свою пару не проходить
+  await duelRepo.set(G, '702', '703', '701');
+  assert.equal((await V.castVote(guild, '702', 'botX')).reason, 'not in pair', 'чужий вибір відхилено');
+
+  // ── щоденні нагороди 3 / 2 / 1 ──
+  const board = (await rr.leaderboard(G, 20))
+    .filter((r) => !guild.members.cache.get(r.user_id)?.user?.bot);
+  const was = {};
+  for (const r of board.slice(0, 3)) was[r.user_id] = (await wr.get(G, r.user_id)).balance;
+
+  const paid = await V.payoutTop(guild);
+  assert.equal(paid, 6, 'видано 3+2+1');
+  const got = [];
+  for (const r of board.slice(0, 3)) got.push((await wr.get(G, r.user_id)).balance - was[r.user_id]);
+  assert.deepEqual(got, [3, 2, 1], `місця отримали 3/2/1 (${got.join('/')})`);
+  assert.equal(await V.payoutTop(guild), 0, 'удруге за день не нараховується');
+
+  // ── боти не потрапляють у рейтинг на сайті ──
+  const page = await req('/top', auth);
+  assert.ok(!page.body.includes('>Робот<'), 'бота в рейтингу немає');
+  assert.ok(page.body.includes('id="vs"'), 'блок голосування є');
+  assert.equal((page.body.match(/class="vs-one"/g) ?? []).length, 2, 'рівно двоє на вибір');
+  assert.ok(!/<div class="vs[^"]*"[^>]*>[\s\S]{0,200}<p/.test(page.body),
+    'без пояснювального тексту');
+
+  // анонімам голосувати нічим — блока немає
+  const anon = await req('/top');
+  assert.ok(!anon.body.includes('id="vs"'), 'без входу блока голосування немає');
+
+  // порядок рейтингу сталий — інакше трійка перетасовувалась би щодня
+  assert.match(page.body, /ORDER BY|tp-podium/, 'рейтинг рендериться');
+  const twiceBoard = await rr.leaderboard(G, 10);
+  const again2 = await rr.leaderboard(G, 10);
+  assert.deepEqual(twiceBoard.map((r) => r.user_id), again2.map((r) => r.user_id),
+    'порядок повторюваний навіть за рівних балів');
+}
+ok('голосування за учасників, нагороди за місця, боти поза рейтингом');
+
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
 assert.equal(gone.status, 200);

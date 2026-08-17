@@ -1070,6 +1070,34 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   text-align:right}
 @media(max-width:520px){.gmbar{flex-basis:22%}}
 
+/* ── Голосування ──
+   Двоє випадкових, один голос, ніяких пояснень: що робити — видно з самих
+   облич і того, що на них можна натиснути. Голос нічого не коштує, тож і
+   попереджати нема про що. */
+.vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;
+  padding:16px;border-radius:var(--radius);background:var(--card);
+  border:var(--line-w,1px) solid var(--line);backdrop-filter:blur(var(--blur))}
+.vs-one{display:flex;flex-direction:column;align-items:center;gap:9px;padding:14px 10px;
+  border-radius:16px;cursor:pointer;background:rgba(255,255,255,.03);
+  border:1px solid var(--line);color:var(--text);font:inherit;
+  transition:.28s cubic-bezier(.22,.9,.3,1)}
+.vs-one img{width:66px;height:66px;border-radius:50%;border:2px solid var(--line);
+  transition:.28s cubic-bezier(.22,.9,.3,1)}
+.vs-one b{font-size:14px;font-weight:700;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.vs-one:hover:not(:disabled){transform:translateY(-3px);
+  border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.10)}
+.vs-one:hover:not(:disabled) img{border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(var(--accent-rgb),.2)}
+.vs-one:active:not(:disabled){transform:scale(.97)}
+.vs-one:disabled{opacity:.5;cursor:default}
+.vs-one.won{border-color:rgba(67,196,123,.6);background:rgba(67,196,123,.12)}
+.vs-mid{font-size:20px;opacity:.5}
+@media(max-width:520px){
+  .vs{gap:8px;padding:12px}
+  .vs-one img{width:54px;height:54px}
+}
+
 /* ── Рейтинг картками ──
    Кожен показаний своїм банером, акцентом і рамкою — тим самим, що й у
    профілі. Перші три — ширшими картками з медаллю, щоб перемога читалась. */
@@ -3162,6 +3190,32 @@ const SHOWCASE_JS = `
 })();
 `;
 
+/** Голосування на сторінці рейтингу. */
+const VOTE_JS = `
+(function(){
+  var box=document.getElementById('vs');
+  if(!box)return;
+  box.addEventListener('click',function(e){
+    var b=e.target.closest('.vs-one');
+    if(!b||b.disabled)return;
+    box.querySelectorAll('.vs-one').forEach(function(x){x.disabled=true});
+    fetch('/api/vote',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({target:b.dataset.user})})
+      .then(function(r){return r.json()}).then(function(j){
+        if(j.error){
+          if(window.toast)window.toast(window.errText?window.errText(j.error):j.error,'bad');
+          return;
+        }
+        /* Підтвердження — самою карткою, без тексту: обраний зеленіє,
+           а нова пара випаде через добу. */
+        b.classList.add('won');
+      }).catch(function(){
+        box.querySelectorAll('.vs-one').forEach(function(x){x.disabled=false});
+      });
+  });
+})();
+`;
+
 const PREVIEW_JS = `
 window.CosmeticPreview=(function(){
   var box=null;
@@ -4388,6 +4442,8 @@ function errorDict(lang) {
     'media only': 'err.mediaOnly',
     'not yours': 'err.notYours',
     level: 'err.level',
+    cooldown: 'err.cooldown',
+    'no duel': 'err.noDuel',
     net: 'err.net',
     unknown: 'err.unknown',
   };
@@ -4483,8 +4539,9 @@ export function layout({
     skin: skinCss(look, { page }),
     meta: og ? metaTags(og) : '',
     extraJs: [
-      // словник відмов потрібен магазину й профілю — саме там щось купують
-      page === 'shop' || page === 'me' ? errorDict(lang) : '',
+      // словник відмов і спливні повідомлення потрібні там, де щось купують
+      // або віддають голос
+      ['shop', 'me', 'top'].includes(page) ? errorDict(lang) : '',
       gallery ? GALLERY_JS : '',
       page === 'cinema' ? PLAYERS_JS : '',
       page === 'cinema' ? CINEMA_JS : '',
@@ -4494,6 +4551,7 @@ export function layout({
       page === 'me' ? PROFILE_JS : '',
       // вітрину гортають і на чужій сторінці, тож скрипт іде на обидві
       page === 'me' || page === 'u' ? SHOWCASE_JS : '',
+      page === 'top' ? VOTE_JS : '',
     ].filter(Boolean).join('\n'),
     // Смуга навігації йде на всю ширину вікна, а її вміст тримається тієї ж
     // сітки, що й сторінка. На головній її немає — там своя обкладинка.
@@ -4575,7 +4633,7 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
  * місця йдуть ширшими картками з медаллю: без цього «перемога» в рейтингу
  * нічим не відрізнялась від четвертого місця.
  */
-export function leaderboardPage(rows, lang = 'uk') {
+export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
   if (!rows.length) return `<div class="card empty rise">${esc(t(lang, 'top.empty'))}</div>`;
 
   const medals = ['🥇', '🥈', '🥉'];
@@ -4646,11 +4704,28 @@ export function leaderboardPage(rows, lang = 'uk') {
         ${stat('✉', fmt(r.messages ?? 0), t(lang, 'profile.messages'))}
         ${stat('🎧', hrs(r.voice ?? 0), t(lang, 'profile.voice'))}
         ${stat('◷', fmt(r.days ?? 0), t(lang, 'top.days'))}
+        ${r.votes ? stat('✨', fmt(r.votes), t(lang, 'top.votes')) : ''}
       </span>
     </a>`;
   };
 
+  // Голосування: двоє, один голос, без пояснень — усе видно з самих карток.
+  const face = (p) => `<button class="vs-one" data-user="${esc(p.userId)}"
+      ${duel.canVote ? '' : 'disabled'}>
+    <img src="${esc(avatarUrl(p.userId, null, 96))}" alt="" loading="lazy">
+    <b>${esc(p.username)}</b>
+  </button>`;
+
+  const vsBox = duel
+    ? `<div class="vs rise" id="vs" data-next="${duel.nextAt || 0}">
+        ${face(duel.a)}
+        <span class="vs-mid">✨</span>
+        ${face(duel.b)}
+      </div>`
+    : '';
+
   return `<div class="tpwrap">
+    ${vsBox}
     <div class="tp-podium">${rows.slice(0, 3).map(card).join('')}</div>
     ${rows.length > 3
     ? `<div class="tp-rest">${rows.slice(3).map((r, i) => card(r, i + 3)).join('')}</div>`

@@ -35,6 +35,8 @@ const DICT = {
     'err.mediaOnly': 'Підійде картинка, GIF або відео',
     'err.notYours': 'Це не ваша картинка',
     'err.level': 'Це відкривається з вищого рівня',
+    'err.cooldown': 'Наступний голос — за добу',
+    'err.noDuel': 'Пара ще не готова',
     'err.net': 'Не вдалося звʼязатися з сервером',
     'err.unknown': 'Не вдалося — спробуйте ще раз',
 
@@ -202,6 +204,7 @@ const DICT = {
     'top.member': 'Учасник',
     'top.score': 'Рейтинг',
     'top.days': 'на сервері',
+    'top.votes': 'голосів',
     'top.empty': 'Даних ще немає.',
 
     // ── галерея ──
@@ -344,6 +347,8 @@ const DICT = {
     'err.mediaOnly': 'An image, GIF or video will do',
     'err.notYours': 'That image is not yours',
     'err.level': 'This unlocks at a higher level',
+    'err.cooldown': 'Next vote in a day',
+    'err.noDuel': 'Pair is not ready yet',
     'err.net': 'Could not reach the server',
     'err.unknown': 'Something went wrong — try again',
 
@@ -506,6 +511,7 @@ const DICT = {
     'top.member': 'Member',
     'top.score': 'Rating',
     'top.days': 'on server',
+    'top.votes': 'votes',
     'top.empty': 'No data yet.',
 
     'gal.title': 'Gallery',

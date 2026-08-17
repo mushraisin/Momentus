@@ -73,6 +73,9 @@ export function registerEvents(client) {
 
   // ── Учасники ──────────────────────────────
   client.on(Events.GuildMemberAdd, (member) => {
+    // Боти не учасники спільноти: без цього вони потрапляли б у рейтинг,
+    // у вибір для голосування та в усі підрахунки на сайті.
+    if (member.user?.bot) return;
     usersRepo.ensure(member.guild.id, member.id, member.user.username, member.joinedTimestamp).catch(() => {});
   });
 

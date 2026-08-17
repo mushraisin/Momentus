@@ -94,6 +94,10 @@ export const CONFIG_SCHEMA = {
   // Тимчасове закриття залу: до якого часу (мс). 0 — відкрито.
   'cinema.lockUntil': { type: 'int', default: 0, label: 'Зал зачинено до (мс)', group: 'media' },
 
+  // Службове: день, коли востаннє видали нагороди за місця в рейтингу.
+  // Не для редагування — просто щоб перезапуск бота не нарахував їх удруге.
+  'top.lastPayout': { type: 'text', default: '', label: 'Нагороди за місця: день', group: 'media', hidden: true },
+
   // ── Приватність ───────────────────────────
   'privacy.storeMessageContent': { type: 'bool', default: false, label: 'Зберігати текст повідомлень', group: 'privacy' },
   'privacy.retentionDays': { type: 'int', default: 180, label: 'Термін зберігання аналітики (днів)', group: 'privacy' },

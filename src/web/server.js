@@ -20,6 +20,7 @@ import { resolveSource } from './providers.js';
 import { signUrl, handleStream } from './mediaProxy.js';
 import { ytdlpAvailable } from './ytdlp.js';
 import { gamesOf } from '../services/gamesService.js';
+import { duelFor, castVote } from '../services/voteService.js';
 import { OWNER_ID, ACCESS } from '../config/constants.js';
 import { accessService } from '../services/accessService.js';
 import { punishmentService, KIND_LABEL, WARN_LIMIT } from '../services/punishmentService.js';
@@ -549,9 +550,25 @@ async function handle(req, res) {
     }));
   }
 
+  // ── голосування за учасників ──
+  if (path === '/api/vote' && req.method === 'POST') {
+    if (!session) return json(res, 401, { error: 'auth' });
+    const body = await readJson(req).catch(() => ({}));
+    const targetId = String(body.target ?? '').replace(/[^0-9]/g, '');
+    if (!targetId) return json(res, 400, { error: 'target' });
+
+    const r = await castVote(guild, session.user_id, targetId);
+    if (!r.ok) return json(res, 400, { error: r.reason, nextAt: r.nextAt });
+    return json(res, 200, r);
+  }
+
   if (path === '/top') {
     const rows = await topRows(guild, 50);
-    return html(res, 200, guild, session, lang, path, t(lang, 'top.title'), R.leaderboardPage(rows, lang));
+    // Пара для голосування показується лише тим, хто зайшов: анонімам
+    // голосувати нічим, а зайвий блок їм лише заважав би.
+    const duel = session ? await duelFor(guild, session.user_id).catch(() => null) : null;
+    return html(res, 200, guild, session, lang, path, t(lang, 'top.title'),
+      R.leaderboardPage(rows, lang, { duel }), false, 'top');
   }
 
   // Список опублікованих сторінок уже лежить у кеші каркаса — окремий запит
@@ -1792,7 +1809,13 @@ async function renderProfile(res, guild, session, lang, path, userId) {
  * по одному це були б десятки мережевих запитів на одну сторінку.
  */
 async function topRows(guild, limit) {
-  const rows = await reputationRepo.leaderboard(guild.id, limit);
+  // Беремо із запасом і відсіюємо ботів: вони потрапляли в таблицю зі старих
+  // запусків і спокійно висіли в рейтингу — знайшлося саме так, бот стояв
+  // першим із рейтингом 500.
+  const raw = await reputationRepo.leaderboard(guild.id, limit + 20);
+  const rows = raw
+    .filter((r) => !guild.members.cache.get(r.user_id)?.user?.bot)
+    .slice(0, limit);
   const ids = rows.map((r) => r.user_id);
 
   const [prefs, levels] = await Promise.all([
@@ -1838,6 +1861,7 @@ async function topRows(guild, limit) {
       ai_score: r.ai_score,
       level: levelOf.get(r.user_id) ?? 1,
       // статистика просто на картці — заради неї й заходять у рейтинг
+      votes: Number(r.votes_got) || 0,
       messages: Number(r.total_messages) || 0,
       voice: Number(r.voice_minutes) || 0,
       days,

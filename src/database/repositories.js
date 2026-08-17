@@ -35,9 +35,16 @@ export const usersRepo = {
       'total_messages', 'total_chars', 'voice_minutes', 'reactions_given',
       'reactions_received', 'help_count', 'night_messages', 'deleted_messages',
       'distinct_peers', 'events_attended', 'projects_joined',
+      // голоси, зібрані на сторінці рейтингу
+      'votes_got',
     ]);
     if (!allowed.has(field)) throw new Error(`Неприпустиме поле users.${field}`);
     await run(`UPDATE users SET ${field} = ${field} + ? WHERE guild_id = ? AND user_id = ?`, [delta, guildId, userId]);
+  },
+
+  /** Усі учасники гільдії — потрібно для вибору випадкової пари. */
+  all(guildId, limit = 500) {
+    return all('SELECT user_id, username FROM users WHERE guild_id = ? LIMIT ?', [guildId, limit]);
   },
 
   async count(guildId) {
@@ -107,11 +114,14 @@ export const reputationRepo = {
    */
   leaderboard(guildId, limit = 100) {
     return all(`
-      SELECT r.user_id, r.ai_score, u.username,
+      SELECT r.user_id, r.ai_score, u.username, u.votes_got,
              u.total_messages, u.voice_minutes, u.joined_at, u.first_seen_at
       FROM reputation r JOIN users u ON u.guild_id = r.guild_id AND u.user_id = r.user_id
       WHERE r.guild_id = ?
-      ORDER BY r.ai_score DESC
+      -- Додаткові ключі потрібні для СТАЛОГО порядку: за рівних балів
+      -- SQLite вертав рядки як завгодно, і трійка лідерів (а з нею й щоденні
+      -- нагороди) могла перетасовуватись щодня без жодних змін в активності.
+      ORDER BY r.ai_score DESC, u.total_messages DESC, r.user_id ASC
       LIMIT ?
     `, [guildId, limit]);
   },
@@ -906,6 +916,31 @@ export const walletRepo = {
  * бот: бачить початок гри, бачить кінець, додає різницю. Отже, статистика
  * починається з дня, коли стеження увімкнули, — минулого не відновити.
  */
+/**
+ * Пара для голосування: кожному показуються двоє випадкових учасників,
+ * і одному з них можна віддати голос. Нова пара — через добу після голосу,
+ * тож перебирати пари, поки не випаде «потрібний», не вийде.
+ */
+export const duelRepo = {
+  get(guildId, userId) {
+    return get('SELECT * FROM duels WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+  },
+
+  set(guildId, userId, a, b) {
+    return run(`
+      INSERT INTO duels (guild_id, user_id, a, b, drawn_at, voted_at)
+      VALUES (?, ?, ?, ?, ?, NULL)
+      ON CONFLICT(guild_id, user_id) DO UPDATE SET
+        a = excluded.a, b = excluded.b, drawn_at = excluded.drawn_at, voted_at = NULL
+    `, [guildId, userId, a, b, Date.now()]);
+  },
+
+  markVoted(guildId, userId) {
+    return run('UPDATE duels SET voted_at = ? WHERE guild_id = ? AND user_id = ?',
+      [Date.now(), guildId, userId]);
+  },
+};
+
 export const gamesRepo = {
   /** Долічити хвилини до гри. */
   add(guildId, userId, game, minutes) {

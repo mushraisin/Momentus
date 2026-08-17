@@ -186,6 +186,16 @@ CREATE TABLE IF NOT EXISTS user_items (
 
 -- Особисті картинки для оформлення (фони, банери). Самі файли лежать
 -- у приватному каналі-сховищі Discord, тут — лише посилання на них.
+CREATE TABLE IF NOT EXISTS duels (
+  guild_id TEXT NOT NULL,
+  user_id  TEXT NOT NULL,
+  a        TEXT NOT NULL,
+  b        TEXT NOT NULL,
+  drawn_at INTEGER NOT NULL,
+  voted_at INTEGER,
+  PRIMARY KEY (guild_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS user_games (
   guild_id  TEXT NOT NULL,
   user_id   TEXT NOT NULL,
@@ -448,6 +458,8 @@ export async function initDatabase() {
   await addColumn('user_assets', 'sales', 'INTEGER NOT NULL DEFAULT 0');
   // Свою роботу теж можна закрити бустом — так само, як каталожну річ.
   await addColumn('user_assets', 'booster', 'INTEGER NOT NULL DEFAULT 0');
+  // Скільки голосів людина зібрала — показуємо це на її картці.
+  await addColumn('users', 'votes_got', 'INTEGER NOT NULL DEFAULT 0');
   // Рівень купується за ✨FP; у всіх стартує з першого.
   await addColumn('wallets', 'level', 'INTEGER NOT NULL DEFAULT 1');
   await addColumn('wallets', 'spent_levels', 'INTEGER NOT NULL DEFAULT 0');

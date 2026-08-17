@@ -3,6 +3,7 @@ import { backupService } from './backupService.js';
 import { reputationRepo, warnRepo, staffRepo } from '../database/repositories.js';
 import { pipeline } from './analysisPipeline.js';
 import { punishmentService } from './punishmentService.js';
+import { payoutTop } from './voteService.js';
 import { cosmeticsService } from './cosmeticsService.js';
 import { createLogger } from '../core/logger.js';
 
@@ -50,6 +51,10 @@ async function runDaily(client) {
         fp += await cosmeticsService.grantDaily(guildId, r.user_id).catch(() => 0);
       }
       if (fp) log.info(`Нараховано ${fp} FP у ${guildId}`);
+
+      // Нагорода за місця в рейтингу: 3 / 2 / 1 ✨FP раз на добу.
+      const guild = client.guilds.cache.get(guildId);
+      if (guild) await payoutTop(guild).catch(() => {});
     }
     await backupService.run();
     await backupService.purgeOldData(guildIds);
