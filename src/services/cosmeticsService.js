@@ -79,11 +79,19 @@ export const LEVEL_PERKS = [
   { level: 10, key: 'upload', name: 'Свій контент у магазині без бусту' },
 ];
 
+/**
+ * Стеля ціни одного рівня. Без неї подвоєння швидко стає нездоланним:
+ * до десятого набігало 511 ✨FP, і рівні перетворювались на стіну замість
+ * поступу. Зі стелею до десятого треба 90 — це вже кілька тижнів
+ * звичайної активності, а не місяці.
+ */
+export const LEVEL_COST_CAP = 15;
+
 /** Скільки коштує перехід на наступний рівень. */
 export function levelCost(level) {
   const from = Math.max(1, Math.floor(Number(level) || 1));
-  // 1→2 = 1, далі ×2 за кожен наступний
-  return 2 ** (from - 1);
+  // 1→2 = 1, далі ×2 за кожен наступний — але не дорожче за стелю
+  return Math.min(LEVEL_COST_CAP, 2 ** (from - 1));
 }
 
 /** Чи відкрита плюшка на цьому рівні. */
@@ -617,6 +625,7 @@ export const cosmeticsService = {
   },
 
   LEVEL_PERKS,
+  LEVEL_COST_CAP,
   levelCost,
   hasPerk,
 

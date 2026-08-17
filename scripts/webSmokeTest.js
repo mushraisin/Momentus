@@ -1422,11 +1422,18 @@ ok('персоналізація діє на весь сайт; каталог �
   const { walletRepo, assetsRepo, prefsRepo } = await import('../src/database/repositories.js');
   const { cosmeticsService, levelCost, hasPerk } = await import('../src/services/cosmeticsService.js');
 
-  // ── ціна рівня подвоюється, як домовлено ──
+  // Ціна подвоюється, але впирається у стелю: без неї до десятого рівня
+  // набігало 511 ✨FP — це була стіна, а не поступ.
   assert.equal(levelCost(1), 1, '1→2 коштує 1');
   assert.equal(levelCost(2), 2, '2→3 коштує 2');
   assert.equal(levelCost(3), 4, '3→4 коштує 4');
-  assert.equal(levelCost(9), 256, '9→10 коштує 256');
+  assert.equal(levelCost(4), 8, '4→5 коштує 8');
+  assert.equal(levelCost(5), 15, '5→6 упирається у стелю');
+  assert.equal(levelCost(20), 15, 'і далі не дорожчає');
+
+  let toTen = 0;
+  for (let l = 1; l < 10; l++) toTen += levelCost(l);
+  assert.equal(toTen, 90, `до десятого рівня — 90 ✨FP (було ${511})`);
 
   const L = '555000555000555000';
   assert.equal((await cosmeticsService.level(G, L)).level, 1, 'у всіх стартує перший рівень');
