@@ -1070,49 +1070,58 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    вікон. Відкат тут навмисно нейтральний, а не на токени сайту: інакше
    картка людини без свого стилю переймала б стиль того, хто дивиться, —
    і рейтинг показував би не її оформлення, а чуже. */
-.tp{position:relative;display:block;overflow:hidden;padding:14px 16px;
+.tp{position:relative;display:block;overflow:hidden;padding:0 16px 14px;
   border-radius:var(--tp-r,18px);
   border:var(--tp-w,1px) solid var(--tp-l,rgba(255,255,255,.09));
-  background:rgba(16,20,30,.72);backdrop-filter:blur(14px);
+  background:var(--tp-bg,rgba(16,20,30,.72));
+  backdrop-filter:blur(var(--tp-bl,14px));-webkit-backdrop-filter:blur(var(--tp-bl,14px));
   box-shadow:var(--tp-s,none);
   animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
 .tp:hover{transform:translateY(-3px);border-color:var(--c)}
-/* банер учасника — тлом картки, притлумлений, щоб не зʼїдав текст */
-.tp-bg{position:absolute;inset:0;background:center/cover no-repeat;opacity:.30;
-  transition:opacity .35s,transform .6s cubic-bezier(.22,.9,.3,1)}
-.tp:hover .tp-bg{opacity:.42;transform:scale(1.04)}
-.tp::after{content:'';position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(100deg,rgba(5,7,13,.94) 12%,rgba(5,7,13,.60) 62%,rgba(5,7,13,.35))}
-.tp>*{position:relative;z-index:2}
-.tp-place{position:absolute;right:14px;top:12px;z-index:3;font-size:13px;color:var(--dim);
-  font-variant-numeric:tabular-nums}
-.tp-body{display:flex;align-items:center;gap:14px}
-.tp-face{width:52px;height:52px;flex:none;border-radius:50%;border:2px solid var(--f);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--f) 22%,transparent),
-    0 0 20px color-mix(in srgb,var(--f) 45%,transparent)}
-.tp-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+
+/* ── Смуга банера ──
+   Це головне, заради чого картка існує: людина ставила банер, щоб його
+   бачили. Раніше він лежав тлом під майже непрозорою накладкою з
+   opacity:.30 — тобто його не було видно зовсім. */
+.tp-head{position:relative;display:block;margin:0 -16px 0;height:104px;overflow:hidden}
+.tp-bg{position:absolute;inset:0;display:block;background:center/cover no-repeat;
+  transition:transform .6s cubic-bezier(.22,.9,.3,1)}
+.tp:hover .tp-bg{transform:scale(1.05)}
+/* без банера смуга не порожня — беремо акцент власника */
+.tp-head::before{content:'';position:absolute;inset:0;z-index:0;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--c) 42%,#0a0d16),#0a0d16)}
+.tp-bg{z-index:1}
+/* розчиняємо низ смуги в картці — стик не має бути різким */
+.tp-head::after{content:'';position:absolute;left:0;right:0;bottom:0;height:62%;z-index:2;
+  pointer-events:none;background:linear-gradient(180deg,transparent,var(--tp-bg,rgba(16,20,30,.96)))}
+.tp-place{position:absolute;left:12px;top:10px;z-index:3;font-size:14px;color:#fff;
+  font-variant-numeric:tabular-nums;padding:3px 10px;border-radius:999px;
+  background:rgba(5,7,13,.62);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(6px)}
+.tp-top .tp-place{font-size:20px;padding:2px 10px}
+
+.tp-body{position:relative;z-index:3;display:flex;align-items:center;gap:14px;margin-top:-26px}
+.tp-face{width:58px;height:58px;flex:none;border-radius:50%;border:3px solid var(--f);
+  background:#0a0d16;
+  box-shadow:0 0 0 4px var(--tp-bg,rgba(16,20,30,.9)),0 0 22px color-mix(in srgb,var(--f) 45%,transparent)}
+.tp-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:20px}
 .tp-id b{font-size:16px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tp-id i{font-style:normal;font-size:11px;color:var(--c);letter-spacing:.06em;text-transform:uppercase}
 .tp-id em{font-style:normal;font-size:12px;color:var(--dim);overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
-.tp-score{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.tp-score{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;
+  padding-top:20px}
 .tp-score b{font-size:22px;font-weight:800;color:var(--c)}
 .tp-score span{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
-/* трійка лідерів — вища картка, більший аватар і кольорове світіння */
-.tp-top{padding:20px 18px 18px;min-height:168px;display:flex;flex-direction:column;
-  justify-content:flex-end}
-.tp-top .tp-place{font-size:26px;top:14px;right:16px}
-.tp-top .tp-face{width:70px;height:70px;border-width:3px}
+/* трійка лідерів — вища смуга банера й більший аватар */
+.tp-top .tp-head{height:132px}
+.tp-top .tp-face{width:76px;height:76px}
+.tp-top .tp-id{padding-top:26px}
 .tp-top .tp-id b{font-size:19px}
+.tp-top .tp-score{padding-top:26px}
 .tp-top .tp-score b{font-size:27px}
-.tp-top .tp-bg{opacity:.44}
 .tp-1{box-shadow:0 0 0 1px rgba(224,180,92,.45),0 18px 46px rgba(224,180,92,.20)}
 .tp-2{box-shadow:0 0 0 1px rgba(200,210,228,.38),0 16px 40px rgba(200,210,228,.14)}
 .tp-3{box-shadow:0 0 0 1px rgba(205,127,80,.38),0 16px 40px rgba(205,127,80,.14)}
-/* тонка кольорова смужка зліва — акцент учасника видно навіть краєм ока */
-.tp::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;z-index:3;
-  background:linear-gradient(180deg,var(--c),transparent);opacity:.85}
-
 /* ── Статистика на картці ──
    Повідомлення, голос і скільки людина на сервері — заради цих чисел
    у рейтинг і заходять, тож вони стоять просто на картці. */
@@ -1125,16 +1134,15 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tp-stat b{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
 .tp-stat em{font-style:normal;font-size:10px;color:var(--dim);letter-spacing:.06em}
 .tp-top .tp-stats{margin-top:14px}
-/* у рядках нижче трійки статистика тулиться праворуч, у той самий рядок */
-@media(min-width:760px){
-  .tp:not(.tp-top){display:flex;align-items:center;gap:16px}
-  .tp:not(.tp-top) .tp-body{flex:1;min-width:0}
-  .tp:not(.tp-top) .tp-stats{margin:0;padding:0;border:0;flex:none}
-  .tp:not(.tp-top) .tp-place{position:static;order:-1;width:34px;text-align:center}
-}
+/* Рядки нижче трійки — компактніші: смуга банера тонша, і все лишається
+   в одному стовпці, щоб довгі ніки не ламали розкладку. */
+.tp:not(.tp-top) .tp-head{height:76px}
+.tp:not(.tp-top) .tp-face{width:50px;height:50px;border-width:2px}
+.tp:not(.tp-top) .tp-body{margin-top:-22px}
+.tp:not(.tp-top) .tp-id,.tp:not(.tp-top) .tp-score{padding-top:16px}
 @media(max-width:600px){
-  .tp-top{min-height:150px}
-  .tp-top .tp-face{width:58px;height:58px}
+  .tp-top .tp-head{height:110px}
+  .tp-top .tp-face{width:62px;height:62px}
   .tp-stat em{display:none}
 }
 
@@ -4552,6 +4560,9 @@ export function leaderboardPage(rows, lang = 'uk') {
       c.width != null ? `--tp-w:${Number(c.width)}px` : '',
       c.line ? `--tp-l:${esc(c.line)}` : '',
       c.shadow ? `--tp-s:${esc(c.shadow)}` : '',
+      // колір самої картки — без нього стиль вікон майже не читався
+      c.bg ? `--tp-bg:${esc(c.bg)}` : '',
+      c.blur != null ? `--tp-bl:${Number(c.blur)}px` : '',
       `animation-delay:${Math.min(i * 0.035, 0.6)}s`,
     ].filter(Boolean).join(';');
 
@@ -4563,9 +4574,14 @@ export function leaderboardPage(rows, lang = 'uk') {
     const stat = (icon, value, label) => `<span class="tp-stat" title="${esc(label)}">
       <i>${icon}</i><b>${esc(value)}</b><em>${esc(label)}</em></span>`;
 
+    // Картка повторює верх профілю: смуга банера, під нею аватар із ніком.
+    // Раніше банер був ледь помітним тлом під майже непрозорою накладкою —
+    // тобто його фактично не було видно взагалі.
     return `<a class="tp${top ? ` tp-top tp-${place}` : ''}" href="/u/${esc(r.user_id)}" style="${skin}">
-      <span class="tp-bg"${bg}></span>
-      <span class="tp-place">${top ? medals[i] : `#${place}`}</span>
+      <span class="tp-head">
+        <span class="tp-bg"${bg}></span>
+        <span class="tp-place">${top ? medals[i] : `#${place}`}</span>
+      </span>
       <span class="tp-body">
         <img class="tp-face" src="${esc(avatarUrl(r.user_id, r.avatar, top ? 128 : 64))}"
           alt="" loading="lazy">
