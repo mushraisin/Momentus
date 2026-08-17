@@ -22,9 +22,9 @@ export function hubPanel(guild) {
   return {
     embeds: [E.hubEmbed(guild)],
     components: [
-      // «Репутація» і «Перевірка» прибрані: розклад репутації тепер закритий
-      // для всіх, а поступ до наступної ролі видно просто в картці профілю —
-      // тож окремі кнопки лише дублювали б те, що й так під рукою.
+      // «Репутація» і «Перевірка» прибрані: розклад репутації закритий для
+      // всіх, а ролі видаються самі за розкладом — окремі кнопки нічого
+      // не додавали.
       ...rows([
         button({ id: cid(NS.PROFILE, 'open'), label: 'Профіль', emoji: '👤', style: ButtonStyle.Primary }),
         button({ id: cid(NS.MOD, 'home'), label: 'Модерація', emoji: '🛡️', style: ButtonStyle.Danger }),
@@ -102,7 +102,6 @@ export async function profileView(guild, userId, user) {
     accent: memberAccent(member),
     bannerUrl,
     level: wallet.level ?? 1,
-    nextRole: nextRoleProgress(guild, member, profile),
   });
 
   return card
@@ -196,32 +195,6 @@ async function currentRole(guild, member) {
   }
 }
 
-/**
- * Поступ до наступної ролі. Показуємо саме частку виконаних вимог, а не самі
- * оцінки: розклад репутації тепер закритий, тож людина бачить «скільки
- * лишилось», але не бачить, з чого це складається.
- */
-function nextRoleProgress(guild, member, profile) {
-  try {
-    const ev = verificationService.evaluate(
-      guild.id, profile, [...(member?.roles?.cache?.keys?.() ?? [])],
-    );
-    if (!ev.next) return null;
-    const checks = ev.next.checks ?? [];
-    if (!checks.length) return null;
-
-    const done = checks.filter((c) => c.ok).length;
-    return {
-      name: ev.next.tier.name,
-      color: ev.next.tier.color ?? null,
-      done,
-      total: checks.length,
-      percent: Math.round((done / checks.length) * 100),
-    };
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Колірний тон картки — за НАЙВИЩОЮ кольоровою роллю учасника (будь-якою).

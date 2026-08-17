@@ -340,7 +340,7 @@ async function attach(canvas, name) {
  */
 export async function profileCard(profile, {
   username, avatarUrl, roleName, roleColor, accent: tone,
-  bannerUrl = null, level = 1, nextRole = null,
+  bannerUrl = null, level = 1,
 } = {}) {
   if (!canRender) return null;
   try {
@@ -348,9 +348,7 @@ export async function profileCard(profile, {
     const accent = roleColor || tone || C.faint;
 
     const headH = 150;
-    // Висота рахується від вмісту, а не «на око»: інакше внизу лишалася
-    // порожня смуга, коли поступу до наступної ролі немає.
-    const H = nextRole ? 376 : 286;
+    const H = 276;
     const { canvas, ctx } = makeCanvas(H);
     backdrop(ctx, H, tint);
 
@@ -363,23 +361,28 @@ export async function profileCard(profile, {
     await avatar(ctx, avatarUrl, PAD, avCy, avSize, accent);
 
     // ── Нік, роль, рівень ──
+    // Рядок ніка й рядок рейтингу мають спільні осі: раніше число було
+    // центроване вище й наїжджало на смугу банера.
+    const nameCy = avCy + 8;
+    const metaCy = avCy + 42;
+
     const textX = PAD + avSize + 20;
     const scoreRight = W - PAD;
     const nameMax = scoreRight - 130 - textX;
 
-    txt(ctx, username, textX, avCy + 6, { size: 30, weight: 700, maxWidth: nameMax });
+    txt(ctx, username, textX, nameCy, { size: 30, weight: 700, maxWidth: nameMax });
 
     let metaX = textX;
     if (roleName) {
-      metaX += pill(ctx, fitText2(ctx, roleName, nameMax - 90, 16), textX, avCy + 40, accent, 16) + 8;
+      metaX += pill(ctx, fitText2(ctx, roleName, nameMax - 90, 16), textX, metaCy, accent, 16) + 8;
     }
-    pill(ctx, `◆ ${level} рівень`, metaX, avCy + 40, tint, 16);
+    pill(ctx, `◆ ${level} рівень`, metaX, metaCy, tint, 16);
 
-    // ── Рейтинг праворуч ──
-    txt(ctx, String(profile.aiScore), scoreRight, avCy - 2, {
-      size: 40, weight: 700, align: 'right', color: tint,
+    // ── Рейтинг праворуч, на тих самих осях ──
+    txt(ctx, String(profile.aiScore), scoreRight, nameCy, {
+      size: 36, weight: 700, align: 'right', color: tint,
     });
-    txt(ctx, 'РЕЙТИНГ', scoreRight, avCy + 30, { size: 13, align: 'right', color: C.dim });
+    txt(ctx, 'РЕЙТИНГ', scoreRight, metaCy, { size: 13, align: 'right', color: C.dim });
 
     // ── Чипи статистики ──
     const chipCy = avCy + avSize / 2 + 34;
@@ -389,23 +392,6 @@ export async function profileCard(profile, {
     // малювався порожньою рамкою
     cx += statChip(ctx, cx, chipCy, '🎧', `${Math.round(profile.voiceMinutes / 60)} год`, 'у голосових') + 10;
     statChip(ctx, cx, chipCy, '◷', fmt(profile.daysOnServer), 'на сервері');
-
-    // ── Поступ до наступної ролі ──
-    // Показуємо саме поступ, а не оцінки: скільки вимог виконано з усіх.
-    if (nextRole) {
-      const boxY = chipCy + 34;
-      const contentW = W - PAD * 2;
-      panel(ctx, PAD, boxY, contentW, 74, 16, C.card, tint);
-
-      const rc = nextRole.color || C.accent;
-      txt(ctx, `До ролі «${nextRole.name}»`, PAD + INNER, boxY + 26, {
-        size: 18, weight: 600, maxWidth: contentW - INNER * 2 - 90,
-      });
-      txt(ctx, `${nextRole.done} / ${nextRole.total}`, W - PAD - INNER, boxY + 26, {
-        size: 18, weight: 700, align: 'right', color: rc,
-      });
-      bar(ctx, PAD + INNER, boxY + 52, contentW - INNER * 2, nextRole.percent, rc, 10);
-    }
 
     return attach(canvas, 'profile.png');
   } catch (err) {
