@@ -953,12 +953,17 @@ ok('профіль: загальне число й графік динаміки
   assert.equal(shop.status, 200, 'сторінка магазину відкривається');
   assert.ok(shop.body.includes('sh-balance'), 'баланс FP на видноті');
 
-  // категорії списком ліворуч — рівно пʼять, як домовились
+  // категорії списком ліворуч: пʼять справжніх розділів плюс два службові
+  // зрізи — «Усе» та «Моє». Тепер це фільтр, а не якір: показується лише
+  // обраний розділ, тож магазин перестав бути одним довгим сувоєм.
   assert.ok(shop.body.includes('class="sh-side"'), 'категорії окремим списком');
   for (const cat of ['Фони', 'Акцентні кольори', 'Рамки', 'Вікна', 'Кастом']) {
     assert.ok(shop.body.includes(`>${cat}<`), `категорія «${cat}» показана`);
   }
-  assert.equal((shop.body.match(/class="sh-cat/g) ?? []).length, 5, 'категорій рівно пʼять');
+  assert.equal((shop.body.match(/class="sh-cat/g) ?? []).length, 7, 'пʼять розділів + «Усе» і «Моє»');
+  assert.ok(shop.body.includes('data-cat="all"'), 'зріз «Усе»');
+  assert.ok(shop.body.includes('data-cat="mine"'), 'зріз «Моє»');
+  assert.ok(!/<a class="sh-cat[^"]*" href="#/.test(shop.body), 'категорія більше не якір, а фільтр');
 
   // поштучні речі мають власну ціну, а набором лишились тільки безкоштовні кольори
   assert.ok(shop.body.includes('data-id="frame.spin"'), 'рамка продається окремо');
@@ -1141,6 +1146,91 @@ ok('кастом: вітрина учасників, оплата авторов
   assert.ok(!other.body.includes('id="look"'), 'і гардероба теж');
 }
 ok('профіль: опис усім, гардероб із передпереглядом, картинки — бустерам');
+
+// 23. персоналізація по вкладках, фільтр магазину, заливка з підтвердженням
+{
+  const me = await req('/me', auth);
+
+  // вікно оформлення розбите на розділи — раніше все лежало одним сувоєм
+  assert.equal((me.body.match(/<button class="pf-tab/g) ?? []).length, 4, 'чотири вкладки');
+  for (const tab of ['look', 'images', 'page', 'settings']) {
+    assert.ok(me.body.includes(`data-tab="${tab}"`), `вкладка «${tab}»`);
+    assert.ok(me.body.includes(`data-panel="${tab}"`), `панель «${tab}»`);
+  }
+  assert.equal((me.body.match(/data-panel="(images|page|settings)" hidden/g) ?? []).length, 3,
+    'видно рівно один розділ');
+  assert.ok(me.body.includes('id="pf-clearall"'), 'можна скинути все одним рухом');
+
+  // ── магазин: категорія фільтрує, а не гортає ──
+  const shop = await req('/shop', auth);
+  assert.ok(shop.body.includes('data-cat="all"') && shop.body.includes('data-cat="mine"'),
+    'зрізи «Усе» та «Моє»');
+  assert.ok(shop.body.includes('id="sh-empty"'), 'є що показати, коли розділ порожній');
+  assert.ok(shop.body.includes('class="sh-prevbtn'), 'перегляд окремою кнопкою на картці');
+  assert.ok(shop.body.includes('sh-count'), 'видно, скільки зразків у наборі');
+  // без бусту заливка замкнена; сам перехід «одразу на вкладку заливки»
+  // перевіряємо нижче, на розмітці профілю
+  assert.ok(shop.body.includes('🔒'), 'без бусту заливка замкнена');
+  assert.ok(me.body.includes("if(location.hash==='#upload')go('images')"),
+    'посилання #upload відкриває саме вкладку заливки');
+
+  // передперегляд показує весь набір стрічкою, а не по одному за клік
+  assert.ok(shop.body.includes('pv-strip'), 'стрічка варіантів');
+  assert.ok(shop.body.includes('pv-th'), 'мініатюри варіантів');
+  assert.ok(!shop.body.includes('Клікайте ще'), 'підказки «клікайте ще» більше немає');
+  assert.ok(!/dataset\.pi/.test(shop.body), 'і перебору по колу теж');
+
+  // ── відмови показуються реченням, а не міткою сервера ──
+  for (const [lang, word] of [['uk', 'Не вистачає'], ['en', 'Not enough']]) {
+    const page = await req('/shop', { headers: { cookie: `sid=${SID}; lang=${lang}` } });
+    assert.ok(page.body.includes('window.ERRS='), `словник відмов (${lang})`);
+    assert.ok(page.body.includes(word), `відмови перекладено (${lang})`);
+  }
+  assert.ok(!shop.body.includes("funds:'Не вистачає FP'"), 'вписаних у скрипт текстів більше немає');
+
+  // ── заливка: спершу видно, що публікуєш, і лише потім списання ──
+  const { profilePage } = await import('../src/web/render.js');
+  const kinds = [
+    { id: 'b1', name: 'Фон', kind: 'background', value: { type: 'solid', color: '#111' } },
+    { id: 'a1', name: 'Акцент', kind: 'accent', value: { color: '#43c47b' } },
+    { id: 'f1', name: 'Рамка', kind: 'frame', value: { color: '#6b7cff' } },
+    { id: 'c1', name: 'Вікно', kind: 'card', value: { bg: 'rgba(1,2,3,.5)', line: '#fff' } },
+  ];
+  const page = profilePage(
+    { aiScore: 1, totalMessages: 1, messages30d: 1, voiceMinutes: 1, activeDays: 1, daysOnServer: 1, scoreHistory: [1, 2, 3] },
+    {
+      username: 'x', avatar: '/a', rank: 1, lang: 'uk', mine: true,
+      look: { scope: {}, layout: {}, showcase: [] },
+      wardrobe: {
+        packs: [{ id: 'p', name: 'Набір', items: kinds }],
+        canUpload: true, uploads: { background: 2, banner: 3 }, uploadLimit: 3,
+        showcaseMax: 6, assets: [], images: [],
+      },
+    },
+  );
+  assert.ok(page.includes('id="pf-upfile"'), 'вибір файлу');
+  assert.ok(page.includes('id="pf-upwin"'), 'вікно підтвердження');
+  assert.ok(page.includes('id="pf-upshot"'), 'передперегляд самої картинки');
+  assert.ok(page.includes('id="pf-upgo"') && page.includes('id="pf-upcancel"'),
+    'публікацію можна підтвердити або скасувати');
+  assert.ok(!/data-slot="banner" hidden/.test(page), 'миттєвої заливки за вибором файлу немає');
+  assert.ok(page.includes('фонів 2') && page.includes('банерів 3'), 'видно залишок лімітів');
+
+  // речі згруповані за призначенням, а не за набором, у якому куплені
+  for (const g of ['Фони', 'Акценти', 'Рамки аватара', 'Стиль вікон']) {
+    assert.ok(page.includes(`<span>${g}</span>`), `група «${g}»`);
+  }
+  assert.ok(!page.includes('<span>Набір</span>'), 'назва набору більше не заголовок');
+
+  // ── hls.js їде з нашого сервера, а не з чужого CDN ──
+  const cin = await req('/cinema', auth);
+  assert.ok(cin.body.includes("loadScript('/vendor/hls.min.js')"), 'спершу свій файл');
+  const vendor = await req('/vendor/hls.min.js');
+  assert.equal(vendor.status, 200, 'файл віддається');
+  assert.ok(vendor.body.length > 100_000, `це справді бібліотека (${vendor.body.length} б)`);
+  assert.ok(vendor.type.includes('javascript'), 'із правильним типом');
+}
+ok('персоналізація по вкладках, фільтр магазину, заливка з підтвердженням, свій hls.js');
 
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });

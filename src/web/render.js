@@ -997,7 +997,51 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-lookh .gate-x{position:static}
 .pf-lookwin .pane-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .pf-group{margin-top:16px}
-.pf-gt{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+.pf-gt{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:9px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* дрібне «зняти» в заголовку групи: знімається саме те, на що дивишся,
+   і не треба шукати окремий список скидання десь унизу вікна */
+.pf-gt .pf-clear{font-size:11px;padding:3px 9px;text-transform:none;letter-spacing:0}
+
+/* ── Вкладки вікна оформлення ──
+   Раніше все — гардероб, заливка, блоки, вітрина, скидання — лежало одним
+   довгим сувоєм, і потрібне доводилось шукати прокруткою. Тепер це чотири
+   розділи, і видно рівно один. */
+.pf-tabs{display:flex;gap:6px;margin:14px 0 4px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);padding-bottom:12px}
+.pf-tab{padding:9px 14px;border-radius:11px;border:1px solid var(--line);cursor:pointer;
+  background:rgba(255,255,255,.04);color:var(--dim);font:inherit;font-size:13px;
+  display:flex;align-items:center;gap:7px;transition:.25s cubic-bezier(.22,.9,.3,1)}
+.pf-tab:hover{color:var(--text);border-color:rgba(107,124,255,.5);transform:translateY(-2px)}
+.pf-tab:active{transform:scale(.97)}
+.pf-tab.on{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
+  border-color:rgba(255,255,255,.35);
+  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.26)}
+.pf-tab .pf-tn{font-size:11px;opacity:.75}
+.pf-panel[hidden]{display:none}
+.pf-panel{animation:fadeUp .32s cubic-bezier(.22,.9,.3,1) both}
+/* Вікно вже не стрибає у висоті при перемиканні вкладок: сувій живе
+   всередині, а шапка з вкладками лишається на місці. */
+.pf-lookwin{display:flex;flex-direction:column}
+.pf-scroll{overflow:auto;min-height:230px;margin:0 -6px;padding:2px 6px 4px}
+
+/* ── Публікація своєї картинки: спершу видно, що саме публікуєш ──
+   Раніше вибір файлу одразу списував FP і заливав — відступити було нікуди. */
+.pf-updrop{margin-top:4px}
+.pf-upwin{margin-top:12px;padding:14px;border-radius:16px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line);animation:pop .3s both}
+.pf-upwin[hidden]{display:none}
+.pf-uprow{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.pf-upshot{width:190px;height:112px;flex:none;border-radius:12px;border:1px solid var(--line);
+  background:#0a0d16 center/cover no-repeat;box-shadow:0 10px 26px rgba(0,0,0,.4)}
+.pf-upfields{flex:1;min-width:210px;display:flex;flex-direction:column;gap:8px}
+.pf-upfields input{padding:9px 12px;border-radius:10px;font:inherit;font-size:13px;width:100%;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+.pf-upfields input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+.pf-upkind{display:flex;gap:8px}
+.pf-upfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:12px;flex-wrap:wrap}
+.pf-upfoot .hint{flex:1;min-width:180px}
 .pf-sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
 .pf-sw{position:relative;height:62px;border-radius:12px;border:1px solid var(--line);
   cursor:pointer;overflow:hidden;padding:0;color:#fff;font:inherit;
@@ -1078,6 +1122,47 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   .sh-side{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}
   .sh-cat{flex:none}
 }
+/* Категорія тепер не «прокрутити до», а «показати лише це»: магазин перестав
+   бути одним нескінченним сувоєм, у якому шукаєш потрібний розділ очима. */
+.sh-sec[hidden]{display:none}
+.sh-side .sh-cat{cursor:pointer;border:1px solid transparent;background:0;
+  text-align:left;font:inherit;width:100%}
+/* «Уже ваше» окремою позначкою — видно ще до того, як дочитаєш кнопку */
+.sh-card.mine{border-color:rgba(67,196,123,.4)}
+.sh-own-tag{position:absolute;left:10px;top:10px;padding:3px 9px;border-radius:999px;
+  font-size:11px;color:#7fe0a4;background:rgba(67,196,123,.16);
+  border:1px solid rgba(67,196,123,.4);backdrop-filter:blur(4px)}
+/* скільки зразків усередині набору — одразу на картці */
+.sh-count{position:absolute;right:10px;top:10px;padding:3px 9px;border-radius:999px;
+  font-size:11px;color:var(--dim);background:rgba(8,11,18,.7);border:1px solid var(--line);
+  backdrop-filter:blur(4px)}
+.sh-card{position:relative}
+/* Прев'ю тепер окремою кнопкою на картці, а не прихованим кліком по зразках */
+.sh-prevbtn{position:absolute;left:50%;top:64px;transform:translate(-50%,6px);
+  padding:7px 14px;border-radius:999px;font-size:12px;cursor:pointer;
+  background:rgba(8,11,18,.82);border:1px solid var(--line);color:var(--text);
+  font-family:inherit;opacity:0;transition:.25s cubic-bezier(.22,.9,.3,1);backdrop-filter:blur(6px)}
+.sh-card:hover .sh-prevbtn,.sh-prevbtn:focus-visible{opacity:1;transform:translate(-50%,0)}
+.sh-prevbtn:hover{border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.2)}
+/* на дотикових екранах наведення немає — кнопка просто видима */
+@media(hover:none){.sh-prevbtn{opacity:1;transform:translate(-50%,0)}}
+
+/* ── Стрічка варіантів у передперегляді ──
+   Набір показував по одному зразку за клік із підказкою «клікайте ще» —
+   було незрозуміло, скільки їх узагалі й що вже бачив. */
+.pv-strip{display:flex;gap:8px;padding:10px 18px 0;overflow-x:auto}
+.pv-strip[hidden]{display:none}
+.pv-th{width:56px;height:38px;flex:none;border-radius:9px;cursor:pointer;padding:0;
+  border:1px solid var(--line);background:#0a0d16 center/cover no-repeat;
+  transition:.22s cubic-bezier(.22,.9,.3,1)}
+.pv-th:hover{transform:translateY(-2px);border-color:rgba(107,124,255,.55)}
+.pv-th.on{border-color:rgba(107,124,255,.85);box-shadow:0 0 0 3px rgba(107,124,255,.22)}
+.pv-th.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
+  background-size:300% 300%;animation:flow 9s ease-in-out infinite}
+.pv-th.ac{background:radial-gradient(circle at 38% 34%,var(--c),#0a0d16 74%)}
+.pv-th.fr::before{content:'';display:block;width:18px;height:18px;margin:9px auto;
+  border-radius:50%;border:2px solid var(--c);box-shadow:0 0 10px var(--c)}
+.pv-name{padding:8px 18px 0;font-size:13px;color:var(--dim)}
 
 .tagp.good{border-color:rgba(67,196,123,.45);background:rgba(67,196,123,.14);color:#7fe0a4}
 .sh-body{display:flex;flex-direction:column;gap:30px}
@@ -1679,7 +1764,12 @@ window.CinemaPlayer=(function(){
     var hls=null,levels=[];
     if(cfg.provider==='hls'&&!v.canPlayType('application/vnd.apple.mpegurl')){
       /* Safari грає HLS сам, решті потрібен hls.js */
-      ready=loadScript('https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js').then(function(){
+      /* Спершу свій файл — він їде з тієї ж машини, що й сайт, тож не залежить
+         від чужого CDN. Якщо бот запущено без npm install, лишається запасний
+         шлях назовні: краще так, ніж зал із чорним екраном. */
+      ready=loadScript('/vendor/hls.min.js').catch(function(){
+        return loadScript('https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js');
+      }).then(function(){
         if(!window.Hls||!window.Hls.isSupported()){v.src=cfg.src;return}
         /* Автоякість. Три речі, без яких hls.js сидить на низькій картинці:
            capLevelToPlayerSize:false — інакше якість обмежується розміром
@@ -2783,22 +2873,40 @@ window.CosmeticPreview=(function(){
     return 'background:#0a0d16';
   }
 
+  /** Мініатюра варіанта в стрічці — показує сам зразок, а не підпис. */
+  function thumb(it,i,on){
+    var v=it.value||{},cls='pv-th'+(on?' on':''),style='';
+    if(it.kind==='background'&&v.type==='solid')style='background:'+v.color;
+    else if(it.kind==='background'&&v.type==='gradient')
+      style='background:linear-gradient('+(v.angle||160)+'deg,'+v.from+','+v.to+')';
+    else if(it.kind==='background'&&v.type==='motion'){cls+=' mo';style='--a:'+v.from+';--b:'+v.to}
+    else if(v.type==='image')style='background-image:url('+v.url+')';
+    else if(it.kind==='accent'){cls+=' ac';style='--c:'+v.color}
+    else if(it.kind==='frame'){cls+=' fr';style='--c:'+v.color}
+    else if(it.kind==='card')style='background:'+v.bg+';border-color:'+v.line;
+    return '<button class="'+cls+'" data-i="'+i+'" style="'+style+'" title="'
+      +String(it.name||'').replace(/"/g,'&quot;')+'"></button>';
+  }
+
   /**
-   * @param it   {id,name,kind,value}
-   * @param opts {owned, action:{label,fn}}
+   * @param what {id,name,kind,value} або масив таких — тоді внизу зʼявляється
+   *   стрічка варіантів. Раніше набір показувався по одному за клік із
+   *   підказкою «клікайте ще», і скільки їх узагалі — було невідомо.
+   * @param opts {hint, action:{label,fn}}
    */
-  function open(it,opts){
+  function open(what,opts){
     shut();
     opts=opts||{};
-    var accent=(it.kind==='accent'&&it.value.color)||'#6b7cff';
-    var frame=(it.kind==='frame'&&it.value.color)||null;
+    var list=[].concat(what).filter(Boolean);
+    if(!list.length)return;
+    var idx=0;
 
     box=document.createElement('div');
     box.className='pv-back';
     box.innerHTML=
       '<div class="pv">'
       +'<div class="pv-h"><b></b><button class="gate-x pv-x" aria-label="×">×</button></div>'
-      +'<div class="pv-stage" style="'+css(it)+'">'
+      +'<div class="pv-stage">'
         +'<div class="pv-fog"></div>'
         +'<div class="pv-bar"><span class="pv-dot"></span><i></i><i></i><i class="on"></i></div>'
         +'<div class="pv-card">'
@@ -2807,26 +2915,43 @@ window.CosmeticPreview=(function(){
           +'<div class="pv-btn">Кнопка</div>'
         +'</div>'
       +'</div>'
+      +'<div class="pv-strip"'+(list.length>1?'':' hidden')+'>'
+      +list.map(function(it,i){return thumb(it,i,i===0)}).join('')
+      +'</div>'
       +'<div class="pv-f"><span class="hint pv-hint"></span><span class="pv-act"></span></div>'
       +'</div>';
 
-    box.querySelector('.pv-h b').textContent=it.name||'';
-    box.querySelector('.pv-hint').textContent=opts.hint||'';
-    box.querySelector('.pv-bar i.on').style.background=accent;
-    box.querySelector('.pv-btn').style.background=accent;
-    if(frame){
-      var a=box.querySelector('.pv-ava');
-      a.style.borderColor=frame;a.style.boxShadow='0 0 0 4px '+frame+'33,0 0 24px '+frame+'66';
+    var stage=box.querySelector('.pv-stage'),ava=box.querySelector('.pv-ava'),
+        head=box.querySelector('.pv-h b'),dot=box.querySelector('.pv-bar i.on'),
+        btn=box.querySelector('.pv-btn');
+
+    /* Показуємо обраний варіант так, як він виглядатиме на сторінці. */
+    function show(i){
+      idx=i;
+      var it=list[i],v=it.value||{};
+      stage.setAttribute('style',css(it));
+      head.textContent=it.name||'';
+      var accent=(it.kind==='accent'&&v.color)||'#6b7cff';
+      dot.style.background=accent;btn.style.background=accent;
+      /* рамку показуємо лише тоді, коли дивимось саме на рамку */
+      var frame=(it.kind==='frame'&&v.color)||null;
+      ava.style.borderColor=frame||'';
+      ava.style.boxShadow=frame?('0 0 0 4px '+frame+'33,0 0 24px '+frame+'66'):'';
+      box.querySelectorAll('.pv-th').forEach(function(b,k){b.classList.toggle('on',k===i)});
     }
+    show(0);
+    box.querySelector('.pv-hint').textContent=opts.hint||'';
 
     if(opts.action){
       var b=document.createElement('button');
       b.className='btn sm';b.textContent=opts.action.label;
-      b.addEventListener('click',function(){opts.action.fn();shut()});
+      b.addEventListener('click',function(){opts.action.fn(list[idx]);shut()});
       box.querySelector('.pv-act').appendChild(b);
     }
 
     box.addEventListener('click',function(e){
+      var th=e.target.closest('.pv-th');
+      if(th){show(Number(th.dataset.i));return}
       if(e.target===box||e.target.closest('.pv-x'))shut();
     });
     document.body.appendChild(box);
@@ -2844,8 +2969,8 @@ const SHOP_JS = `
   function fail(t){if(!err)return;err.textContent=t;err.hidden=!t;
     if(t)setTimeout(function(){err.hidden=true},4000)}
 
-  var TEXT={funds:'Не вистачає FP',booster:'Це відкривається бустерам сервера',
-    owned:'Уже ваше',limit:'Досягнуто ліміт своїх картинок'};
+  /* тексти відмов приходять зі сторінки — вони перекладені */
+  var say=window.errText||function(c){return c};
 
   function post(url,payload){
     return fetch(url,{method:'POST',headers:{'content-type':'application/json'},
@@ -2853,19 +2978,43 @@ const SHOP_JS = `
       .catch(function(){return{error:'net'}});
   }
 
-  /* Категорії ліворуч підсвічуються за тим, що зараз на екрані. */
+  /* ── Категорія показує лише свій розділ ──
+     Раніше це був якір із підсвіткою: усі розділи лишались на сторінці,
+     і магазин був одним довгим сувоєм. */
   var cats=[].slice.call(document.querySelectorAll('.sh-cat'));
-  var cards=[].slice.call(document.querySelectorAll('.sh-card'));
-  if(window.IntersectionObserver&&cards.length){
-    var io=new IntersectionObserver(function(list){
-      list.forEach(function(en){
-        if(!en.isIntersecting)return;
-        var id=en.target.id;
-        cats.forEach(function(c){c.classList.toggle('on',c.dataset.cat===id)});
-      });
-    },{rootMargin:'-40% 0px -50% 0px'});
-    cards.forEach(function(c){io.observe(c)});
+  var secs=[].slice.call(document.querySelectorAll('.sh-sec'));
+  var empty=document.getElementById('sh-empty');
+
+  function filter(name){
+    cats.forEach(function(c){c.classList.toggle('on',c.dataset.cat===name)});
+    var shown=0;
+    secs.forEach(function(s){
+      var hide=false;
+      if(name==='mine'){
+        /* «Моє» — зрізи по всіх розділах, тож ховаємо не секції, а картки */
+        var any=0;
+        s.querySelectorAll('.sh-card').forEach(function(card){
+          var mine=card.classList.contains('mine');
+          card.hidden=!mine;if(mine)any++;
+        });
+        hide=!any;
+      }else{
+        s.querySelectorAll('.sh-card').forEach(function(card){card.hidden=false});
+        hide=name!=='all'&&s.id!==name;
+      }
+      s.hidden=hide;
+      if(!hide)shown++;
+    });
+    if(empty)empty.hidden=shown>0;
+    try{history.replaceState(null,'',name==='all'?location.pathname:'#'+name)}catch(e){}
   }
+
+  cats.forEach(function(c){
+    c.addEventListener('click',function(){filter(c.dataset.cat)});
+  });
+  /* прийшли за посиланням на конкретний розділ — одразу показуємо його */
+  var start=(location.hash||'').slice(1);
+  if(start&&cats.some(function(c){return c.dataset.cat===start}))filter(start);
 
   document.addEventListener('click',function(e){
     /* ── отримати набір: картка міняється на місці ── */
@@ -2875,7 +3024,7 @@ const SHOP_JS = `
       buy.disabled=true;buy.classList.add('busy');
       post('/api/shop/buy',{item:buy.dataset.item}).then(function(j){
         buy.disabled=false;buy.classList.remove('busy');
-        if(j.error){fail(TEXT[j.error]||j.error);return}
+        if(j.error){fail(say(j.error));return}
 
         var bal=document.getElementById('sh-balance');
         if(bal&&typeof j.balance==='number')bal.textContent=j.balance;
@@ -2883,24 +3032,31 @@ const SHOP_JS = `
         card.classList.add('mine','bought');
         var a=card.querySelector('.sh-a');
         if(a)a.innerHTML='<a class="btn ghost sm" href="/me#look">Обрати в профілі</a>';
-        var cat=document.querySelector('.sh-cat[data-cat="'+j.pack+'"] .sh-cc');
-        if(cat)cat.textContent='✓';
+        /* позначка «уже ваше» зʼявляється одразу, без перезавантаження */
+        if(!card.querySelector('.sh-own-tag')){
+          var tag=document.createElement('span');
+          tag.className='sh-own-tag';tag.textContent='✓ Уже ваше';
+          card.insertBefore(tag,card.firstChild.nextSibling);
+        }
+        var mineCat=document.querySelector('.sh-cat[data-cat="mine"] .sh-cc');
+        if(mineCat)mineCat.textContent=String((Number(mineCat.textContent)||0)+1);
       });
       return;
     }
 
-    /* ── передперегляд набору: показуємо, як воно виглядатиме ── */
+    /* ── передперегляд: увесь набір одразу, варіанти перемикаються стрічкою ── */
     var prev=e.target.closest('.sh-prev');
     if(prev&&window.CosmeticPreview){
       var card=prev.closest('.sh-card');
       var items=JSON.parse(card.dataset.items||'[]');
-      if(items.length){
-        var i=Number(card.dataset.pi||0)%items.length;
-        card.dataset.pi=i+1;
-        window.CosmeticPreview.open(items[i],{
-          hint:items.length>1?'Клікайте ще — у наборі '+items.length+' варіант(и)':'',
-        });
-      }
+      if(!items.length)return;
+
+      /* із самого передперегляду можна й купити — не треба закривати вікно,
+         шукати ту саму картку й тиснути кнопку ще раз */
+      var buyBtn=card.querySelector('.sh-buy');
+      window.CosmeticPreview.open(items,{
+        action:buyBtn?{label:buyBtn.textContent.trim(),fn:function(){buyBtn.click()}}:null,
+      });
       return;
     }
 
@@ -2917,7 +3073,7 @@ const SHOP_JS = `
     if(flag){
       var next=!flag.classList.contains('on');
       post('/api/shop/flag',{item:flag.dataset.item,booster:next}).then(function(j){
-        if(j.error){fail(j.error);return}
+        if(j.error){fail(say(j.error));return}
         flag.classList.toggle('on',j.booster);
         var card=document.querySelector('.sh-card[data-id="'+flag.dataset.item+'"]');
         if(card){
@@ -2944,7 +3100,7 @@ const SHOP_JS = `
       save.disabled=true;
       post('/api/shop/prices',{prices:prices,booster:flags}).then(function(j){
         save.disabled=false;
-        if(j.error){fail(j.error);return}
+        if(j.error){fail(say(j.error));return}
         (j.items||[]).forEach(function(it){
           var card=document.querySelector('.sh-card[data-id="'+it.id+'"]');
           if(!card)return;
@@ -2977,7 +3133,7 @@ const SHOP_JS = `
         listed:!on,
       }).then(function(j){
         list.disabled=false;
-        if(j.error){fail(TEXT[j.error]||j.error);return}
+        if(j.error){fail(say(j.error));return}
         list.dataset.on=on?'0':'1';
         list.textContent=on?'Виставити':'Зняти';
         row.classList.toggle('listed',!on);
@@ -3074,16 +3230,95 @@ const PROFILE_JS = `
     if(location.hash==='#look')show(true);
   })();
 
-  /* Скільки коштує сама публікація — половина від призначеної ціни. */
+  /* ── Вкладки вікна оформлення ── */
   (function(){
-    var price=document.getElementById('pf-upprice'),cost=document.getElementById('pf-upcost');
-    if(!price||!cost)return;
-    function show(){
-      var n=Math.max(1,Math.round(Number(price.value)||1));
-      cost.textContent='публікація: '+Math.max(1,Math.ceil(n/2))+' ✨FP';
+    var tabs=[].slice.call(document.querySelectorAll('.pf-tab'));
+    var panels=[].slice.call(document.querySelectorAll('.pf-panel'));
+    if(!tabs.length)return;
+    var scroll=document.querySelector('.pf-scroll');
+    function go(name){
+      tabs.forEach(function(t){
+        var on=t.dataset.tab===name;
+        t.classList.toggle('on',on);t.setAttribute('aria-selected',on?'true':'false');
+      });
+      panels.forEach(function(p){p.hidden=p.dataset.panel!==name});
+      /* новий розділ читається згори, а не з місця, де скінчився попередній */
+      if(scroll)scroll.scrollTop=0;
     }
-    price.addEventListener('input',show);
-    show();
+    tabs.forEach(function(t){t.addEventListener('click',function(){go(t.dataset.tab)})});
+    /* із магазину приходять по «залити своє» — одразу потрібна вкладка */
+    if(location.hash==='#upload')go('images');
+  })();
+
+  /* ── Публікація своєї картинки ──
+     Спершу показуємо картинку, назву й ціну, і лише після натискання
+     «Опублікувати» щось списується. */
+  (function(){
+    var file=document.getElementById('pf-upfile'),win=document.getElementById('pf-upwin');
+    if(!file||!win)return;
+    var shot=document.getElementById('pf-upshot'),price=document.getElementById('pf-upprice'),
+        title=document.getElementById('pf-uptitle'),go=document.getElementById('pf-upgo'),
+        cancel=document.getElementById('pf-upcancel'),hint=document.getElementById('pf-uphint');
+    var chosen=null,slot='background',tpl=go.dataset.tpl||'{n} ✨FP',explain=hint.textContent;
+
+    function cost(){return Math.max(1,Math.ceil(Math.max(1,Math.round(Number(price.value)||1))/2))}
+    function refresh(){go.textContent=tpl.replace('{n}',cost())}
+
+    function reset(){
+      chosen=null;win.hidden=true;file.value='';shot.style.backgroundImage='';
+      hint.textContent=explain;go.classList.remove('busy');go.disabled=false;
+    }
+
+    file.addEventListener('change',function(){
+      var f=file.files&&file.files[0];
+      if(!f)return;
+      chosen=f;
+      /* показуємо саме той файл, який обрали, ще до будь-яких списань */
+      var fr=new FileReader();
+      fr.onload=function(){shot.style.backgroundImage='url('+fr.result+')'};
+      fr.readAsDataURL(f);
+      win.hidden=false;refresh();
+      if(!title.value)title.value=f.name.replace(/\\.[^.]+$/,'').slice(0,60);
+      title.focus();
+    });
+
+    price.addEventListener('input',refresh);
+    cancel.addEventListener('click',reset);
+
+    document.addEventListener('click',function(e){
+      var s=e.target.closest('.pf-upslot');
+      if(!s)return;
+      slot=s.dataset.slot;
+      document.querySelectorAll('.pf-upslot').forEach(function(b){b.classList.toggle('on',b===s)});
+    });
+
+    go.addEventListener('click',function(){
+      if(!chosen)return;
+      go.classList.add('busy');go.disabled=true;
+      var fd=new FormData();
+      fd.append('slot',slot);fd.append('price',price.value||'1');
+      fd.append('title',title.value||'');fd.append('file',chosen);
+      fetch('/api/profile/asset',{method:'POST',body:fd})
+        .then(function(r){return r.json()}).then(function(j){
+          if(j.error){
+            hint.textContent=(window.errText||function(c){return c})(j.error);
+            go.classList.remove('busy');go.disabled=false;
+            return;
+          }
+          var list=document.getElementById('pf-assets');
+          if(list){
+            var b=document.createElement('button');
+            b.className='pf-shot on';b.dataset.asset=j.id;b.dataset.slot=j.kind;
+            b.style.backgroundImage='url(/asset/'+j.id+')';
+            list.prepend(b);
+          }
+          reset();title.value='';
+          paint(j.look);
+        }).catch(function(){
+          hint.textContent=(window.errText||function(c){return c})('net');
+          go.classList.remove('busy');go.disabled=false;
+        });
+    });
   })();
 
   /* ── Опис ── */
@@ -3178,6 +3413,21 @@ const PROFILE_JS = `
       return;
     }
 
+    /* скинути все одразу — щоб не тиснути п'ять кнопок поспіль */
+    var all=e.target.closest('.pf-clearall');
+    if(all){
+      all.classList.add('busy');
+      var parts=['background','accent','frame','card','banner'];
+      Promise.all(parts.map(function(w){return post('/api/shop/clear',{what:w})}))
+        .then(function(res){
+          all.classList.remove('busy');
+          var last=res[res.length-1];
+          document.querySelectorAll('.pf-sw.on').forEach(function(b){b.classList.remove('on')});
+          if(last&&last.look)paint(last.look);
+        });
+      return;
+    }
+
     var clr=e.target.closest('.pf-clear');
     if(clr){
       post('/api/shop/clear',{what:clr.dataset.what}).then(function(j){
@@ -3202,38 +3452,6 @@ const PROFILE_JS = `
     }
   });
 
-  /* ── Завантаження своїх картинок ── */
-  document.addEventListener('change',function(e){
-    var inp=e.target.closest('.pf-up input[type=file]');
-    if(!inp||!inp.files||!inp.files[0])return;
-    var slot=inp.dataset.slot,label=inp.closest('label');
-    label.classList.add('busy');
-
-    var priceEl=document.getElementById('pf-upprice'),titleEl=document.getElementById('pf-uptitle');
-    var fd=new FormData();
-    fd.append('slot',slot);
-    fd.append('price',priceEl?priceEl.value:'1');
-    fd.append('title',titleEl?titleEl.value:'');
-    fd.append('file',inp.files[0]);
-    fetch('/api/profile/asset',{method:'POST',body:fd})
-      .then(function(r){return r.json()}).then(function(j){
-        label.classList.remove('busy');inp.value='';
-        if(j.error){
-          var t=({limit:'Досягнуто ліміт',funds:'Не вистачає FP',
-            booster:'Лише для бустерів',locked:'Лише для бустерів'})[j.error]||j.error;
-          var h=document.querySelector('.pf-up .hint');if(h)h.textContent=t;
-          return;
-        }
-        var list=document.getElementById('pf-assets');
-        if(list){
-          var b=document.createElement('button');
-          b.className='pf-shot on';b.dataset.asset=j.id;b.dataset.slot=j.kind;
-          b.style.backgroundImage='url(/asset/'+j.id+')';
-          list.prepend(b);
-        }
-        paint(j.look);
-      }).catch(function(){label.classList.remove('busy')});
-  });
 })();
 `;
 
@@ -3566,6 +3784,31 @@ function shade(hex, amount) {
   return `#${ch.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
+/**
+ * Тексти відмов для сторінки. Сервер відповідає короткими мітками
+ * («funds», «no storage»), а людині треба речення — і тією мовою, яку вона
+ * обрала. Раніше ці рядки були вписані в скрипт українською, тож в
+ * англійському режимі магазин відповідав українською або взагалі мітками.
+ */
+function errorDict(lang) {
+  const map = {
+    funds: 'err.funds',
+    booster: 'err.booster',
+    owned: 'err.owned',
+    limit: 'err.limit',
+    locked: 'err.locked',
+    'no storage': 'err.noStorage',
+    'image only': 'err.imageOnly',
+    'not yours': 'err.notYours',
+    net: 'err.net',
+    unknown: 'err.unknown',
+  };
+  const out = {};
+  for (const [code, key] of Object.entries(map)) out[code] = t(lang, key);
+  return `window.ERRS=${JSON.stringify(out)};`
+    + 'window.errText=function(c){return (window.ERRS||{})[c]||(window.ERRS||{}).unknown||c};';
+}
+
 function shell({ title, content, hasCustomCss, extraJs = '', meta = '', skin = '', lang = 'uk', description = '' }) {
   return `<!doctype html>
 <html lang="${esc(lang)}"><head>
@@ -3626,6 +3869,8 @@ export function layout({
     skin: skinCss(look, { page }),
     meta: og ? metaTags(og) : '',
     extraJs: [
+      // словник відмов потрібен магазину й профілю — саме там щось купують
+      page === 'shop' || page === 'me' ? errorDict(lang) : '',
       gallery ? GALLERY_JS : '',
       page === 'cinema' ? PLAYERS_JS : '',
       page === 'cinema' ? CINEMA_JS : '',
@@ -3813,6 +4058,145 @@ export function profilePage(profile, {
 
   // Гардероб живе в окремому вікні: на самій сторінці він займав пів екрана
   // й заважав дивитися профіль, заради якого сюди й заходять.
+  //
+  // Усередині вікна — вкладки. Раніше гардероб, заливка, блоки, вітрина,
+  // область дії та скидання лежали одним довгим сувоєм: щоб змінити фон,
+  // доводилось гортати повз усе інше. Тепер на екрані рівно один розділ.
+
+  // Речі показуємо за призначенням, а не за набором, у якому їх куплено:
+  // людина йде сюди з думкою «хочу інший фон», а не «що там було в наборі».
+  const ownedItems = (wardrobe?.packs ?? []).flatMap((p) => p.items ?? []);
+  const byKind = (kind) => ownedItems.filter((it) => it.kind === kind);
+
+  const kindGroup = (kind) => {
+    const list = byKind(kind);
+    if (!list.length) return '';
+    // «Зняти» стоїть у заголовку саме цієї групи — знімається те, на що дивишся
+    const clearable = ['background', 'accent', 'frame', 'card'].includes(kind);
+    return `<div class="pf-group">
+      <div class="pf-gt">
+        <span>${esc(t(lang, `profile.kind.${kind}`))}</span>
+        ${clearable
+    ? `<button class="btn ghost sm pf-clear" data-what="${kind}">${esc(t(lang, 'profile.take'))}</button>`
+    : ''}
+      </div>
+      <div class="pf-sws">${list.map(swatch).join('')}</div>
+    </div>`;
+  };
+
+  const looksPanel = ownedItems.length
+    ? ['background', 'accent', 'frame', 'card'].map(kindGroup).join('')
+    : `<div class="muted">${esc(t(lang, 'profile.noPacks'))}</div>`;
+
+  const imagesPanel = wardrobe?.canUpload
+    ? `<div class="pf-updrop">
+        <label class="btn ghost sm">
+          ${esc(t(lang, 'profile.upPick'))}
+          <input type="file" accept="image/*" id="pf-upfile" hidden>
+        </label>
+        <span class="hint" style="margin-left:10px">${esc(t(lang, 'profile.upLeft', {
+    bg: wardrobe.uploads?.background ?? wardrobe.uploadLimit,
+    ban: wardrobe.uploads?.banner ?? wardrobe.uploadLimit,
+    max: wardrobe.uploadLimit,
+  }))}</span>
+      </div>
+
+      <!-- Спершу показуємо, ЩО саме публікуємо і скільки це коштує, і лише
+           після підтвердження списуємо FP. Раніше вибір файлу одразу
+           знімав гроші й заливав — передумати було вже нікуди. -->
+      <div class="pf-upwin" id="pf-upwin" hidden>
+        <div class="pf-uprow">
+          <span class="pf-upshot" id="pf-upshot"></span>
+          <div class="pf-upfields">
+            <div class="pf-upkind">
+              <button class="btn ghost sm pick-el pf-upslot on" data-slot="background">
+                ${esc(t(lang, 'profile.scope.background'))}</button>
+              <button class="btn ghost sm pick-el pf-upslot" data-slot="banner">
+                ${esc(t(lang, 'profile.banner'))}</button>
+            </div>
+            <input type="text" id="pf-uptitle" maxlength="60"
+              placeholder="${esc(t(lang, 'profile.upNamePh'))}">
+            <input type="number" id="pf-upprice" min="1" max="99999" value="20"
+              placeholder="${esc(t(lang, 'profile.upPricePh'))}"
+              aria-label="${esc(t(lang, 'shop.price'))}">
+          </div>
+        </div>
+        <div class="pf-upfoot">
+          <span class="hint" id="pf-uphint">${esc(t(lang, 'profile.upExplain'))}</span>
+          <span class="pf-up" style="margin:0">
+            <button class="btn ghost sm" id="pf-upcancel">${esc(t(lang, 'profile.upCancel'))}</button>
+            <button class="btn sm" id="pf-upgo" data-tpl="${esc(t(lang, 'profile.upConfirm', { n: '{n}' }))}"></button>
+          </span>
+        </div>
+      </div>
+
+      <div class="pf-group">
+        <div class="pf-gt"><span>${esc(t(lang, 'profile.ownImages'))}</span></div>
+        <div class="pf-shots" id="pf-assets">
+          ${(wardrobe.assets ?? []).map((a) => `<button class="pf-shot${look.background?.id === `asset:${a.id}` || look.banner === `asset:${a.id}` ? ' on' : ''}"
+            data-asset="${a.id}" data-slot="${esc(a.kind)}"
+            style="background-image:url(${esc(a.url)})"></button>`).join('')}
+        </div>
+      </div>`
+    : `<div class="hint">🔒 ${esc(t(lang, 'profile.ownLocked'))}</div>`;
+
+  const pagePanel = `
+    <div class="pf-group">
+      <div class="pf-gt"><span>${esc(t(lang, 'profile.blocks'))}</span></div>
+      <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.blocksHint'))}</div>
+      <div class="pf-up">
+        ${['chart', 'showcase', 'about'].map((b) => {
+    const on = !hidden[b];
+    return `<button class="btn ghost sm pick-el pf-block${on ? ' on' : ''}" data-block="${b}">
+          ${esc(t(lang, `profile.block.${b}`))}</button>`;
+  }).join('')}
+      </div>
+    </div>
+
+    <div class="pf-group">
+      <div class="pf-gt"><span>${esc(t(lang, 'profile.showcase'))}</span></div>
+      <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.showcaseHint', {
+    max: wardrobe?.showcaseMax ?? 6,
+  }))}</div>
+      ${wardrobe?.images?.length
+    ? `<div class="pf-shots" id="pf-showpick">
+          ${wardrobe.images.map((a) => `<button class="pf-shot${
+      (look.layout?.showcase ?? []).includes(a.id) ? ' on' : ''}"
+            data-show="${a.id}" style="background-image:url(${esc(a.url)})"></button>`).join('')}
+        </div>`
+    : `<div class="hint">${esc(t(lang, 'profile.showcaseEmpty'))}</div>`}
+    </div>`;
+
+  const settingsPanel = `
+    <div class="pf-group">
+      <div class="pf-gt"><span>${esc(t(lang, 'profile.scope'))}</span></div>
+      <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.scopeHint'))}</div>
+      <div class="pf-up">
+        ${['background', 'accent', 'card'].map((part) => {
+    const on = look.scope?.[part] !== false;
+    return `<button class="btn ghost sm pick-el pf-scope${on ? ' on' : ''}" data-part="${part}">
+          ${esc(t(lang, `profile.scope.${part}`))}</button>`;
+  }).join('')}
+      </div>
+    </div>
+
+    <div class="pf-group">
+      <div class="pf-gt"><span>${esc(t(lang, 'profile.reset'))}</span></div>
+      <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.resetAllHint'))}</div>
+      <div class="pf-up">
+        ${['background', 'accent', 'frame', 'card', 'banner'].map((w) =>
+    `<button class="btn ghost sm pf-clear" data-what="${w}">${esc(t(lang, `profile.clear.${w}`))}</button>`).join('')}
+        <button class="btn ghost sm pf-clearall" id="pf-clearall">${esc(t(lang, 'profile.resetAll'))}</button>
+      </div>
+    </div>`;
+
+  const TABS = [
+    ['look', '🎨', t(lang, 'profile.tab.look'), ownedItems.length],
+    ['images', '🖼', t(lang, 'profile.tab.images'), wardrobe?.assets?.length ?? 0],
+    ['page', '🧩', t(lang, 'profile.tab.page'), null],
+    ['settings', '⚙', t(lang, 'profile.tab.settings'), null],
+  ];
+
   const wardrobeBox = mine && wardrobe
     ? `<div class="pf-lookback" id="look" hidden><div class="pf-lookwin">
         <div class="pane-h">${esc(t(lang, 'profile.look'))}
@@ -3822,90 +4206,19 @@ export function profilePage(profile, {
           </span>
         </div>
 
-        ${wardrobe.packs.length
-    ? wardrobe.packs.map((p) => `<div class="pf-group">
-            <div class="pf-gt">${esc(p.name)}</div>
-            <div class="pf-sws">${p.items.map(swatch).join('')}</div>
-          </div>`).join('')
-    : `<div class="muted">${esc(t(lang, 'profile.noPacks'))}</div>`}
-
-        <div class="pf-group">
-          <div class="pf-gt">${esc(t(lang, 'profile.ownImages'))}</div>
-          ${wardrobe.canUpload
-    ? `<div class="pf-upform">
-                <input type="text" id="pf-uptitle" maxlength="60"
-                  placeholder="${esc(t(lang, 'shop.workTitle'))}">
-                <div class="pf-upprice">
-                  <input type="number" id="pf-upprice" min="1" max="99999" value="20"
-                    aria-label="${esc(t(lang, 'shop.price'))}">
-                  <span class="hint" id="pf-upcost"></span>
-                </div>
-              </div>
-              <div class="pf-up">
-                <label class="btn ghost sm">
-                  ${esc(t(lang, 'profile.uploadBg'))}
-                  <input type="file" accept="image/*" data-slot="background" hidden>
-                </label>
-                <label class="btn ghost sm">
-                  ${esc(t(lang, 'profile.uploadBanner'))}
-                  <input type="file" accept="image/*" data-slot="banner" hidden>
-                </label>
-                <span class="hint">${esc(t(lang, 'profile.uploadCost', {
-      max: wardrobe.uploadLimit,
-    }))}</span>
-              </div>
-              <div class="pf-shots" id="pf-assets">
-                ${wardrobe.assets.map((a) => `<button class="pf-shot${look.background?.id === `asset:${a.id}` || look.banner === `asset:${a.id}` ? ' on' : ''}"
-                  data-asset="${a.id}" data-slot="${esc(a.kind)}"
-                  style="background-image:url(${esc(a.url)})"></button>`).join('')}
-              </div>`
-    : `<div class="hint">🔒 ${esc(t(lang, 'profile.ownLocked'))}</div>`}
+        <div class="pf-tabs" role="tablist">
+          ${TABS.map(([id, icon, label, n], i) => `<button class="pf-tab${i === 0 ? ' on' : ''}"
+            data-tab="${id}" role="tab" aria-selected="${i === 0}">
+            <span aria-hidden="true">${icon}</span>${esc(label)}
+            ${n ? `<span class="pf-tn">${n}</span>` : ''}
+          </button>`).join('')}
         </div>
 
-        <div class="pf-group">
-          <div class="pf-gt">${esc(t(lang, 'profile.blocks'))}</div>
-          <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.blocksHint'))}</div>
-          <div class="pf-up">
-            ${['chart', 'showcase', 'about'].map((b) => {
-    const on = !hidden[b];
-    return `<button class="btn ghost sm pick-el pf-block${on ? ' on' : ''}" data-block="${b}">
-              ${esc(t(lang, `profile.block.${b}`))}</button>`;
-  }).join('')}
-          </div>
-        </div>
-
-        <div class="pf-group">
-          <div class="pf-gt">${esc(t(lang, 'profile.showcase'))}</div>
-          <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.showcaseHint', {
-    max: wardrobe.showcaseMax ?? 6,
-  }))}</div>
-          ${wardrobe.images.length
-    ? `<div class="pf-shots" id="pf-showpick">
-              ${wardrobe.images.map((a) => `<button class="pf-shot${
-      (look.layout?.showcase ?? []).includes(a.id) ? ' on' : ''}"
-                data-show="${a.id}" style="background-image:url(${esc(a.url)})"></button>`).join('')}
-            </div>`
-    : `<div class="hint">${esc(t(lang, 'profile.showcaseEmpty'))}</div>`}
-        </div>
-
-        <div class="pf-group">
-          <div class="pf-gt">${esc(t(lang, 'profile.scope'))}</div>
-          <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.scopeHint'))}</div>
-          <div class="pf-up">
-            ${['background', 'accent', 'card'].map((part) => {
-    const on = look.scope?.[part] !== false;
-    return `<button class="btn ghost sm pick-el pf-scope${on ? ' on' : ''}" data-part="${part}">
-              ${esc(t(lang, `profile.scope.${part}`))}</button>`;
-  }).join('')}
-          </div>
-        </div>
-
-        <div class="pf-group">
-          <div class="pf-gt">${esc(t(lang, 'profile.reset'))}</div>
-          <div class="pf-up">
-            ${['background', 'accent', 'frame', 'card', 'banner'].map((w) =>
-    `<button class="btn ghost sm pf-clear" data-what="${w}">${esc(t(lang, `profile.clear.${w}`))}</button>`).join('')}
-          </div>
+        <div class="pf-scroll">
+          <div class="pf-panel" data-panel="look">${looksPanel}</div>
+          <div class="pf-panel" data-panel="images" hidden>${imagesPanel}</div>
+          <div class="pf-panel" data-panel="page" hidden>${pagePanel}</div>
+          <div class="pf-panel" data-panel="settings" hidden>${settingsPanel}</div>
         </div>
       </div></div>`
     : '';
@@ -4578,10 +4891,15 @@ export function shopPage({
       ? entry.items.map((it) => ({ id: it.id, name: it.name, kind: it.kind, value: it.value }))
       : [{ id: entry.id, name: entry.name, kind: entry.kind, value: entry.value }]));
 
+    const count = entry.pack ? (entry.items?.length ?? 0) : 0;
+
     return `<article class="sh-card${locked ? ' locked' : ''}${owns ? ' mine' : ''}"
         data-id="${esc(entry.id)}" data-items="${payload}"
         style="animation-delay:${Math.min(i * 0.04, 0.35)}s">
       ${preview(entry)}
+      ${owns ? `<span class="sh-own-tag">✓ ${esc(t(lang, 'shop.owned'))}</span>` : ''}
+      ${count > 1 ? `<span class="sh-count">${esc(t(lang, 'shop.variants', { n: count }))}</span>` : ''}
+      <button class="sh-prevbtn sh-prev" type="button">👁 ${esc(t(lang, 'shop.preview'))}</button>
       ${entry.booster ? `<span class="sh-badge" title="${esc(t(lang, 'shop.boosterOnly'))}">💜</span>` : ''}
       <div class="sh-b">
         <div>
@@ -4617,9 +4935,10 @@ export function shopPage({
         </div>`
       : '';
 
+    // ведемо одразу на вкладку заливки, а не просто у вікно оформлення
     const upload = c.id === 'custom'
       ? (booster
-        ? `<a class="btn sm" href="/me#look">${esc(t(lang, 'shop.upload'))}</a>`
+        ? `<a class="btn sm" href="/me#upload">${esc(t(lang, 'shop.upload'))}</a>`
         : `<button class="btn ghost sm" disabled>🔒 ${esc(t(lang, 'shop.boosterOnly'))}</button>`)
       : '';
 
@@ -4638,12 +4957,22 @@ export function shopPage({
     </section>`;
   }).join('');
 
-  // Ліворуч — самі категорії, згори вниз.
+  // Ліворуч — категорії. Тепер це не «прокрутити до», а «показати лише це»:
+  // раніше всі розділи лежали одним сувоєм і потрібний доводилось шукати очима.
+  const total = items.length + market.length;
   const side = `<aside class="sh-side">
-    ${categories.map((c, i) => `<a class="sh-cat${i === 0 ? ' on' : ''}" href="#${esc(c.id)}" data-cat="${esc(c.id)}">
+    <button class="sh-cat on" data-cat="all" type="button">
+      <span class="sh-cn">${esc(t(lang, 'shop.all'))}</span>
+      <span class="sh-cc">${total}</span>
+    </button>
+    ${categories.map((c) => `<button class="sh-cat" data-cat="${esc(c.id)}" type="button">
       <span class="sh-cn">${esc(c.name)}</span>
       <span class="sh-cc">${c.id === 'custom' ? market.length : items.filter((x) => x.category === c.id).length}</span>
-    </a>`).join('')}
+    </button>`).join('')}
+    <button class="sh-cat" data-cat="mine" type="button">
+      <span class="sh-cn">✓ ${esc(t(lang, 'shop.mineOnly'))}</span>
+      <span class="sh-cc">${owned.length}</span>
+    </button>
   </aside>`;
 
   // Ціни й позначки правляться в окремому вікні. У кожному рядку видно саму
@@ -4697,7 +5026,10 @@ export function shopPage({
     </div>
     <div class="sh-layout">
       ${side}
-      <div class="sh-body">${sections}</div>
+      <div class="sh-body">
+        ${sections}
+        <div class="muted" id="sh-empty" hidden>${esc(t(lang, 'shop.nothingHere'))}</div>
+      </div>
     </div>
     <div class="err" id="sh-err" hidden></div>
     ${priceWin}

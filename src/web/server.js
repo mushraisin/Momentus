@@ -1,4 +1,6 @@
 import http from 'node:http';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import { createLogger } from '../core/logger.js';
 import { configService } from '../services/configService.js';
 import { profileService } from '../services/profileService.js';
@@ -158,6 +160,30 @@ async function hasAsset(guildId, path) {
 export function invalidateShellCache(guildId = null) {
   if (guildId) shellCache.delete(guildId);
   else shellCache.clear();
+}
+
+// ─────────────────────────────────────────────
+//  Власні скрипти замість чужого CDN
+// ─────────────────────────────────────────────
+/**
+ * hls.js роздаємо самі. Раніше плеєр тягнув його з jsdelivr: варто тому лягти
+ * чи бути заблокованим — і будь-який стрім у залі просто не запускався.
+ * Тепер файл їде з тієї ж машини, що й сайт, і живе стільки ж, скільки бот.
+ * YouTube і Vimeo так не перенести — їхні API працюють лише зі свого домену.
+ */
+let hlsBundle = null; // { body:Buffer } | false — немає
+
+function hlsFile() {
+  if (hlsBundle !== null) return hlsBundle;
+  try {
+    const path = createRequire(import.meta.url).resolve('hls.js/dist/hls.min.js');
+    hlsBundle = { body: fs.readFileSync(path) };
+    log.info(`hls.js роздається локально (${(hlsBundle.body.length / 1024).toFixed(0)} КБ)`);
+  } catch (err) {
+    hlsBundle = false;
+    log.warn('hls.js не знайдено в залежностях — плеєр візьме його з CDN', err.message);
+  }
+  return hlsBundle;
 }
 
 // ─────────────────────────────────────────────
@@ -358,6 +384,19 @@ async function handle(req, res) {
       'Cache-Control': 'public, max-age=604800',
     });
     return res.end(R.FAVICON);
+  }
+
+  // ── власні скрипти ──
+  if (path === '/vendor/hls.min.js') {
+    const file = hlsFile();
+    if (!file) return send(res, 404, 'text/plain', 'not found');
+    res.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Content-Length': file.body.length,
+      // версія прибита в package.json, тож вміст за цією адресою не змінюється
+      'Cache-Control': 'public, max-age=604800, immutable',
+    });
+    return res.end(file.body);
   }
 
   // ── проксі медіа (підписані посилання) ──
@@ -1605,6 +1644,12 @@ async function renderProfile(res, guild, session, lang, path, userId) {
     wardrobe = {
       packs,
       canUpload: cosmeticsService.canUpload(guild.id, member),
+      // Скільки заливок ще лишилось — раніше це число знав лише магазин,
+      // хоча заливка живе саме тут.
+      uploads: {
+        background: await cosmeticsService.uploadsLeft(guild.id, userId, 'background'),
+        banner: await cosmeticsService.uploadsLeft(guild.id, userId, 'banner'),
+      },
       // ціну публікації рахує сама сторінка від того, що вписав автор
       uploadPrice: cosmeticsService.uploadPrice(1),
       uploadLimit: cosmeticsService.UPLOAD_LIMIT,
