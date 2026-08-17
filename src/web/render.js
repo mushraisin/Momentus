@@ -1178,6 +1178,14 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tp-1{box-shadow:0 0 0 1px rgba(224,180,92,.45),0 18px 46px rgba(224,180,92,.20)}
 .tp-2{box-shadow:0 0 0 1px rgba(200,210,228,.38),0 16px 40px rgba(200,210,228,.14)}
 .tp-3{box-shadow:0 0 0 1px rgba(205,127,80,.38),0 16px 40px rgba(205,127,80,.14)}
+/* Щоденна нагорода за місце — поруч із медаллю, щоб було видно, за що
+   змагаються. Без цього нарахування було невидимим. */
+.tp-reward{position:absolute;right:12px;top:44px;z-index:3;padding:3px 10px;border-radius:999px;
+  font-size:12px;font-weight:700;color:#ffdf8a;background:rgba(224,180,92,.16);
+  border:1px solid rgba(224,180,92,.42);backdrop-filter:blur(6px);white-space:nowrap}
+.tp:not(.tp-top) .tp-reward{top:12px;right:12px;font-size:11px;padding:2px 9px}
+.tp-top .tp-reward{top:52px}
+
 /* ── Статистика на картці ──
    Повідомлення, голос і скільки людина на сервері — заради цих чисел
    у рейтинг і заходять, тож вони стоять просто на картці. */
@@ -4685,6 +4693,8 @@ export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
       <span class="tp-head">
         <span class="tp-bg"${bg}></span>
         <span class="tp-place">${top ? medals[i] : `#${place}`}</span>
+        ${r.reward ? `<span class="tp-reward" title="${esc(t(lang, 'top.daily'))}">
+          +${r.reward} ✨</span>` : ''}
       </span>
       <span class="tp-body">
         <img class="tp-face" src="${esc(avatarUrl(r.user_id, r.avatar, top ? 128 : 64))}"

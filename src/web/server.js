@@ -20,7 +20,7 @@ import { resolveSource } from './providers.js';
 import { signUrl, handleStream } from './mediaProxy.js';
 import { ytdlpAvailable } from './ytdlp.js';
 import { gamesOf } from '../services/gamesService.js';
-import { duelFor, castVote } from '../services/voteService.js';
+import { duelFor, castVote, TOP_REWARD } from '../services/voteService.js';
 import { OWNER_ID, ACCESS } from '../config/constants.js';
 import { accessService } from '../services/accessService.js';
 import { punishmentService, KIND_LABEL, WARN_LIMIT } from '../services/punishmentService.js';
@@ -1860,7 +1860,7 @@ async function topRows(guild, limit) {
 
   const now = Date.now();
 
-  return rows.map((r) => {
+  return rows.map((r, i) => {
     const m = guild.members.cache.get(r.user_id);
     const p = prefs.get(r.user_id) ?? {};
 
@@ -1896,6 +1896,8 @@ async function topRows(guild, limit) {
       level: levelOf.get(r.user_id) ?? 1,
       // статистика просто на картці — заради неї й заходять у рейтинг
       votes: Number(r.votes_got) || 0,
+      // щоденна нагорода за місце — щоб було видно, за що змагаються
+      reward: TOP_REWARD[i] ?? 0,
       messages: Number(r.total_messages) || 0,
       voice: Number(r.voice_minutes) || 0,
       days,

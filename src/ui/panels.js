@@ -94,6 +94,17 @@ export async function profileView(guild, userId, user) {
     if (a?.guild_id === guild.id) bannerUrl = a.url ?? null;
   }
 
+  // Оформлення — те саме, що показує картка в рейтингу: акцент, колір рамки
+  // аватара й стиль вікон. Так дві картки виглядають однаково.
+  const { cosmeticsService } = await import('../services/cosmeticsService.js');
+  const frameItem = prefs.layout?.frame ? cosmeticsService.item(prefs.layout.frame) : null;
+  const cardItem = prefs.layout?.card ? cosmeticsService.item(prefs.layout.card) : null;
+  const look = {
+    accent: prefs.accent ?? null,
+    frame: frameItem?.value?.color ?? null,
+    card: cardItem?.value ?? null,
+  };
+
   const card = await cards.profileCard(profile, {
     username,
     avatarUrl,
@@ -102,6 +113,7 @@ export async function profileView(guild, userId, user) {
     // тон картки більше не залежить від ролі, тож і передавати його нема сенсу
     bannerUrl,
     level: wallet.level ?? 1,
+    look,
   });
 
   return card

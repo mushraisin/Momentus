@@ -151,9 +151,22 @@ function panel(ctx, x, y, w, h, r = 16, fill = C.card, tint = null) {
   ctx.stroke();
 }
 
+/**
+ * Шрифт разом із ВАГОЮ.
+ *
+ * Inter у проєкті — змінний, і canvas сам по собі вісь ваги не застосовує:
+ * і 400, і 700, і 900 малювались однаково (ширина рядка збігалась до сотих).
+ * Через це «жирний» текст на картці був несправжнім, і вона не збігалася з
+ * сайтом, де браузер бере справжнє накреслення. Вісь задаємо руками.
+ */
+function setFont(ctx, size, weight) {
+  ctx.font = `${weight} ${size}px ${FF}`;
+  try { ctx.fontVariationSettings = `"wght" ${weight}`; } catch { /* не змінний — байдуже */ }
+}
+
 /** Текст із вертикальним центруванням у точці `cy`. */
 function txt(ctx, str, x, cy, { size = 21, color = C.text, weight = 400, align = 'left', maxWidth = 0 } = {}) {
-  ctx.font = `${weight} ${size}px ${FF}`;
+  setFont(ctx, size, weight);
   ctx.fillStyle = color;
   ctx.textAlign = align;
   ctx.fillText(maxWidth ? fitText(ctx, String(str), maxWidth) : String(str), x, cy);
@@ -161,7 +174,7 @@ function txt(ctx, str, x, cy, { size = 21, color = C.text, weight = 400, align =
 }
 
 function measure(ctx, str, size, weight = 400) {
-  ctx.font = `${weight} ${size}px ${FF}`;
+  setFont(ctx, size, weight);
   return ctx.measureText(String(str)).width;
 }
 
@@ -284,7 +297,7 @@ function roundRectTop(ctx, x, y, w, h) {
 }
 
 /** Чип статистики: значок, число, підпис — як на сторінці рейтингу. */
-function statChip(ctx, x, cy, icon, value, label) {
+function statChip(ctx, x, cy, icon, value, label, skin = null) {
   const vSize = 19;
   const lSize = 14;
   const wIcon = measure(ctx, icon, 15, 400);
@@ -293,11 +306,14 @@ function statChip(ctx, x, cy, icon, value, label) {
   const w = 14 + wIcon + 8 + wVal + 7 + wLab + 14;
   const h = 34;
 
-  roundRect(ctx, x, cy - h / 2, w, h, h / 2);
-  ctx.fillStyle = 'rgba(5,7,13,0.5)';
+  // Стиль вікон людини діє й на чипи: округлість, колір і товщина рамки —
+  // ті самі, що вона обрала в персоналізації.
+  const r = skin && skin.radius != null ? Math.min(h / 2, Math.max(4, skin.radius / 2)) : h / 2;
+  roundRect(ctx, x, cy - h / 2, w, h, r);
+  ctx.fillStyle = skin && skin.bg ? skin.bg : 'rgba(5,7,13,0.5)';
   ctx.fill();
-  ctx.strokeStyle = C.line;
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = skin && skin.line ? skin.line : C.line;
+  ctx.lineWidth = skin && skin.width ? skin.width : 1;
   ctx.stroke();
 
   let cx = x + 14;
@@ -365,15 +381,16 @@ async function attach(canvas, name) {
  */
 export async function profileCard(profile, {
   username, avatarUrl, roleName, roleColor,
-  bannerUrl = null, level = 1,
+  bannerUrl = null, level = 1, look = null,
 } = {}) {
   if (!canRender) return null;
   try {
-    // Тон картки сталий і не залежить від ролі: інакше вигляд стрибав щоразу,
-    // коли людині міняли роль. Колір ролі лишається тільки на її ж чипі —
-    // там він несе сенс, а не фарбує все навколо.
-    const tint = C.accent;
-    const accent = C.accent;
+    // Картка повторює ту, що на сторінці рейтингу, — разом з оформленням:
+    // акцент, колір рамки аватара й стиль вікон беруться з персоналізації
+    // людини, а не з її ролі. Нічого не обрано — лишається типовий вигляд.
+    const tint = look?.accent || C.accent;
+    const accent = look?.frame || tint;
+    const skin = look?.card ?? null;
 
     const headH = 150;
     const H = 276;
@@ -421,11 +438,11 @@ export async function profileCard(profile, {
     // ── Чипи статистики ──
     const chipCy = avCy + avSize / 2 + 34;
     let cx = PAD;
-    cx += statChip(ctx, cx, chipCy, '✉', fmt(profile.totalMessages), 'повідомлень') + 10;
+    cx += statChip(ctx, cx, chipCy, '✉', fmt(profile.totalMessages), 'повідомлень', skin) + 10;
     // 🎧 — той самий значок, що й на сайті; символ ♪ у наявних шрифтах
     // малювався порожньою рамкою
-    cx += statChip(ctx, cx, chipCy, '🎧', `${Math.round(profile.voiceMinutes / 60)} год`, 'у голосових') + 10;
-    statChip(ctx, cx, chipCy, '◷', fmt(profile.daysOnServer), 'на сервері');
+    cx += statChip(ctx, cx, chipCy, '🎧', `${Math.round(profile.voiceMinutes / 60)} год`, 'у голосових', skin) + 10;
+    statChip(ctx, cx, chipCy, '◷', fmt(profile.daysOnServer), 'на сервері', skin);
 
     return attach(canvas, 'profile.png');
   } catch (err) {
@@ -553,7 +570,7 @@ function disp(result) {
 
 /** Обрізання під ширину з урахуванням розміру шрифту. */
 function fitText2(ctx, str, maxWidth, size) {
-  ctx.font = `600 ${size}px ${FF}`;
+  setFont(ctx, size, 600);
   return fitText(ctx, String(str), Math.max(40, maxWidth));
 }
 

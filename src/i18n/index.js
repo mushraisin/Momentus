@@ -205,6 +205,7 @@ const DICT = {
     'top.score': 'Рейтинг',
     'top.days': 'на сервері',
     'top.votes': 'голосів',
+    'top.daily': 'Щодня за це місце',
     'top.empty': 'Даних ще немає.',
 
     // ── галерея ──
@@ -512,6 +513,7 @@ const DICT = {
     'top.score': 'Rating',
     'top.days': 'on server',
     'top.votes': 'votes',
+    'top.daily': 'Daily for this place',
     'top.empty': 'No data yet.',
 
     'gal.title': 'Gallery',
