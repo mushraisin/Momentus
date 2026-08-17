@@ -25,6 +25,8 @@ export function esc(s) {
 const CARD_SURFACES = [
   '.card', '.pane', '.pv', '.pf-lookwin', '.lbox', '.gate-box',
   '.cdrawer', '.drop-menu', '.pick-menu', '.langmenu',
+  // галерея й кінотеатр: плитки стрічки, «кліп дня/місяця» і сам зал
+  '.item', '.spot', '.room', '.sh-card',
 ].join(',');
 
 const DISCORD_ICON = `<svg viewBox="0 0 127 96" aria-hidden="true"><path fill="currentColor" d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>`;
@@ -364,8 +366,8 @@ td.num{text-align:right;font-weight:800}
    пропорції медіа ховаються всередині прев'ю (object-fit: cover),
    тож сітка виходить рівною, без сходинок і дір. */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
-.item{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
-  border-radius:16px;overflow:hidden;animation:fadeUp .5s both;transition:.35s cubic-bezier(.22,.9,.3,1)}
+.item{display:flex;flex-direction:column;background:var(--card);border:var(--line-w,1px) solid var(--line);
+  border-radius:var(--radius);overflow:hidden;animation:fadeUp .5s both;transition:.35s cubic-bezier(.22,.9,.3,1)}
 .item:hover{transform:translateY(-4px);border-color:rgba(var(--accent-rgb),.35)}
 .item .media{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#05070d;cursor:zoom-in}
 .item video.media{cursor:zoom-in;pointer-events:none}
@@ -451,8 +453,12 @@ td.num{text-align:right;font-weight:800}
 .pane .muted{flex:1;display:flex;align-items:center;justify-content:center;
   text-align:center;font-size:13px;opacity:.7;padding:10px 0}
 .log:empty::before,.queue:empty::before{content:'—';color:var(--dim)}
-.room{position:relative;background:linear-gradient(180deg,rgba(26,31,46,.78),rgba(18,22,34,.72));
-  border:1px solid var(--line);border-radius:22px;padding:16px;overflow:hidden;
+/* Зал бере обраний стиль вікон, як і решта поверхонь: раніше тут стояв
+   власний вписаний градієнт, тож кінотеатр лишався типовим навіть тоді,
+   коли весь інший сайт уже був у обраному стилі. */
+.room{position:relative;background:var(--card);
+  border:var(--line-w,1px) solid var(--line);border-radius:var(--radius);padding:16px;overflow:hidden;
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
   box-shadow:0 24px 70px rgba(0,0,0,.45)}
 /* тонкий світлий кант зверху — картка перестає бути пласкою */
 .room::after{content:'';position:absolute;left:16px;right:16px;top:0;height:1px;
@@ -775,9 +781,9 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 
 /* ── Кліпи дня та місяця ── */
 .spots{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin:22px 0}
-.spot{position:relative;background:var(--card);border:1px solid var(--line);border-radius:20px;
+.spot{position:relative;background:var(--card);border:var(--line-w,1px) solid var(--line);border-radius:var(--radius);
   padding:16px;animation:fadeUp .6s both;transition:.4s cubic-bezier(.22,.9,.3,1);overflow:hidden}
-.spot::before{content:'';position:absolute;inset:-1px;border-radius:20px;pointer-events:none;
+.spot::before{content:'';position:absolute;inset:-1px;border-radius:var(--radius);pointer-events:none;
   border:1px solid transparent;transition:.4s}
 .spot:hover{transform:translateY(-4px)}
 .spot:hover::before{border-color:rgba(var(--accent-rgb),.45);box-shadow:0 0 40px rgba(var(--accent-rgb),.14) inset}
@@ -946,6 +952,20 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-head{position:relative;overflow:hidden}
 .pf-head.withbanner{padding-top:0}
 .pf-banner{position:relative;margin:-22px -22px 18px;height:180px;overflow:hidden}
+/* висоту смуги обирає власник сторінки */
+.pf-b-flat{height:110px}
+.pf-b-tall{height:280px}
+@media(max-width:600px){.pf-b-tall{height:200px}}
+
+/* порядок блоків: маленький список зі стрілками */
+.pf-order{display:flex;flex-direction:column;gap:6px}
+.pf-orow{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:11px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.pf-onum{width:20px;flex:none;text-align:center;font-size:12px;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.pf-oname{flex:1;font-size:13px}
+.pf-orow .act{flex:none}
+.pf-orow .act:disabled{opacity:.3;pointer-events:none}
 .pf-banner img{width:100%;height:100%;object-fit:cover;display:block;
   animation:fadeIn .8s both;transform:scale(1.02)}
 /* знизу банер розчиняється в картці — інакше різкий стик виглядає грубо */
@@ -1001,18 +1021,111 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-id{flex:1;min-width:0}
 .pf-nrow{display:flex;align-items:center;gap:10px;min-width:0}
 .pf-nrow .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pf-showgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.pf-shot-i{position:relative;display:block;border-radius:14px;overflow:hidden;
-  border:1px solid var(--line);aspect-ratio:16/10;animation:fadeUp .5s both;
-  transition:.3s cubic-bezier(.22,.9,.3,1)}
-.pf-shot-i:hover{transform:translateY(-3px);border-color:rgba(var(--accent-rgb),.5);
-  box-shadow:0 14px 34px rgba(0,0,0,.45)}
-.pf-shot-i img{width:100%;height:100%;object-fit:cover;display:block;transition:.5s}
-.pf-shot-i:hover img{transform:scale(1.04)}
-.pf-shot-i span{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;font-size:12px;
-  background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.78));
-  opacity:0;transform:translateY(6px);transition:.28s}
-.pf-shot-i:hover span{opacity:1;transform:none}
+
+/* ── Вітрина ілюстрацій ──
+   Робота, за яку платили, займає все полотно, а не мініатюру в сітці.
+   Під нею — смуга решти; клік по ній міняє велике зображення. */
+.pf-stage{position:relative;border-radius:calc(var(--radius) - 4px);overflow:hidden;
+  background:#05070d;border:1px solid var(--line)}
+.pf-big{position:relative;width:100%;aspect-ratio:16/9;display:flex;
+  align-items:center;justify-content:center;background:#05070d}
+.pf-big-m{width:100%;height:100%;object-fit:cover;display:block;
+  animation:fadeIn .4s both}
+.pf-bigcap{position:absolute;left:0;right:0;bottom:0;padding:26px 16px 12px;font-size:14px;
+  background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.78));pointer-events:none}
+.pf-bigopen{position:absolute;right:10px;top:10px;width:34px;height:34px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  background:rgba(8,11,18,.7);border:1px solid var(--line);backdrop-filter:blur(6px);
+  opacity:0;transition:.25s}
+.pf-stage:hover .pf-bigopen{opacity:1}
+.pf-bigopen:hover{border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.22)}
+.pf-strip{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px}
+.pf-th{position:relative;width:88px;height:52px;flex:none;border-radius:10px;cursor:pointer;
+  padding:0;border:1px solid var(--line);background:#0a0d16 center/cover no-repeat;
+  transition:.22s cubic-bezier(.22,.9,.3,1)}
+.pf-th:hover{transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.55)}
+.pf-th.on{border-color:rgba(var(--accent-rgb),.85);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.22)}
+.pf-th i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-style:normal;
+  font-size:15px;color:var(--text);text-shadow:0 2px 8px rgba(0,0,0,.9)}
+
+/* ── Ігри учасника ── */
+.gmlist{display:flex;flex-direction:column;gap:9px}
+.gmrow{display:flex;align-items:center;gap:12px;animation:fadeUp .45s both}
+.gmname{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gmbar{flex:0 0 34%;height:6px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+.gmbar i{display:block;height:100%;border-radius:999px;
+  background:linear-gradient(90deg,var(--accent-lo),var(--accent-up));
+  animation:grow .7s cubic-bezier(.22,.9,.3,1) both;transform-origin:left}
+.gmh{flex:none;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:56px;
+  text-align:right}
+@media(max-width:520px){.gmbar{flex-basis:22%}}
+
+/* ── Рейтинг картками ──
+   Кожен показаний своїм банером, акцентом і рамкою — тим самим, що й у
+   профілі. Перші три — ширшими картками з медаллю, щоб перемога читалась. */
+.tpwrap{display:flex;flex-direction:column;gap:14px;margin-top:4px}
+.tp-podium{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.tp-rest{display:flex;flex-direction:column;gap:10px}
+.tp{position:relative;display:block;overflow:hidden;padding:14px 16px;
+  border-radius:var(--radius);border:var(--line-w,1px) solid var(--line);
+  background:var(--card);backdrop-filter:blur(var(--blur));
+  animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
+.tp:hover{transform:translateY(-3px);border-color:rgba(var(--accent-rgb),.45)}
+/* банер учасника — тлом картки, притлумлений, щоб не зʼїдав текст */
+.tp-bg{position:absolute;inset:0;background:center/cover no-repeat;opacity:.30;
+  transition:opacity .35s,transform .6s cubic-bezier(.22,.9,.3,1)}
+.tp:hover .tp-bg{opacity:.42;transform:scale(1.04)}
+.tp::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,rgba(5,7,13,.94) 12%,rgba(5,7,13,.60) 62%,rgba(5,7,13,.35))}
+.tp>*{position:relative;z-index:2}
+.tp-place{position:absolute;right:14px;top:12px;z-index:3;font-size:13px;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.tp-body{display:flex;align-items:center;gap:14px}
+.tp-face{width:52px;height:52px;flex:none;border-radius:50%;border:2px solid var(--f);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--f) 22%,transparent),
+    0 0 20px color-mix(in srgb,var(--f) 45%,transparent)}
+.tp-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tp-id b{font-size:16px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp-id i{font-style:normal;font-size:11px;color:var(--c);letter-spacing:.06em;text-transform:uppercase}
+.tp-id em{font-style:normal;font-size:12px;color:var(--dim);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.tp-score{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.tp-score b{font-size:22px;font-weight:800;color:var(--c)}
+.tp-score span{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+/* трійка лідерів — вища картка, більший аватар і кольорове світіння */
+.tp-top{padding:20px 18px 18px;min-height:168px;display:flex;flex-direction:column;
+  justify-content:flex-end}
+.tp-top .tp-place{font-size:26px;top:14px;right:16px}
+.tp-top .tp-face{width:70px;height:70px;border-width:3px}
+.tp-top .tp-id b{font-size:19px}
+.tp-top .tp-score b{font-size:27px}
+.tp-top .tp-bg{opacity:.44}
+.tp-1{box-shadow:0 0 0 1px rgba(224,180,92,.45),0 18px 46px rgba(224,180,92,.20)}
+.tp-2{box-shadow:0 0 0 1px rgba(200,210,228,.38),0 16px 40px rgba(200,210,228,.14)}
+.tp-3{box-shadow:0 0 0 1px rgba(205,127,80,.38),0 16px 40px rgba(205,127,80,.14)}
+@media(max-width:600px){
+  .tp-top{min-height:150px}
+  .tp-top .tp-face{width:58px;height:58px}
+}
+
+/* ── Рівень ──
+   Купується за ✨FP, кожен наступний удвічі дорожчий. Смуга показує,
+   скільки вже зібрано на наступний, щоб не рахувати в голові. */
+.lvbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:16px;
+  padding-top:16px;border-top:1px solid var(--line)}
+.lvchip{display:flex;align-items:baseline;gap:7px;padding:6px 13px;border-radius:999px;
+  background:rgba(var(--accent-rgb),.14);border:1px solid rgba(var(--accent-rgb),.4)}
+.lvchip i{font-style:normal;color:var(--accent);font-size:12px;align-self:center}
+.lvchip b{font-size:19px;font-weight:800;line-height:1}
+.lvchip span{font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+.lvgrow{flex:1;min-width:180px;display:flex;flex-direction:column;gap:6px}
+.lvtrack{height:6px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+.lvtrack i{display:block;height:100%;border-radius:999px;
+  background:linear-gradient(90deg,var(--accent-lo),var(--accent-up));
+  transition:width .5s cubic-bezier(.22,.9,.3,1)}
+.lvnote{font-size:12px;color:var(--dim)}
+.lvup{flex:none}
+.lvup:disabled{opacity:.45;cursor:not-allowed}
 
 /* ── Гардероб: окреме вікно, щоб не займати сторінку профілю ── */
 .pf-lookopen{flex:none}
@@ -2942,6 +3055,41 @@ const CINEMA_JS = `
  * навігації, картка з текстом, кнопка й аватар із рамкою. Так видно
  * результат до того, як щось вдягати.
  */
+/**
+ * Перемикання вітрини. Живе окремо від решти логіки профілю, бо потрібне
+ * і на чужій сторінці — там свого гардероба немає, а вітрину гортати треба.
+ */
+const SHOWCASE_JS = `
+(function(){
+  var stage=document.getElementById('pf-stage');
+  if(!stage)return;
+  var big=stage.querySelector('.pf-big'),cap=stage.querySelector('.pf-bigcap'),
+      open=stage.querySelector('.pf-bigopen');
+
+  document.addEventListener('click',function(e){
+    var th=e.target.closest('.pf-th');
+    if(!th)return;
+    var url=th.dataset.url,video=th.dataset.video==='1';
+    /* міняємо саме вміст, а не всю сцену — розмір полотна лишається сталим */
+    big.innerHTML=video
+      ? '<video class="pf-big-m" src="'+url+'" autoplay muted loop playsinline></video>'
+      : '<img class="pf-big-m" src="'+url+'" alt="">';
+    if(open)open.href=url;
+    var title=th.dataset.title||'';
+    if(cap){cap.textContent=title;cap.hidden=!title}
+    else if(title){
+      cap=document.createElement('div');cap.className='pf-bigcap';cap.textContent=title;
+      stage.insertBefore(cap,open||null);
+    }
+    /* смуга мініатюр — сусід сцени, а не її вміст, тож шукаємо від спільного
+       батька: інакше позначка «обрано» лишалась би на першій назавжди */
+    var strip=th.closest('.pf-strip');
+    if(strip)strip.querySelectorAll('.pf-th').forEach(function(b){b.classList.toggle('on',b===th)});
+    stage.dataset.i=th.dataset.i;
+  });
+})();
+`;
+
 const PREVIEW_JS = `
 window.CosmeticPreview=(function(){
   var box=null;
@@ -3178,6 +3326,8 @@ const SHOP_JS = `
       go.disabled=!ready;
       var cat=(CATS[KIND2CAT[kind]]||'').trim();
       where.textContent=cat?('→ '+cat):'';
+      /* ілюстрація йде на все полотно профілю, тож там доречні й гіфка, й відео */
+      file.accept=kind==='art'?'image/*,video/mp4,video/webm':'image/*';
     }
 
     function open(k){
@@ -3190,7 +3340,8 @@ const SHOP_JS = `
     }
     function shut(){
       win.hidden=true;document.body.style.overflow='';
-      chosen=null;file.value='';shot.style.backgroundImage='';title.value='';price.value='';
+      chosen=null;file.value='';shot.style.backgroundImage='';shot.innerHTML='';
+      title.value='';price.value='';
       if(boost)boost.checked=false;
       drop.classList.remove('has');go.classList.remove('busy');refresh();
     }
@@ -3213,7 +3364,18 @@ const SHOP_JS = `
       if(!f)return;
       chosen=f;
       var fr=new FileReader();
-      fr.onload=function(){shot.style.backgroundImage='url('+fr.result+')';drop.classList.add('has')};
+      fr.onload=function(){
+        /* відео фоном не покажеш — для нього ставимо справжній плеєр */
+        if(/^video\\//.test(f.type)){
+          shot.style.backgroundImage='';
+          shot.innerHTML='<video src="'+fr.result+'" autoplay muted loop playsinline '
+            +'style="width:100%;height:100%;object-fit:contain;border-radius:11px"></video>';
+        }else{
+          shot.innerHTML='';
+          shot.style.backgroundImage='url('+fr.result+')';
+        }
+        drop.classList.add('has');
+      };
       fr.readAsDataURL(f);
       refresh();
     });
@@ -3489,15 +3651,37 @@ const PROFILE_JS = `
     }
     st.textContent=css;
 
-    /* вітрина ілюстрацій: перемальовуємо, коли змінився вибір */
-    var show=document.querySelector('.pf-showgrid');
-    if(show&&look&&look.showcase){
-      show.innerHTML=look.showcase.map(function(s){
-        return '<a class="pf-shot-i" href="'+s.url+'" target="_blank" rel="noopener">'
-          +'<img src="'+s.url+'" alt="">'+(s.title?'<span>'+s.title+'</span>':'')+'</a>';
-      }).join('');
-      var wrap=show.closest('.pf-show');
-      if(wrap)wrap.hidden=!look.showcase.length;
+    /* Вітрина: перемальовуємо сцену й смугу під нею, коли змінився вибір.
+       Ілюстрацією може бути картинка, гіфка або відео — тег залежить від mime. */
+    var stage=document.getElementById('pf-stage');
+    if(stage&&look&&look.showcase){
+      var list=look.showcase;
+      var wrap=stage.closest('.pf-show');
+      if(wrap)wrap.hidden=!list.length;
+      if(list.length){
+        var first=list[0],vid=/^video\\//.test(first.mime||'');
+        var big=stage.querySelector('.pf-big');
+        if(big){
+          big.innerHTML=vid
+            ? '<video class="pf-big-m" src="'+first.url+'" autoplay muted loop playsinline></video>'
+            : '<img class="pf-big-m" src="'+first.url+'" alt="">';
+        }
+        var open=stage.querySelector('.pf-bigopen');
+        if(open)open.href=first.url;
+        var cap=stage.querySelector('.pf-bigcap');
+        if(cap){cap.textContent=first.title||'';cap.hidden=!first.title}
+
+        var strip=stage.parentNode.querySelector('.pf-strip');
+        if(strip){
+          strip.innerHTML=list.map(function(s,i){
+            var v=/^video\\//.test(s.mime||'');
+            return '<button class="pf-th'+(i?'':' on')+'" data-i="'+i+'" data-url="'+s.url+'"'
+              +' data-video="'+(v?'1':'')+'" data-title="'+(s.title||'')+'"'
+              +(v?'':' style="background-image:url('+s.url+')"')+'>'+(v?'<i>▶</i>':'')+'</button>';
+          }).join('');
+          strip.hidden=list.length<2;
+        }
+      }
     }
 
     /* банер угорі картки */
@@ -3553,6 +3737,28 @@ const PROFILE_JS = `
     tabs.forEach(function(t){t.addEventListener('click',function(){go(t.dataset.tab)})});
     /* із магазину приходять по «залити своє» — одразу потрібна вкладка */
     if(location.hash==='#upload')go('images');
+  })();
+
+  /* ── Рівень ── */
+  (function(){
+    var up=document.getElementById('pf-levelup');
+    if(!up)return;
+    up.addEventListener('click',function(){
+      up.disabled=true;up.classList.add('busy');
+      post('/api/shop/level',{}).then(function(j){
+        up.classList.remove('busy');
+        if(j.error){
+          say(window.errText?window.errText(j.error):j.error,'bad');
+          up.disabled=false;return;
+        }
+        var chip=document.querySelector('.lvchip b');
+        if(chip)chip.textContent=j.level;
+        say((TXT.lvlDone||'').replace('{n}',j.level));
+        if(j.unlocked)say((TXT.lvlUnlocked||'').replace('{name}',j.unlocked.name));
+        /* ціна наступного вже інша, а смуга — з нового балансу */
+        setTimeout(function(){location.reload()},900);
+      });
+    });
   })();
 
   /* ── Опис ── */
@@ -3631,6 +3837,39 @@ const PROFILE_JS = `
         if(j.error){sp.classList.toggle('on');say(window.errText?window.errText(j.error):j.error,'bad');return}
         paint(j.look);
         say(TXT.showcase);
+      });
+      return;
+    }
+
+    /* порядок блоків: стрілками вгору-вниз */
+    var mv=e.target.closest('.pf-oup,.pf-odown');
+    if(mv){
+      var row=mv.closest('.pf-orow'),list=document.getElementById('pf-order');
+      var up=mv.classList.contains('pf-oup');
+      if(up&&row.previousElementSibling)list.insertBefore(row,row.previousElementSibling);
+      else if(!up&&row.nextElementSibling)list.insertBefore(row.nextElementSibling,row);
+      var rows=[].slice.call(list.children);
+      rows.forEach(function(r,i){
+        r.querySelector('.pf-onum').textContent=i+1;
+        r.querySelector('.pf-oup').disabled=i===0;
+        r.querySelector('.pf-odown').disabled=i===rows.length-1;
+      });
+      post('/api/profile',{layout:rows.map(function(r){return r.dataset.block})}).then(function(j){
+        if(j.error){say(window.errText?window.errText(j.error):j.error,'bad');return}
+        say(TXT.orderSaved||'');
+      });
+      return;
+    }
+
+    /* висота банера */
+    var bh=e.target.closest('.pf-bh');
+    if(bh){
+      post('/api/profile',{bannerH:bh.dataset.h}).then(function(j){
+        if(j.error){say(window.errText?window.errText(j.error):j.error,'bad');return}
+        document.querySelectorAll('.pf-bh').forEach(function(b){b.classList.toggle('on',b===bh)});
+        var ban=document.querySelector('.pf-banner');
+        if(ban){ban.className='pf-banner pf-b-'+bh.dataset.h}
+        say(TXT.orderSaved||'');
       });
       return;
     }
@@ -4067,6 +4306,7 @@ function errorDict(lang) {
     locked: 'err.locked',
     'no storage': 'err.noStorage',
     'image only': 'err.imageOnly',
+    'media only': 'err.mediaOnly',
     'not yours': 'err.notYours',
     net: 'err.net',
     unknown: 'err.unknown',
@@ -4172,6 +4412,8 @@ export function layout({
       page === 'shop' || page === 'me' ? PREVIEW_JS : '',
       page === 'shop' ? SHOP_JS : '',
       page === 'me' ? PROFILE_JS : '',
+      // вітрину гортають і на чужій сторінці, тож скрипт іде на обидві
+      page === 'me' || page === 'u' ? SHOWCASE_JS : '',
     ].filter(Boolean).join('\n'),
     // Смуга навігації йде на всю ширину вікна, а її вміст тримається тієї ж
     // сітки, що й сторінка. На головній її немає — там своя обкладинка.
@@ -4244,26 +4486,57 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
 // ─────────────────────────────────────────────
 //  Сторінки
 // ─────────────────────────────────────────────
+/**
+ * Рейтинг картками, а не списком.
+ *
+ * Люди вкладаються в оформлення свого профілю — банер, акцент, рамку, — і
+ * рядок таблиці з ніком та числом усе це ховав. Тепер кожен показаний тим
+ * самим блоком, що й угорі його сторінки, у його ж кольорах. Перші три
+ * місця йдуть ширшими картками з медаллю: без цього «перемога» в рейтингу
+ * нічим не відрізнялась від четвертого місця.
+ */
 export function leaderboardPage(rows, lang = 'uk') {
   if (!rows.length) return `<div class="card empty rise">${esc(t(lang, 'top.empty'))}</div>`;
-  const medals = ['🥇', '🥈', '🥉'];
-  const body = rows.map((r, i) => `
-    <tr style="animation-delay:${Math.min(i * 0.03, 0.5)}s">
-      <td class="rank">${medals[i] ?? `#${i + 1}`}</td>
-      <td><img class="mini" src="${esc(avatarUrl(r.user_id, r.avatar, 32))}" alt="" loading="lazy">
-        <a href="/u/${esc(r.user_id)}">${esc(r.username ?? r.user_id)}</a></td>
-      <td class="num">${r.ai_score}</td>
-    </tr>`).join('');
 
-  return `<div class="card rise"><table>
-    <thead><tr><th>#</th><th>${esc(t(lang, 'top.member'))}</th>
-    <th style="text-align:right">${esc(t(lang, 'top.score'))}</th></tr></thead>
-    <tbody>${body}</tbody></table></div>`;
+  const medals = ['🥇', '🥈', '🥉'];
+
+  const card = (r, i) => {
+    const place = i + 1;
+    const top = place <= 3;
+    const accent = r.accent || '#6b7cff';
+    const frame = r.frame || accent;
+
+    return `<a class="tp${top ? ` tp-top tp-${place}` : ''}" href="/u/${esc(r.user_id)}"
+        style="--c:${esc(accent)};--f:${esc(frame)};animation-delay:${Math.min(i * 0.035, 0.6)}s">
+      <span class="tp-bg"${r.banner ? ` style="background-image:url(${esc(r.banner)})"` : ''}></span>
+      <span class="tp-place">${top ? medals[i] : `#${place}`}</span>
+      <span class="tp-body">
+        <img class="tp-face" src="${esc(avatarUrl(r.user_id, r.avatar, top ? 128 : 64))}"
+          alt="" loading="lazy">
+        <span class="tp-id">
+          <b>${esc(r.username ?? r.user_id)}</b>
+          <i>◆ ${Number(r.level) || 1} ${esc(t(lang, 'lvl.short'))}</i>
+          ${top && r.about ? `<em>${esc(r.about)}</em>` : ''}
+        </span>
+        <span class="tp-score">
+          <b>${r.ai_score}</b>
+          <span>${esc(t(lang, 'top.score'))}</span>
+        </span>
+      </span>
+    </a>`;
+  };
+
+  return `<div class="tpwrap">
+    <div class="tp-podium">${rows.slice(0, 3).map(card).join('')}</div>
+    ${rows.length > 3
+    ? `<div class="tp-rest">${rows.slice(3).map((r, i) => card(r, i + 3)).join('')}</div>`
+    : ''}
+  </div>`;
 }
 
 export function profilePage(profile, {
   username, avatar, roleName, roleColor, rank, lang = 'uk',
-  look = {}, mine = false, wardrobe = null,
+  look = {}, mine = false, wardrobe = null, level = null, games = null,
 }) {
   // Обраний акцент важить більше за колір ролі: це свідомий вибір людини.
   const accent = look.accent || roleColor || '#6b7cff';
@@ -4281,8 +4554,11 @@ export function profilePage(profile, {
         #stars{opacity:.7}</style>`
     : '';
 
+  // Висоту банера обирає власник сторінки — типово звичайна.
+  const bannerH = ['cover', 'tall', 'flat'].includes(look.layout?.bannerH)
+    ? look.layout.bannerH : 'cover';
   const banner = look.bannerUrl
-    ? `<div class="pf-banner"><img src="${esc(look.bannerUrl)}" alt=""></div>`
+    ? `<div class="pf-banner pf-b-${bannerH}"><img src="${esc(look.bannerUrl)}" alt=""></div>`
     : '';
 
   // Що людина вирішила сховати зі своєї сторінки.
@@ -4292,17 +4568,39 @@ export function profilePage(profile, {
    * Вітрина ілюстрацій — як у Steam: кілька картинок, які людина сама
    * поставила на видноту. Беруться зі своїх залитих і куплених робіт.
    */
+  /**
+   * Вітрина ілюстрацій.
+   *
+   * Раніше це була сітка дрібних плиток — робота, заради якої людина платила,
+   * зводилась до мініатюри. Тепер перша йде на все полотно сторінки, а решта
+   * стоїть смугою під нею й перемикає велике зображення. Ілюстрацією може
+   * бути картинка, гіфка або коротке відео — воно грає саме, без звуку.
+   */
   const shots = look.showcase ?? [];
+  const isVideo = (s) => String(s.mime ?? '').startsWith('video/');
+  const bigOf = (s) => (isVideo(s)
+    ? `<video class="pf-big-m" src="${esc(s.url)}" autoplay muted loop playsinline></video>`
+    : `<img class="pf-big-m" src="${esc(s.url)}" alt="" loading="lazy">`);
+
   const showcase = (!hidden.showcase && shots.length)
     ? `<div class="card pane rise pf-show">
         <div class="pane-h">${esc(t(lang, 'profile.showcase'))}</div>
-        <div class="pf-showgrid">
-          ${shots.map((s, i) => `<a class="pf-shot-i" href="${esc(s.url)}" target="_blank"
-            rel="noopener" style="animation-delay:${(i * 0.05).toFixed(2)}s">
-            <img src="${esc(s.url)}" alt="" loading="lazy">
-            ${s.title ? `<span>${esc(s.title)}</span>` : ''}
-          </a>`).join('')}
+        <div class="pf-stage" id="pf-stage" data-i="0">
+          <div class="pf-big">${bigOf(shots[0])}</div>
+          ${shots[0].title ? `<div class="pf-bigcap">${esc(shots[0].title)}</div>` : ''}
+          <a class="pf-bigopen" href="${esc(shots[0].url)}" target="_blank" rel="noopener"
+            aria-label="${esc(t(lang, 'profile.openFull'))}">⤢</a>
         </div>
+        ${shots.length > 1
+    ? `<div class="pf-strip">
+            ${shots.map((s, i) => `<button class="pf-th${i === 0 ? ' on' : ''}" data-i="${i}"
+              data-url="${esc(s.url)}" data-video="${isVideo(s) ? '1' : ''}"
+              data-title="${esc(s.title ?? '')}"
+              style="${isVideo(s) ? '' : `background-image:url(${esc(s.url)})`}">
+              ${isVideo(s) ? '<i>▶</i>' : ''}
+            </button>`).join('')}
+          </div>`
+    : ''}
       </div>`
     : '';
 
@@ -4437,6 +4735,12 @@ export function profilePage(profile, {
     : `<span class="hint">🔒 ${esc(t(lang, 'profile.ownLocked'))}</span>`}
     </div>`;
 
+  // Порядок блоків: людина сама вирішує, що йде першим на її сторінці.
+  const ORDER_KEYS = ['about', 'showcase', 'chart'];
+  const savedOrder = Array.isArray(look.layout?.order) ? look.layout.order : [];
+  const order = [...savedOrder.filter((k) => ORDER_KEYS.includes(k)),
+    ...ORDER_KEYS.filter((k) => !savedOrder.includes(k))];
+
   const pagePanel = `
     <div class="pf-group">
       <div class="pf-gt"><span>${esc(t(lang, 'profile.blocks'))}</span></div>
@@ -4446,6 +4750,31 @@ export function profilePage(profile, {
     const on = !hidden[b];
     return `<button class="btn ghost sm pick-el pf-block${on ? ' on' : ''}" data-block="${b}">
           ${esc(t(lang, `profile.block.${b}`))}</button>`;
+  }).join('')}
+      </div>
+    </div>
+
+    <div class="pf-group">
+      <div class="pf-gt"><span>${esc(t(lang, 'profile.order'))}</span></div>
+      <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.orderHint'))}</div>
+      <div class="pf-order" id="pf-order">
+        ${order.map((k, i) => `<div class="pf-orow" data-block="${k}">
+          <span class="pf-onum">${i + 1}</span>
+          <span class="pf-oname">${esc(t(lang, `profile.block.${k}`))}</span>
+          <button class="act pf-oup" type="button" aria-label="↑"${i === 0 ? ' disabled' : ''}>↑</button>
+          <button class="act pf-odown" type="button" aria-label="↓"${i === order.length - 1 ? ' disabled' : ''}>↓</button>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="pf-group">
+      <div class="pf-gt"><span>${esc(t(lang, 'profile.banner'))}</span></div>
+      <div class="hint" style="margin-bottom:9px">${esc(t(lang, 'profile.bannerHint'))}</div>
+      <div class="pf-up">
+        ${['cover', 'tall', 'flat'].map((h) => {
+    const on = (look.layout?.bannerH ?? 'cover') === h;
+    return `<button class="btn ghost sm pick-el pf-bh${on ? ' on' : ''}" data-h="${h}">
+          ${esc(t(lang, `profile.bannerH.${h}`))}</button>`;
   }).join('')}
       </div>
     </div>
@@ -4495,7 +4824,10 @@ export function profilePage(profile, {
           data-worn="${esc(t(lang, 'profile.worn', { name: '{name}' }))}"
           data-removed="${esc(t(lang, 'profile.removed', { name: '{name}' }))}"
           data-reset="${esc(t(lang, 'profile.resetDone'))}"
-          data-showcase="${esc(t(lang, 'profile.savedShowcase'))}"></span>
+          data-showcase="${esc(t(lang, 'profile.savedShowcase'))}"
+          data-lvl-done="${esc(t(lang, 'lvl.done', { n: '{n}' }))}"
+          data-lvl-unlocked="${esc(t(lang, 'lvl.unlocked', { name: '{name}' }))}"
+          data-order-saved="${esc(t(lang, 'profile.savedLayout'))}"></span>
         <div class="pane-h">${esc(t(lang, 'profile.look'))}
           <span class="pf-lookh">
             <a class="btn ghost sm" href="/shop">✨ ${esc(t(lang, 'nav.shop'))}</a>
@@ -4553,12 +4885,79 @@ export function profilePage(profile, {
     : ''}
       </div>
     </div>
+    ${levelBar(level, { lang, mine })}
+    <div class="row" hidden>
+    </div>
     <div class="tiles">${tiles}</div>
   </div>
-  ${about}
-  ${showcase}
-  ${hidden.chart ? '' : scoreChart(profile, { lang, accent })}
+  ${order.map((k) => ({
+    about,
+    showcase,
+    chart: hidden.chart ? '' : scoreChart(profile, { lang, accent }),
+  }[k] ?? '')).join('\n  ')}
+  ${gamesBox(games, lang)}
   ${wardrobeBox}`;
+}
+
+/**
+ * Ігри учасника.
+ *
+ * Discord не зберігає «наіграних годин» — у його API такого просто немає,
+ * видно лише те, у що людина грає зараз. Тому години рахує сам бот, а отже
+ * статистика починається з дня, коли стеження увімкнули. Якщо воно вимкнене
+ * (games === null), блока немає взагалі — краще нічого, ніж порожня рамка.
+ */
+function gamesBox(games, lang = 'uk') {
+  if (!games || !games.length) return '';
+  const max = Math.max(...games.map((g) => g.minutes), 1);
+
+  return `<div class="card pane rise gmbox">
+    <div class="pane-h">${esc(t(lang, 'games.title'))}</div>
+    <div class="gmlist">
+      ${games.map((g, i) => `<div class="gmrow" style="animation-delay:${(i * 0.05).toFixed(2)}s">
+        <span class="gmname">${esc(g.game)}</span>
+        <span class="gmbar"><i style="width:${Math.max(4, Math.round((g.minutes / max) * 100))}%"></i></span>
+        <span class="gmh">${g.hours >= 1
+    ? esc(t(lang, 'games.hours', { n: g.hours }))
+    : esc(t(lang, 'games.minutes', { n: Math.round(g.minutes) }))}</span>
+      </div>`).join('')}
+    </div>
+    <div class="hint" style="margin-top:10px">${esc(t(lang, 'games.since'))}</div>
+  </div>`;
+}
+
+/**
+ * Смуга рівня. Рівень не дається за активність — його купують за ✨FP,
+ * і кожен наступний коштує вдвічі більше. Тому поруч завжди видно ціну
+ * наступного й наскільки до нього вистачає грошей.
+ */
+function levelBar(level, { lang = 'uk', mine = false } = {}) {
+  if (!level) return '';
+  const cur = Math.max(1, Number(level.level) || 1);
+  const next = Number(level.next) || 1;
+  const bal = Number(level.balance) || 0;
+  const ready = mine && bal >= next;
+  // скільки зібрано на наступний рівень
+  const pct = Math.max(0, Math.min(100, Math.round((bal / next) * 100)));
+
+  const perk = (level.perks ?? []).find((p) => !p.unlocked);
+
+  return `<div class="lvbar">
+    <div class="lvchip" title="${esc(t(lang, 'lvl.title'))}">
+      <i>◆</i><b>${cur}</b><span>${esc(t(lang, 'lvl.short'))}</span>
+    </div>
+    ${mine
+    ? `<div class="lvgrow">
+        <div class="lvtrack"><i style="width:${pct}%"></i></div>
+        <div class="lvnote">
+          ${esc(t(lang, 'lvl.next', { n: cur + 1, cost: next }))}
+          ${perk ? ` · ${esc(t(lang, 'lvl.perkAt', { n: perk.level, name: perk.name }))}` : ''}
+        </div>
+      </div>
+      <button class="btn sm lvup" id="pf-levelup" ${ready ? '' : 'disabled'}
+        data-cost="${next}">${esc(t(lang, 'lvl.up', { cost: next }))}</button>`
+    : `<div class="lvgrow"><div class="lvnote">${esc(t(lang, 'lvl.theirs'))}</div></div>`}
+  </div>`;
 }
 
 /**
@@ -5365,6 +5764,8 @@ export function shopPage({
           <label class="sh-updrop" id="sh-updrop">
             <span class="sh-upshot" id="sh-upshot"></span>
             <span class="sh-uppick">${esc(t(lang, 'profile.upPick'))}</span>
+            <!-- перелік дозволеного міняється разом із призначенням:
+                 для ілюстрації підходить і відео -->
             <input type="file" accept="image/*" id="sh-upfile" hidden>
           </label>
 

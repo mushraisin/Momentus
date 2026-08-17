@@ -834,8 +834,29 @@ export const warnRepo = {
 export const walletRepo = {
   async get(guildId, userId) {
     const row = await get('SELECT * FROM wallets WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-    if (!row) return { balance: 0, earned: 0, lastGrant: null };
-    return { balance: num(row.balance), earned: num(row.earned), lastGrant: row.last_grant ?? null };
+    if (!row) return { balance: 0, earned: 0, lastGrant: null, level: 1, spentLevels: 0 };
+    return {
+      balance: num(row.balance),
+      earned: num(row.earned),
+      lastGrant: row.last_grant ?? null,
+      // рівень у всіх стартує з першого, навіть у старих рядків
+      level: Math.max(1, num(row.level ?? 1)),
+      spentLevels: num(row.spent_levels ?? 0),
+    };
+  },
+
+  /** Підняти рівень на один. Гроші вже мають бути списані. */
+  async levelUp(guildId, userId, cost) {
+    await run(`
+      UPDATE wallets SET level = MAX(1, level) + 1, spent_levels = spent_levels + ?
+      WHERE guild_id = ? AND user_id = ?
+    `, [Math.max(0, cost), guildId, userId]);
+    return this.get(guildId, userId);
+  },
+
+  /** Найвищі рівні гільдії — для сторінки рейтингу. */
+  levels(guildId) {
+    return all('SELECT user_id, level FROM wallets WHERE guild_id = ?', [guildId]);
   },
 
   /** Нарахувати. day — щоб не видати двічі за той самий день. */
@@ -867,6 +888,46 @@ export const walletRepo = {
       'SELECT user_id, balance FROM wallets WHERE guild_id = ? ORDER BY balance DESC LIMIT ?',
       [guildId, limit],
     );
+  },
+};
+
+/**
+ * Скільки часу людина провела в іграх.
+ *
+ * Discord не зберігає й не віддає «наіграні години» — такого в його API просто
+ * немає. Видно лише те, у що людина грає ПРЯМО ЗАРАЗ. Тому години рахує сам
+ * бот: бачить початок гри, бачить кінець, додає різницю. Отже, статистика
+ * починається з дня, коли стеження увімкнули, — минулого не відновити.
+ */
+export const gamesRepo = {
+  /** Долічити хвилини до гри. */
+  add(guildId, userId, game, minutes) {
+    const m = Math.max(0, Math.round(minutes));
+    if (!m) return null;
+    return run(`
+      INSERT INTO user_games (guild_id, user_id, game, minutes, last_seen)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id, user_id, game) DO UPDATE SET
+        minutes = minutes + excluded.minutes,
+        last_seen = excluded.last_seen
+    `, [guildId, userId, String(game).slice(0, 80), m, Date.now()]);
+  },
+
+  /** Ігри однієї людини — найдовші згори. */
+  list(guildId, userId, limit = 8) {
+    return all(`
+      SELECT game, minutes, last_seen FROM user_games
+      WHERE guild_id = ? AND user_id = ? AND minutes > 0
+      ORDER BY minutes DESC LIMIT ?
+    `, [guildId, userId, limit]);
+  },
+
+  async total(guildId, userId) {
+    const row = await get(
+      'SELECT SUM(minutes) AS n FROM user_games WHERE guild_id = ? AND user_id = ?',
+      [guildId, userId],
+    );
+    return num(row?.n ?? 0);
   },
 };
 
@@ -1001,6 +1062,32 @@ export const prefsRepo = {
       background: row.background ?? null,
       layout: safeJson(row.layout) ?? null,
     };
+  },
+
+  /**
+   * Налаштування кількох людей одним запитом. Потрібно сторінці рейтингу:
+   * вона показує картку кожного в його ж оформленні, а ходити в базу
+   * по одному — це п'ятдесят мережевих запитів на одну сторінку.
+   */
+  async many(guildId, userIds = []) {
+    const ids = [...new Set(userIds.filter(Boolean))];
+    if (!ids.length) return new Map();
+    const holes = ids.map(() => '?').join(',');
+    const rows = await all(
+      `SELECT * FROM profile_prefs WHERE guild_id = ? AND user_id IN (${holes})`,
+      [guildId, ...ids],
+    );
+    const out = new Map();
+    for (const row of rows) {
+      out.set(row.user_id, {
+        about: row.about ?? '',
+        banner: row.banner ?? null,
+        accent: row.accent ?? null,
+        background: row.background ?? null,
+        layout: safeJson(row.layout) ?? null,
+      });
+    }
+    return out;
   },
 
   /** Пишемо лише передані поля — решта лишається як була. */

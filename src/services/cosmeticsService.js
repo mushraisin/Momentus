@@ -69,6 +69,30 @@ export function categoryOfKind(kind) {
 }
 
 /**
+ * ── Рівні ──
+ *
+ * У всіх стартує перший. Кожен наступний коштує вдвічі більше за попередній:
+ * 1→2 — 1 ✨FP, 2→3 — 2, 3→4 — 4, далі так само подвоюється. Рівень нічого
+ * не дає сам по собі — за нього дають плюшки, перша з яких на десятому.
+ */
+export const LEVEL_PERKS = [
+  { level: 10, key: 'upload', name: 'Свій контент у магазині без бусту' },
+];
+
+/** Скільки коштує перехід на наступний рівень. */
+export function levelCost(level) {
+  const from = Math.max(1, Math.floor(Number(level) || 1));
+  // 1→2 = 1, далі ×2 за кожен наступний
+  return 2 ** (from - 1);
+}
+
+/** Чи відкрита плюшка на цьому рівні. */
+export function hasPerk(level, key) {
+  const need = LEVEL_PERKS.find((p) => p.key === key);
+  return !!need && Math.max(1, Number(level) || 1) >= need.level;
+}
+
+/**
  * Прибрати роботу з оформлення однієї людини: фон, банер і вітрина.
  * Без цього після видалення в профілі лишалась би порожня рамка замість
  * картинки, яку вже нічим не показати.
@@ -416,7 +440,9 @@ export const cosmeticsService = {
 
   /** Виставити свою картинку на вітрину (або зняти звідти). */
   async listOnMarket(guildId, userId, member, { asset, price, title, listed = true, booster = null }) {
-    if (!this.canUpload(guildId, member)) return { ok: false, reason: 'booster' };
+    // право заливати дає буст або десятий рівень — тож рівень треба знати
+    const { level } = await walletRepo.get(guildId, userId);
+    if (!this.canUpload(guildId, member, level)) return { ok: false, reason: 'booster' };
     const a = await assetsRepo.meta(Number(asset));
     if (!a || a.guild_id !== guildId || a.user_id !== userId) return { ok: false, reason: 'not yours' };
 
@@ -581,8 +607,50 @@ export const cosmeticsService = {
    * Свої картинки заливають лише бустери й лише через магазин —
    * по одному FP за штуку, не більше трьох у кожній категорії.
    */
-  canUpload(guildId, member) {
-    return this.isBooster(guildId, member);
+  /**
+   * Заливати можуть бустери — або ті, хто доріс до десятого рівня.
+   * Рівень тут навмисно рівноцінний бусту: його купують за ✨FP, тобто
+   * платять тим самим, що й заробляють активністю.
+   */
+  canUpload(guildId, member, level = 1) {
+    return this.isBooster(guildId, member) || hasPerk(level, 'upload');
+  },
+
+  LEVEL_PERKS,
+  levelCost,
+  hasPerk,
+
+  /** Рівень і скільки коштує наступний. */
+  async level(guildId, userId) {
+    const w = await walletRepo.get(guildId, userId);
+    return {
+      level: w.level,
+      balance: w.balance,
+      next: levelCost(w.level),
+      perks: LEVEL_PERKS.map((p) => ({ ...p, unlocked: w.level >= p.level })),
+    };
+  },
+
+  /**
+   * Купити наступний рівень. Списуємо рівно стільки, скільки коштує перехід,
+   * і лише потім піднімаємо — інакше при збої лишився б рівень без оплати.
+   */
+  async buyLevel(guildId, userId) {
+    const w = await walletRepo.get(guildId, userId);
+    const cost = levelCost(w.level);
+    if (!await walletRepo.spend(guildId, userId, cost)) {
+      return { ok: false, reason: 'funds', need: cost, balance: w.balance };
+    }
+    const after = await walletRepo.levelUp(guildId, userId, cost);
+    log.info(`${userId} піднявся до ${after.level} рівня за ${cost} FP`);
+    return {
+      ok: true,
+      level: after.level,
+      balance: after.balance,
+      next: levelCost(after.level),
+      // плюшка, яка щойно відкрилась, — щоб сказати про неї одразу
+      unlocked: LEVEL_PERKS.find((p) => p.level === after.level) ?? null,
+    };
   },
 
   /** Скільки ще можна залити в цю категорію. */
@@ -605,7 +673,8 @@ export const cosmeticsService = {
    * і людина справді має право заливати.
    */
   async payUpload(guildId, userId, member, kind, askPrice = 1) {
-    if (!this.canUpload(guildId, member)) return { ok: false, reason: 'booster' };
+    const { level } = await walletRepo.get(guildId, userId);
+    if (!this.canUpload(guildId, member, level)) return { ok: false, reason: 'booster' };
     if (!await this.uploadsLeft(guildId, userId, kind)) return { ok: false, reason: 'limit' };
 
     const listPrice = Math.max(1, Math.round(Number(askPrice) || 1));
@@ -669,7 +738,10 @@ export const cosmeticsService = {
       if (!a || a.guild_id !== guildId) continue;
       const ok = a.user_id === userId || await itemsRepo.has(guildId, userId, `asset:${a.id}`);
       if (!ok) continue;
-      showcase.push({ id: a.id, url: `/asset/${a.id}`, title: a.title ?? '' });
+      // mime потрібен вітрині: ілюстрацією може бути й гіфка, і відео
+      showcase.push({
+        id: a.id, url: `/asset/${a.id}`, title: a.title ?? '', mime: a.mime ?? 'image/png',
+      });
     }
 
     return {

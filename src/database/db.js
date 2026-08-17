@@ -186,6 +186,15 @@ CREATE TABLE IF NOT EXISTS user_items (
 
 -- Особисті картинки для оформлення (фони, банери). Самі файли лежать
 -- у приватному каналі-сховищі Discord, тут — лише посилання на них.
+CREATE TABLE IF NOT EXISTS user_games (
+  guild_id  TEXT NOT NULL,
+  user_id   TEXT NOT NULL,
+  game      TEXT NOT NULL,
+  minutes   INTEGER NOT NULL DEFAULT 0,
+  last_seen INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id, game)
+);
+
 CREATE TABLE IF NOT EXISTS user_assets (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id    TEXT NOT NULL,
@@ -439,6 +448,9 @@ export async function initDatabase() {
   await addColumn('user_assets', 'sales', 'INTEGER NOT NULL DEFAULT 0');
   // Свою роботу теж можна закрити бустом — так само, як каталожну річ.
   await addColumn('user_assets', 'booster', 'INTEGER NOT NULL DEFAULT 0');
+  // Рівень купується за ✨FP; у всіх стартує з першого.
+  await addColumn('wallets', 'level', 'INTEGER NOT NULL DEFAULT 1');
+  await addColumn('wallets', 'spent_levels', 'INTEGER NOT NULL DEFAULT 0');
 
   log.info(`База даних готова: ${isRemote ? 'Turso (remote)' : url}`);
 }

@@ -19,6 +19,7 @@ import { galleryChannelId, postToChannel } from '../services/galleryWatcher.js';
 import { resolveSource } from './providers.js';
 import { signUrl, handleStream } from './mediaProxy.js';
 import { ytdlpAvailable } from './ytdlp.js';
+import { gamesOf } from '../services/gamesService.js';
 import { OWNER_ID, ACCESS } from '../config/constants.js';
 import { accessService } from '../services/accessService.js';
 import { punishmentService, KIND_LABEL, WARN_LIMIT } from '../services/punishmentService.js';
@@ -763,6 +764,14 @@ async function shopApi(req, res, guild, session, action) {
     return json(res, 200, { ok: true, look });
   }
 
+  // Купівля наступного рівня. Ціна подвоюється щоразу, тож її рахує сервіс —
+  // сторінка лише показує те, що він назвав.
+  if (action === 'level') {
+    const r = await cosmeticsService.buyLevel(guild.id, session.user_id);
+    if (!r.ok) return json(res, 400, { error: r.reason, need: r.need, balance: r.balance });
+    return json(res, 200, r);
+  }
+
   if (action === 'clear') {
     await cosmeticsService.clear(guild.id, session.user_id, String(body.what ?? 'background'));
     const look = await cosmeticsService.look(guild.id, session.user_id);
@@ -911,9 +920,17 @@ async function profileApi(req, res, guild, session) {
     patch.layout = { ...(patch.layout ?? cur.layout ?? {}), showcase: allowed };
   }
 
+  // Висота банера — окремий вибір оформлення сторінки.
+  if (body.bannerH !== undefined) {
+    const cur = await prefsRepo.get(guild.id, session.user_id);
+    const allowed = ['cover', 'tall', 'flat'];
+    const h = allowed.includes(String(body.bannerH)) ? String(body.bannerH) : 'cover';
+    patch.layout = { ...(patch.layout ?? cur.layout ?? {}), bannerH: h };
+  }
+
   if (body.layout !== undefined) {
     // лишаємо тільки відомі блоки, щоб у налаштування не потрапило чуже
-    const known = ['about', 'chart', 'stats', 'gallery'];
+    const known = ['about', 'chart', 'showcase'];
     const order = Array.isArray(body.layout) ? body.layout.filter((k) => known.includes(k)) : [];
     const cur = await prefsRepo.get(guild.id, session.user_id);
     // Спираємось на patch.layout, а не лише на збережене: інакше порядок блоків
@@ -952,7 +969,6 @@ async function assetUpload(req, res, guild, session) {
     .catch((e) => { log.warn('Розбір форми не вдався', e.message); return null; });
   const file = form?.file;
   if (!file) return json(res, 400, { error: 'no file' });
-  if (kindOf(file.mime) !== 'image') return json(res, 400, { error: 'image only' });
 
   // Фон, банер або ілюстрація для вітрини. Ілюстрація нікуди не «вдягається» —
   // вона просто стає доступною для вітрини профілю.
@@ -960,6 +976,15 @@ async function assetUpload(req, res, guild, session) {
   const spec = cosmeticsService.UPLOAD_KINDS.find((k) => k.kind === asked)
     ?? cosmeticsService.UPLOAD_KINDS[0];
   const kind = spec.kind;
+
+  // Фон і банер — тло сторінки, тож лише нерухома картинка або гіфка.
+  // Ілюстрація — це вітрина, її показують окремим полотном, тому там
+  // дозволені й відео: саме за цим здебільшого й приходять.
+  const mediaKind = kindOf(file.mime);
+  const allowed = kind === 'art' ? ['image', 'gif', 'video'] : ['image', 'gif'];
+  if (!allowed.includes(mediaKind)) {
+    return json(res, 400, { error: kind === 'art' ? 'media only' : 'image only' });
+  }
   // Автор одразу каже, за скільки продаватиме роботу; за публікацію
   // платить половину від цієї суми.
   const askPrice = Math.max(1, Math.round(Number(form.fields?.price) || 1));
@@ -1682,7 +1707,12 @@ async function renderProfile(res, guild, session, lang, path, userId) {
   const look = await cosmeticsService.look(guild.id, userId);
   const mine = session?.user_id === userId;
   // Гаманець показуємо в самому профілі — щоб не бігати в магазин по число.
-  look.balance = (await cosmeticsService.wallet(guild.id, userId)).balance;
+  const wallet = await cosmeticsService.wallet(guild.id, userId);
+  look.balance = wallet.balance;
+  // Рівень бачать усі, хто відкрив сторінку; ціну наступного — лише власник.
+  const levelInfo = await cosmeticsService.level(guild.id, userId);
+  // Ігри — лише якщо стеження увімкнене; інакше null і блока просто немає.
+  const games = await gamesOf(guild.id, userId).catch(() => null);
 
   // Власнику сторінки збираємо все, чим він може її змінити.
   let wardrobe = null;
@@ -1710,7 +1740,9 @@ async function renderProfile(res, guild, session, lang, path, userId) {
       packs,
       // Заливка живе тільки в магазині — тут лишається сам вибір із залитого,
       // тож ліміти й ціни профілю більше не потрібні.
-      canUpload: cosmeticsService.canUpload(guild.id, member),
+      canUpload: cosmeticsService.canUpload(guild.id, member, levelInfo.level),
+      // з десятого рівня заливати можна й без бусту — це видно в самому вікні
+      levelPerks: levelInfo.perks,
       showcaseMax: cosmeticsService.SHOWCASE_MAX,
       // Види заливки потрібні, щоб розкласти свої картинки по призначенню:
       // фон окремо, банер окремо, ілюстрація окремо. Передаємо опис цілком —
@@ -1727,19 +1759,45 @@ async function renderProfile(res, guild, session, lang, path, userId) {
   return html(res, 200, guild, session, lang, path, username,
     R.profilePage(profile, {
       username, avatar, roleName, roleColor, rank, lang, look, mine, wardrobe,
+      level: levelInfo, games,
     }),
     false, mine ? 'me' : 'u', og, look);
 }
 
+/**
+ * Рядки рейтингу разом з оформленням кожного: сторінка показує не список,
+ * а картку людини в її ж стилі. Налаштування й рівні тягнемо пачкою —
+ * по одному це були б десятки мережевих запитів на одну сторінку.
+ */
 async function topRows(guild, limit) {
   const rows = await reputationRepo.leaderboard(guild.id, limit);
+  const ids = rows.map((r) => r.user_id);
+
+  const [prefs, levels] = await Promise.all([
+    prefsRepo.many(guild.id, ids).catch(() => new Map()),
+    walletRepo.levels(guild.id).catch(() => []),
+  ]);
+  const levelOf = new Map(levels.map((l) => [l.user_id, Math.max(1, Number(l.level) || 1)]));
+
   return rows.map((r) => {
     const m = guild.members.cache.get(r.user_id);
+    const p = prefs.get(r.user_id) ?? {};
+    const frameId = p.layout?.frame ?? null;
+    const frame = frameId ? cosmeticsService.item(frameId) : null;
+
     return {
       user_id: r.user_id,
       username: m?.displayName ?? r.username ?? r.user_id,
       avatar: m?.user?.avatar ?? null,
       ai_score: r.ai_score,
+      level: levelOf.get(r.user_id) ?? 1,
+      // оформлення: банер, акцент і колір рамки аватара
+      banner: String(p.banner ?? '').startsWith('asset:')
+        ? `/asset/${String(p.banner).slice(6)}`
+        : null,
+      accent: p.accent ?? null,
+      frame: frame?.value?.color ?? null,
+      about: String(p.about ?? '').slice(0, 120),
     };
   });
 }

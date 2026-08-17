@@ -1417,6 +1417,83 @@ ok('свій контент: правка, буст, видалення з по�
 }
 ok('персоналізація діє на весь сайт; каталог поповнено, стилі вікон стали різними');
 
+// 26. рівні, рейтинг картками, вітрина на все полотно
+{
+  const { walletRepo, assetsRepo, prefsRepo } = await import('../src/database/repositories.js');
+  const { cosmeticsService, levelCost, hasPerk } = await import('../src/services/cosmeticsService.js');
+
+  // ── ціна рівня подвоюється, як домовлено ──
+  assert.equal(levelCost(1), 1, '1→2 коштує 1');
+  assert.equal(levelCost(2), 2, '2→3 коштує 2');
+  assert.equal(levelCost(3), 4, '3→4 коштує 4');
+  assert.equal(levelCost(9), 256, '9→10 коштує 256');
+
+  const L = '555000555000555000';
+  assert.equal((await cosmeticsService.level(G, L)).level, 1, 'у всіх стартує перший рівень');
+
+  // без грошей рівень не купиш
+  assert.equal((await cosmeticsService.buyLevel(G, L)).reason, 'funds', 'без FP не піднімешся');
+
+  await walletRepo.add(G, L, 1000);
+  const up = await cosmeticsService.buyLevel(G, L);
+  assert.equal(up.level, 2, 'рівень піднявся');
+  assert.equal(up.balance, 999, 'списалось рівно 1 FP');
+  assert.equal(up.next, 2, 'наступний уже дорожчий');
+
+  // ── плюшка десятого рівня: заливка без бусту ──
+  assert.equal(hasPerk(9, 'upload'), false, 'на девʼятому ще ні');
+  assert.equal(hasPerk(10, 'upload'), true, 'на десятому — так');
+  assert.equal(cosmeticsService.canUpload(G, null, 10), true, 'десятий рівень замінює буст');
+  assert.equal(cosmeticsService.canUpload(G, null, 1), false, 'перший — ні');
+
+  // сторінка показує рівень
+  const meLvl = await req('/me', auth);
+  assert.ok(meLvl.body.includes('class="lvchip"'), 'рівень видно в профілі');
+  assert.ok(meLvl.body.includes('id="pf-levelup"'), 'власник може підняти його звідти');
+  const alien = await req(`/u/${OWNER_ID}`, auth);
+  assert.ok(!alien.body.includes('id="pf-levelup"'), 'на чужій сторінці кнопки немає');
+
+  // ── рейтинг картками, а не списком ──
+  const top = await req('/top', auth);
+  assert.equal(top.status, 200);
+  assert.ok(top.body.includes('class="tp-podium"'), 'трійка окремим блоком');
+  assert.ok(top.body.includes('tp-top tp-1'), 'перше місце виділене');
+  assert.ok(top.body.includes('class="tp-face"'), 'аватар учасника на картці');
+  assert.ok(top.body.includes('class="tp-bg"'), 'банер учасника тлом картки');
+  assert.ok(!/<table>[\s\S]*<th>/.test(top.body), 'таблиці більше немає');
+  assert.match(top.body, /--f:/, 'колір рамки учасника доїжджає в картку');
+
+  // ── ілюстрації: gif і відео, вітрина на все полотно ──
+  const vid = await assetsRepo.add(G, U, {
+    kind: 'art', mime: 'video/mp4', sizeBytes: 10, objectKey: 'ch/v',
+  });
+  await prefsRepo.save(G, U, { layout: { showcase: [vid] } });
+  const withVideo = await req('/me', auth);
+  assert.ok(withVideo.body.includes('class="pf-stage"'), 'вітрина окремою сценою');
+  assert.ok(withVideo.body.includes('<video class="pf-big-m"'), 'відео грає як відео');
+  assert.ok(withVideo.body.includes('autoplay muted loop'), 'без звуку й по колу');
+  assert.ok(!/pf-showgrid/.test(withVideo.body), 'сітки дрібних плиток більше немає');
+
+  // сервер приймає відео саме для ілюстрації, а не для фону
+  const { UPLOAD_KINDS } = await import('../src/services/cosmeticsService.js');
+  assert.ok(UPLOAD_KINDS.some((k) => k.kind === 'art'), 'ілюстрація — окремий вид');
+
+  await prefsRepo.save(G, U, { layout: {} });
+
+  // ── стиль вікон дістає галерею й кінотеатр ──
+  const gal = await req('/gallery', auth);
+  assert.match(gal.body, /\.item\{[^}]*border-radius:var\(--radius\)/, 'плитки галереї — за стилем');
+  assert.match(gal.body, /\.spot\{[^}]*border-radius:var\(--radius\)/, '«кліп дня» — теж');
+  const cin = await req('/cinema', auth);
+  assert.match(cin.body, /\.room\{[^}]*background:var\(--card\)/, 'зал більше не має свого фону');
+
+  // ── ігри: вимкнено за замовчуванням, і це свідомо ──
+  const { gamesEnabled } = await import('../src/services/gamesService.js');
+  assert.equal(gamesEnabled(), false, 'стеження за іграми вимкнене без TRACK_GAMES');
+  assert.ok(!meLvl.body.includes('gmbox'), 'вимкнене — блока ігор немає взагалі');
+}
+ok('рівні за FP, рейтинг картками, вітрина на все полотно, стиль у галереї й залі');
+
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
 assert.equal(gone.status, 200);

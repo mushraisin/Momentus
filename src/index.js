@@ -6,6 +6,7 @@ import { registerEvents, postSetupPanel } from './interactions/events.js';
 import { startScheduler } from './services/scheduler.js';
 import { startWebServer, stopWebServer } from './web/server.js';
 import { startPresence, stopPresence } from './services/presenceService.js';
+import { startGames, stopGames, gamesEnabled } from './services/gamesService.js';
 import { usersRepo } from './database/repositories.js';
 import { configService } from './services/configService.js';
 import { aiService } from './services/aiService.js';
@@ -36,6 +37,10 @@ const client = new Client({
     // без цього наміру не приходять записи журналу аудиту —
     // а саме з них видно дії персоналу з нативними правами Discord
     GatewayIntentBits.GuildModeration,
+    // Присутність (у що грають) — лише за прямим бажанням. Цей намір
+    // привілейований: без дозволу «Presence Intent» у Developer Portal
+    // Discord узагалі не пустить бота, тож умикати треба свідомо.
+    ...(gamesEnabled() ? [GatewayIntentBits.GuildPresences] : []),
   ],
   partials: [Partials.Message, Partials.Reaction, Partials.Channel, Partials.GuildMember],
 });
@@ -48,6 +53,9 @@ client.once(Events.ClientReady, (c) => {
   // Статус показує, що зараз іде в кінотеатрі; коли нічого — просто «онлайн».
   c.user.setPresence({ activities: [], status: 'online' });
   startPresence(c);
+
+  // Ігри учасників — лише якщо це увімкнено свідомо (див. gamesService).
+  startGames(c);
 
   // Сайт спільноти (в тому ж процесі; дані — з тієї самої Turso БД).
   startWebServer(c);
@@ -79,6 +87,7 @@ async function shutdown(signal) {
   log.info(`Отримано ${signal}, завершуюсь…`);
   try {
     stopPresence();
+    stopGames();
     stopWebServer();
     client.destroy();
   } finally {
