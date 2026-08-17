@@ -211,6 +211,29 @@ function hlsFile() {
   return hlsBundle;
 }
 
+/**
+ * Inter із проєкту.
+ *
+ * CSS просив «Inter», але шрифт ніде не постачався — тож браузер мовчки брав
+ * системний (на Windows — Segoe UI). Картки бота при цьому малювались
+ * справжнім Inter із assets/fonts, і сайт із карткою виглядали різними
+ * шрифтами. Тепер обидва беруть один і той самий файл.
+ */
+let interFont = null;
+
+function interFile() {
+  if (interFont !== null) return interFont;
+  try {
+    const p = new URL('../../assets/fonts/Inter.ttf', import.meta.url);
+    interFont = { body: fs.readFileSync(p) };
+    log.info(`Inter роздається локально (${(interFont.body.length / 1024).toFixed(0)} КБ)`);
+  } catch {
+    interFont = false;
+    log.warn('assets/fonts/Inter.ttf не знайдено — сайт візьме системний шрифт');
+  }
+  return interFont;
+}
+
 // ─────────────────────────────────────────────
 //  Маршрутизація
 // ─────────────────────────────────────────────
@@ -420,6 +443,17 @@ async function handle(req, res) {
       'Content-Length': file.body.length,
       // версія прибита в package.json, тож вміст за цією адресою не змінюється
       'Cache-Control': 'public, max-age=604800, immutable',
+    });
+    return res.end(file.body);
+  }
+
+  if (path === '/vendor/inter.ttf') {
+    const file = interFile();
+    if (!file) return send(res, 404, 'text/plain', 'not found');
+    res.writeHead(200, {
+      'Content-Type': 'font/ttf',
+      'Content-Length': file.body.length,
+      'Cache-Control': 'public, max-age=31536000, immutable',
     });
     return res.end(file.body);
   }

@@ -309,6 +309,31 @@ function statChip(ctx, x, cy, icon, value, label) {
   return w;
 }
 
+/**
+ * Чип ролі з кольоровою крапкою — такий самий, як на сайті: крапка кольору
+ * ролі, потім назва тим же кольором.
+ */
+function rolePill(ctx, label, x, cy, color, size = 15) {
+  const dot = 7;
+  const h = 26;
+  const w = 11 + dot + 7 + measure(ctx, label, size, 600) + 11;
+
+  roundRect(ctx, x, cy - h / 2, w, h, h / 2);
+  ctx.fillStyle = hexA(color, 0.15);
+  ctx.fill();
+  ctx.strokeStyle = hexA(color, 0.42);
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(x + 11 + dot / 2, cy, dot / 2, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  txt(ctx, label, x + 11 + dot + 7, cy, { size, weight: 600, color });
+  return w;
+}
+
 /** Пігулка з назвою ролі, центрована по `cy`. */
 function pill(ctx, label, x, cy, color, size = 18) {
   const h = 30;
@@ -372,17 +397,21 @@ export async function profileCard(profile, {
 
     txt(ctx, username, textX, nameCy, { size: 30, weight: 700, maxWidth: nameMax });
 
+    // Роль — чипом із крапкою, рівень — дрібним написом поруч: рівно так,
+    // як на картці сайту, щоб дві картки читались однаково.
     let metaX = textX;
     if (roleName) {
-      metaX += pill(ctx, fitText2(ctx, roleName, nameMax - 90, 16), textX, metaCy, accent, 16) + 8;
+      metaX += rolePill(ctx, fitText2(ctx, roleName, nameMax - 110, 15), textX, metaCy, accent) + 10;
     }
-    pill(ctx, `◆ ${level} рівень`, metaX, metaCy, tint, 16);
+    txt(ctx, `◆ ${level} РІВЕНЬ`, metaX, metaCy, { size: 12, weight: 600, color: tint });
 
-    // ── Рейтинг праворуч, на тих самих осях ──
-    txt(ctx, String(profile.aiScore), scoreRight, nameCy, {
-      size: 36, weight: 700, align: 'right', color: tint,
+    // ── Рейтинг праворуч ──
+    // Число велике, тож центрується нижче за нік: інакше воно тягнеться
+    // вгору й наїжджає на смугу банера.
+    txt(ctx, String(profile.aiScore), scoreRight, nameCy + 6, {
+      size: 34, weight: 700, align: 'right', color: tint,
     });
-    txt(ctx, 'РЕЙТИНГ', scoreRight, metaCy, { size: 13, align: 'right', color: C.dim });
+    txt(ctx, 'РЕЙТИНГ', scoreRight, metaCy + 4, { size: 12, align: 'right', color: C.dim });
 
     // ── Чипи статистики ──
     const chipCy = avCy + avSize / 2 + 34;

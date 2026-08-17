@@ -35,6 +35,11 @@ const DISCORD_ICON = `<svg viewBox="0 0 127 96" aria-hidden="true"><path fill="c
 //  CSS
 // ─────────────────────────────────────────────
 export const BASE_CSS = `
+/* Inter постачається з проєктом. Раніше CSS просив його на віру, і браузер
+   тихо брав системний — через це сайт і картки бота, які малюються справжнім
+   Inter, виглядали різними шрифтами. */
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;
+  font-display:swap;src:url(/vendor/inter.ttf) format('truetype')}
 :root{
   --bg0:#05070d;--card:rgba(22,27,40,.72);--line:rgba(255,255,255,.08);
   --text:#eef2f9;--dim:#8e9bb3;--good:#43c47b;--mid:#e9b949;--bad:#ef5350;

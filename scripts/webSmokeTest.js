@@ -1575,6 +1575,15 @@ ok('рівні за FP, рейтинг картками, вітрина на в�
   assert.ok(me.body.includes('--accent-rgb'), 'дим бере колір з акценту');
   assert.match(me.body, /getPropertyValue\('--accent-rgb'\)/, 'і читає його на льоту');
 
+  // ── Шрифт у сайта й картки бота має бути один ──
+  // CSS просив «Inter», але ніде його не постачав: браузер тихо брав
+  // системний, а картки малювались справжнім Inter із assets/fonts.
+  assert.match(me.body, /@font-face\{font-family:'Inter'/, 'Inter оголошений');
+  assert.ok(me.body.includes('/vendor/inter.ttf'), 'і справді постачається');
+  const font = await req('/vendor/inter.ttf');
+  assert.equal(font.status, 200, 'шрифт віддається');
+  assert.ok(font.body.length > 100_000, `це справді шрифт (${font.body.length} б)`);
+
   // ── Найвища роль у своєму кольорі ──
   assert.ok(me.body.includes('tp-role'), 'чип ролі є в профілі');
   const top = await req('/top', auth);
