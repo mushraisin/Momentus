@@ -1351,6 +1351,72 @@ ok('персоналізація по вкладках, фільтр магаз�
 }
 ok('свій контент: правка, буст, видалення з поверненням; спливаючі повідомлення');
 
+// 25. персоналізація доходить до всього сайту, а не наполовину
+{
+  const { prefsRepo, itemsRepo } = await import('../src/database/repositories.js');
+  const { cosmeticsService, CATEGORIES } = await import('../src/services/cosmeticsService.js');
+
+  // ── акцент ──
+  // Раніше десятки правил тримали синій жорстко вписаним, тож обраний колір
+  // фарбував самі кнопки, а їхній фон, рамки й світіння лишалися типовими.
+  const base = await req('/gallery', auth);
+  assert.ok(!base.body.includes('rgba(107,124,255,'),
+    'жодного жорстко вписаного акценту в CSS не лишилось');
+  assert.ok(base.body.includes('--accent-rgb:107,124,255'), 'акцент числами — окремим токеном');
+  assert.ok(base.body.includes('rgba(var(--accent-rgb)'), 'підсвітки беруть саме токен');
+
+  await itemsRepo.give(G, U, 'accent.lime');
+  await cosmeticsService.equip(G, U, 'accent.lime');
+  const tinted = await req('/gallery', auth);
+  assert.match(tinted.body, /--accent-rgb:168,224,95/, 'обраний колір доїхав і числами');
+  assert.match(tinted.body, /--accent:#a8e05f/, 'і як сам колір');
+
+  // ── стиль вікон ──
+  await itemsRepo.give(G, U, 'card.neon');
+  await cosmeticsService.equip(G, U, 'card.neon');
+  const styled = await req('/me', auth);
+  for (const sel of ['.pv', '.pf-lookwin', '.cdrawer', '.drop-menu', '.langmenu']) {
+    assert.ok(styled.body.includes(sel), `стиль вікон дістає до ${sel}`);
+  }
+  assert.ok(styled.body.includes('--line-w:2px'), 'товщина рамки — теж частина стилю');
+  assert.ok(styled.body.includes('--menu:'), 'поверхня спливних меню задана');
+  // піл гаманця й повідомлення свідомо не беруть радіус вікон
+  assert.ok(!/\.sh-wallet[^{]*\{border-radius/.test(styled.body.split('--line-w')[1] ?? ''),
+    'гаманець лишається пілом');
+
+  // під курсором рамка не має збиватись на типову білу
+  assert.match(styled.body, /\.pane:hover\{border-color:rgba\(var\(--accent-rgb\)/,
+    'наведення тримається обраного кольору');
+
+  await cosmeticsService.clear(G, U, 'accent');
+  await prefsRepo.save(G, U, { layout: {} });
+
+  // ── каталог помітно поповнився, а стилі вікон стали різними ──
+  const cat = cosmeticsService.catalog(G);
+  const per = {};
+  for (const p of cat) per[p.category] = (per[p.category] ?? 0) + 1;
+  assert.ok(per.bg >= 18, `фонів побільшало (${per.bg})`);
+  assert.ok(per.accent >= 12, `акцентів побільшало (${per.accent})`);
+  assert.ok(per.frame >= 11, `рамок побільшало (${per.frame})`);
+  assert.ok(per.card >= 9, `стилів вікон побільшало (${per.card})`);
+
+  const ids = cat.map((p) => p.id);
+  assert.equal(new Set(ids).size, ids.length, 'жодного повтору id');
+
+  // Кожен стиль вікон мусить читатися з першого погляду, тому вони різняться
+  // не альфа-каналом, а помітними речами — і в кожного є пояснення.
+  const cards = cat.filter((p) => p.category === 'card');
+  assert.ok(cards.every((c) => c.hint), 'у кожного стилю вікон є опис, що він робить');
+  assert.equal(new Set(cards.map((c) => c.value.radius)).size >= 5, true,
+    'округлість помітно різна');
+  assert.ok(cards.some((c) => (c.value.width ?? 1) > 1), 'є стилі з товстою рамкою');
+  assert.ok(cards.some((c) => c.value.shadow), 'є стилі з тінню');
+
+  assert.ok(CATEGORIES.every((c) => cat.some((p) => p.category === c.id)
+    || ['banner', 'art'].includes(c.id)), 'кожна каталожна категорія має товар');
+}
+ok('персоналізація діє на весь сайт; каталог поповнено, стилі вікон стали різними');
+
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
 assert.equal(gone.status, 200);

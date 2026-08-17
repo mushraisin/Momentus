@@ -115,56 +115,121 @@ const SINGLES = [
   { ...grad('grad.abyss', 'Безодня', '#01080f', '#0b1c2e', 200), category: 'bg', price: 70, booster: false },
   { ...grad('grad.violet', 'Фіалка', '#0d0a1e', '#1e1140', 175), category: 'bg', price: 70, booster: true },
 
+  { ...grad('grad.moss', 'Хвоя', '#06140d', '#0f2a1c', 145), category: 'bg', price: 70, booster: false },
+  { ...grad('grad.rust', 'Іржа', '#1a0e08', '#3a1d0e', 165), category: 'bg', price: 70, booster: false },
+  { ...grad('grad.steel', 'Сталь', '#0c1016', '#1c2734', 190), category: 'bg', price: 70, booster: false },
+  { ...grad('grad.plum', 'Слива', '#150a1a', '#2e1236', 155), category: 'bg', price: 70, booster: false },
+  { ...grad('grad.dawn', 'Світанок', '#101020', '#3a2436', 140), category: 'bg', price: 90, booster: false },
+  { ...grad('grad.teal', 'Лагуна', '#03141a', '#0b3038', 185), category: 'bg', price: 90, booster: false },
+  { ...grad('grad.ink', 'Туш', '#050608', '#141a26', 170), category: 'bg', price: 90, booster: true },
+  { ...grad('grad.wine', 'Кагор', '#180810', '#3a0f22', 160), category: 'bg', price: 90, booster: true },
+
   { ...motion('motion.tide', 'Приплив', '#061321', '#0b2740'), category: 'bg', price: 150, booster: true },
   { ...motion('motion.nebula', 'Туманність', '#120a24', '#2a1046'), category: 'bg', price: 150, booster: true },
   { ...motion('motion.forge', 'Горн', '#1d0c07', '#3a1a08'), category: 'bg', price: 150, booster: true },
+  { ...motion('motion.aurora', 'Сяйво', '#04160f', '#0d3a2c'), category: 'bg', price: 150, booster: true },
+  { ...motion('motion.storm', 'Гроза', '#0a0c14', '#232a3e'), category: 'bg', price: 150, booster: true },
+  { ...motion('motion.ember', 'Жарини', '#160606', '#3d1010'), category: 'bg', price: 180, booster: true },
+  { ...motion('motion.deep', 'Товща', '#01080f', '#062338'), category: 'bg', price: 180, booster: true },
 
   { ...accent('accent.gold', 'Золото', '#e0b45c'), category: 'accent', price: 60, booster: false },
   { ...accent('accent.mint', 'Мʼята', '#4fd1a5'), category: 'accent', price: 60, booster: false },
   { ...accent('accent.rose', 'Троянда', '#ef6f9c'), category: 'accent', price: 60, booster: false },
   { ...accent('accent.ice', 'Крига', '#6fc7ef'), category: 'accent', price: 60, booster: true },
+  { ...accent('accent.lime', 'Лайм', '#a8e05f'), category: 'accent', price: 60, booster: false },
+  { ...accent('accent.coral', 'Корал', '#ff7f6e'), category: 'accent', price: 60, booster: false },
+  { ...accent('accent.amber', 'Бурштин', '#f0a44a'), category: 'accent', price: 60, booster: false },
+  { ...accent('accent.violet', 'Фіолет', '#a77dff'), category: 'accent', price: 80, booster: false },
+  { ...accent('accent.teal', 'Бірюза', '#3fc9c0'), category: 'accent', price: 80, booster: false },
+  { ...accent('accent.sky', 'Небо', '#5aa9ff'), category: 'accent', price: 80, booster: false },
+  { ...accent('accent.crimson', 'Багрянець', '#e0455f'), category: 'accent', price: 100, booster: true },
+  { ...accent('accent.silver', 'Срібло', '#c8d2e4'), category: 'accent', price: 100, booster: true },
+  { ...accent('accent.magenta', 'Фуксія', '#ff5cc8'), category: 'accent', price: 100, booster: true },
 
   { ...frame('frame.gold', 'Золота', '#e0b45c', 'glow'), category: 'frame', price: 90, booster: false },
   { ...frame('frame.mint', 'Мʼятна', '#4fd1a5', 'glow'), category: 'frame', price: 90, booster: false },
   { ...frame('frame.spin', 'Обертова', '#6b7cff', 'spin'), category: 'frame', price: 160, booster: true },
   { ...frame('frame.pulse', 'Пульс', '#ef6f9c', 'pulse'), category: 'frame', price: 160, booster: true },
+  { ...frame('frame.ice', 'Крижана', '#6fc7ef', 'glow'), category: 'frame', price: 90, booster: false },
+  { ...frame('frame.lime', 'Лаймова', '#a8e05f', 'glow'), category: 'frame', price: 90, booster: false },
+  { ...frame('frame.coral', 'Коралова', '#ff7f6e', 'glow'), category: 'frame', price: 90, booster: false },
+  { ...frame('frame.violet', 'Фіолетова', '#a77dff', 'glow'), category: 'frame', price: 110, booster: false },
+  { ...frame('frame.silver', 'Срібна', '#c8d2e4', 'glow'), category: 'frame', price: 110, booster: false },
+  { ...frame('frame.amberPulse', 'Бурштиновий пульс', '#f0a44a', 'pulse'), category: 'frame', price: 160, booster: true },
+  { ...frame('frame.tealSpin', 'Бірюзовий оберт', '#3fc9c0', 'spin'), category: 'frame', price: 160, booster: true },
+  { ...frame('frame.crimsonPulse', 'Багряний пульс', '#e0455f', 'pulse'), category: 'frame', price: 180, booster: true },
 
+  // ── Вікна ──
+  // Кожен стиль мусить читатися з першого погляду, тому вони різняться не
+  // відтінком прозорості, а помітними речами: округлістю, товщиною рамки,
+  // розмиттям і тінню. Раніше половина відрізнялась лише альфа-каналом —
+  // на сайті це було майже непомітно, і здавалося, що річ нічого не робить.
   {
-    ...card('card.glass', 'Прозорі', {
-      bg: 'rgba(22,27,40,.34)', line: 'rgba(255,255,255,.10)', blur: 20, radius: 18,
+    ...card('card.glass', 'Скло', {
+      bg: 'rgba(22,27,40,.30)', line: 'rgba(255,255,255,.12)', blur: 24, radius: 18, width: 1,
     }),
     category: 'card', price: 0, booster: false,
+    hint: 'Сильне розмиття, майже прозорий фон — сторінка просвічує крізь вікна',
   },
   {
     ...card('card.dense', 'Щільні', {
-      bg: 'rgba(10,13,22,.94)', line: 'rgba(255,255,255,.09)', blur: 0, radius: 14,
+      bg: 'rgba(9,12,20,.97)', line: 'rgba(255,255,255,.08)', blur: 0, radius: 12, width: 1,
     }),
     category: 'card', price: 80, booster: false,
+    hint: 'Без розмиття, майже чорні — фон за ними не проглядає зовсім',
   },
   {
     ...card('card.outline', 'Контурні', {
-      bg: 'rgba(8,11,19,.35)', line: 'rgba(255,255,255,.28)', blur: 8, radius: 16,
+      bg: 'rgba(8,11,19,.22)', line: 'rgba(255,255,255,.42)', blur: 6, radius: 16, width: 2,
     }),
     category: 'card', price: 80, booster: false,
+    hint: 'Товста світла рамка й майже порожня середина',
   },
   {
     ...card('card.soft', 'Мʼякі', {
-      bg: 'rgba(26,31,46,.78)', line: 'rgba(255,255,255,.06)', blur: 16, radius: 26,
-      shadow: '0 22px 60px rgba(0,0,0,.45)',
+      bg: 'rgba(26,31,46,.80)', line: 'rgba(255,255,255,.05)', blur: 16, radius: 30, width: 1,
+      shadow: '0 26px 70px rgba(0,0,0,.55)',
     }),
-    category: 'card', price: 120, booster: true,
-  },
-  {
-    ...card('card.ghost', 'Майже невидимі', {
-      bg: 'rgba(255,255,255,.03)', line: 'rgba(255,255,255,.06)', blur: 26, radius: 20,
-    }),
-    category: 'card', price: 120, booster: true,
+    category: 'card', price: 120, booster: false,
+    hint: 'Дуже округлі кути й глибока мʼяка тінь — вікна ніби ширяють',
   },
   {
     ...card('card.sharp', 'Різкі', {
-      bg: 'rgba(14,18,28,.88)', line: 'rgba(255,255,255,.14)', blur: 4, radius: 6,
+      bg: 'rgba(14,18,28,.90)', line: 'rgba(255,255,255,.20)', blur: 2, radius: 0, width: 1,
+    }),
+    category: 'card', price: 120, booster: false,
+    hint: 'Прямі кути без жодного заокруглення',
+  },
+  {
+    ...card('card.ghost', 'Примарні', {
+      bg: 'rgba(255,255,255,.04)', line: 'rgba(255,255,255,.07)', blur: 30, radius: 22, width: 1,
     }),
     category: 'card', price: 120, booster: true,
+    hint: 'Ледь помітні межі — лишається саме розмиття',
+  },
+  {
+    ...card('card.neon', 'Неон', {
+      bg: 'rgba(10,14,26,.86)', line: 'rgba(120,150,255,.75)', blur: 10, radius: 18, width: 2,
+      shadow: '0 0 0 1px rgba(120,150,255,.18),0 0 34px rgba(90,120,255,.35)',
+    }),
+    category: 'card', price: 160, booster: true,
+    hint: 'Світна рамка з холодним ореолом навколо вікон',
+  },
+  {
+    ...card('card.paper', 'Папір', {
+      bg: 'rgba(238,236,228,.10)', line: 'rgba(255,246,222,.34)', blur: 4, radius: 8, width: 1,
+      shadow: '0 10px 26px rgba(0,0,0,.35)',
+    }),
+    category: 'card', price: 160, booster: true,
+    hint: 'Теплий світлий відтінок і майже прямі кути',
+  },
+  {
+    ...card('card.frame', 'У рамі', {
+      bg: 'rgba(12,15,24,.90)', line: 'rgba(224,180,92,.65)', blur: 6, radius: 6, width: 3,
+      shadow: '0 14px 40px rgba(0,0,0,.5)',
+    }),
+    category: 'card', price: 200, booster: true,
+    hint: 'Товста золота обвідка, наче картина в рамі',
   },
 ];
 

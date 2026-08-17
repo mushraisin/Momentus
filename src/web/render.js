@@ -14,6 +14,19 @@ export function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Усі поверхні, які мають слухатися обраного стилю вікон. Раніше тут були
+ * лише .card і .pane, тому оформлення докочувалось до головних панелей,
+ * а вікна гардероба, магазину, кінотеатру й передперегляду лишалися
+ * типовими — саме через це стиль виглядав «застосованим наполовину».
+ */
+// Гаманець і спливні повідомлення сюди свідомо не входять: це піл і
+// невеличкі плашки, а не вікна — від чужого радіуса вони лише ламаються.
+const CARD_SURFACES = [
+  '.card', '.pane', '.pv', '.pf-lookwin', '.lbox', '.gate-box',
+  '.cdrawer', '.drop-menu', '.pick-menu', '.langmenu',
+].join(',');
+
 const DISCORD_ICON = `<svg viewBox="0 0 127 96" aria-hidden="true"><path fill="currentColor" d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>`;
 
 // ─────────────────────────────────────────────
@@ -27,17 +40,26 @@ export const BASE_CSS = `
      (низ градієнта). Усе оформлення бере саме їх, тож обраний колір діє
      і в спокої, і під курсором — інакше hover повертав би типовий синій. */
   --accent:#6b7cff;--accent-lo:#5b6bf0;--accent-hi:#7d8bff;--accent-up:#8b97ff;
+  /* Той самий акцент числами — для напівпрозорих підсвіток, обведень і тіней.
+     Без цього десятки правил тримали синій жорстко вписаним, і обраний
+     колір фарбував лише самі кнопки, а їхній фон, рамки та світіння
+     лишалися типовими. */
+  --accent-rgb:107,124,255;
+  /* Поверхня спливних меню й вікон. Окремий токен, бо вони мають лишатися
+     читабельними навіть тоді, коли обраний стиль вікон майже прозорий. */
+  --menu:rgba(14,18,30,.97);
+  --radius:18px;--blur:14px;
   --discord:#5865f2;
 }
 *{box-sizing:border-box}
 
 /* ── Смуги прокрутки: тонкі, у кольорах сайту, замість системних ── */
-*{scrollbar-width:thin;scrollbar-color:rgba(107,124,255,.45) transparent}
+*{scrollbar-width:thin;scrollbar-color:rgba(var(--accent-rgb),.45) transparent}
 *::-webkit-scrollbar{width:10px;height:10px}
 *::-webkit-scrollbar-track{background:transparent}
 *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:999px;
   border:3px solid transparent;background-clip:content-box;transition:background .25s}
-*::-webkit-scrollbar-thumb:hover{background:rgba(107,124,255,.55);background-clip:content-box}
+*::-webkit-scrollbar-thumb:hover{background:rgba(var(--accent-rgb),.55);background-clip:content-box}
 *::-webkit-scrollbar-corner{background:transparent}
 body{margin:0;background:var(--bg0);color:var(--text);min-height:100vh;overflow-x:hidden;
   font:16px/1.6 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -83,11 +105,11 @@ header{display:flex;align-items:center;gap:12px;padding:14px 0 26px;flex-wrap:wr
 nav{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
 nav a{padding:8px 15px;border-radius:999px;background:rgba(255,255,255,.04);
   border:1px solid var(--line);font-size:14px;transition:.28s cubic-bezier(.22,.9,.3,1)}
-nav a:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.12);transform:translateY(-2px)}
+nav a:hover{border-color:rgba(var(--accent-rgb),.55);background:rgba(var(--accent-rgb),.12);transform:translateY(-2px)}
 /* поточна сторінка в шапці — той самий вигляд «обрано», що й усюди */
 nav a.active{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
   border-color:rgba(255,255,255,.35);
-  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.18),0 8px 20px rgba(var(--accent-rgb),.28)}
 nav a.active:hover{background:linear-gradient(180deg,var(--accent-up),var(--accent))}
 nav a:active{transform:scale(.96)}
 
@@ -96,8 +118,8 @@ nav a:active{transform:scale(.96)}
    однакове кільце фокуса з клавіатури, свій колір виділення тексту,
    плавне гортання й повага до системного «менше руху». */
 :focus{outline:0}
-:focus-visible{outline:2px solid rgba(107,124,255,.85);outline-offset:2px;border-radius:8px}
-::selection{background:rgba(107,124,255,.35);color:#fff}
+:focus-visible{outline:2px solid rgba(var(--accent-rgb),.85);outline-offset:2px;border-radius:8px}
+::selection{background:rgba(var(--accent-rgb),.35);color:#fff}
 html{scroll-behavior:smooth}
 img,video{-webkit-user-drag:none}
 button,a{-webkit-tap-highlight-color:transparent}
@@ -133,8 +155,8 @@ nav a.apart.active:hover{background:linear-gradient(180deg,#f47a77,#e04844)}
   padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.05);
   border:1px solid var(--line);font-size:14px;transition:.25s}
 .drop summary::-webkit-details-marker{display:none}
-.drop summary:hover{border-color:rgba(107,124,255,.55)}
-.drop[open] summary{border-color:rgba(107,124,255,.65);background:rgba(107,124,255,.12)}
+.drop summary:hover{border-color:rgba(var(--accent-rgb),.55)}
+.drop[open] summary{border-color:rgba(var(--accent-rgb),.65);background:rgba(var(--accent-rgb),.12)}
 .drop-l{color:var(--dim);font-size:13px}
 .drop-v{margin-left:auto;font-weight:600}
 .drop .chev{margin-left:0}
@@ -144,12 +166,12 @@ nav a.apart.active:hover{background:linear-gradient(180deg,#f47a77,#e04844)}
 .card:has(.drop[open]),.card:has(.pick-menu:not([hidden])),.pane:has(.drop[open]){
   position:relative;z-index:40}
 .drop-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;padding:6px;
-  border-radius:12px;background:rgba(14,18,30,.98);border:1px solid var(--line);
+  border-radius:12px;background:var(--menu);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   max-height:260px;overflow:auto;animation:menuIn .2s cubic-bezier(.22,.9,.3,1) both}
 .drop-opt{padding:9px 11px;border:0;border-radius:9px;background:0;color:var(--text);
   font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
-.drop-opt:hover{background:rgba(107,124,255,.16)}
+.drop-opt:hover{background:rgba(var(--accent-rgb),.16)}
 /* обраний пункт — у спільному блоці «обрано / натиснуто» */
 
 /* ── Вибір учасника з пошуком ── */
@@ -157,12 +179,12 @@ nav a.apart.active:hover{background:linear-gradient(180deg,#f47a77,#e04844)}
 .pick-btn{width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);
   font:inherit;font-size:14px;cursor:pointer;transition:.25s}
-.pick-btn:hover{border-color:rgba(107,124,255,.55)}
+.pick-btn:hover{border-color:rgba(var(--accent-rgb),.55)}
 .pick-face{width:26px;height:26px;flex:none;border-radius:50%;background:rgba(255,255,255,.08)
   center/cover no-repeat;border:1px solid var(--line)}
-.pick-face.on{border-color:rgba(107,124,255,.6)}
+.pick-face.on{border-color:rgba(var(--accent-rgb),.6)}
 .pick-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:31;padding:8px;
-  border-radius:14px;background:rgba(14,18,30,.98);border:1px solid var(--line);
+  border-radius:14px;background:var(--menu);border:1px solid var(--line);
   box-shadow:0 18px 44px rgba(0,0,0,.6);animation:menuIn .2s cubic-bezier(.22,.9,.3,1) both}
 .pick-menu[hidden]{display:none}
 .pick-search{width:100%;padding:9px 12px;border-radius:10px;margin-bottom:6px;
@@ -170,7 +192,7 @@ nav a.apart.active:hover{background:linear-gradient(180deg,#f47a77,#e04844)}
 .pick-list{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow:auto}
 .pick-row{display:flex;align-items:center;gap:10px;padding:7px 9px;border:0;border-radius:10px;
   background:0;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
-.pick-row:hover{background:rgba(107,124,255,.16)}
+.pick-row:hover{background:rgba(var(--accent-rgb),.16)}
 .pick-row img{width:24px;height:24px;border-radius:50%;flex:none}
 /* Колонок стільки, скільки влізе: назви покарань довгі («голосовий мут»),
    тож комірка не вужча за напис, а сам напис при потребі переходить на
@@ -214,25 +236,25 @@ nav a.apart.active:hover{background:linear-gradient(180deg,#f47a77,#e04844)}
   padding:8px 13px;border-radius:999px;background:rgba(255,255,255,.04);
   border:1px solid var(--line);font-size:13px;transition:.28s cubic-bezier(.22,.9,.3,1)}
 .langs summary::-webkit-details-marker{display:none}
-.langs summary:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.12);transform:translateY(-2px)}
+.langs summary:hover{border-color:rgba(var(--accent-rgb),.55);background:rgba(var(--accent-rgb),.12);transform:translateY(-2px)}
 .langs summary b{font-weight:700;letter-spacing:.08em}
 /* стрілка: повертається, коли меню відкрите */
 .langs summary i{width:0;height:0;border:4px solid transparent;border-top-color:var(--dim);
   margin-top:3px;transition:transform .3s cubic-bezier(.22,.9,.3,1)}
-.langs[open] summary{border-color:rgba(107,124,255,.65);background:rgba(107,124,255,.16)}
+.langs[open] summary{border-color:rgba(var(--accent-rgb),.65);background:rgba(var(--accent-rgb),.16)}
 .langs[open] summary i{transform:rotate(180deg) translateY(3px)}
 /* Меню має лягати поверх усього вмісту сторінки, а горизонтальний скрол
    меню на вузьких екранах не повинен його обрізати. */
 .langs{z-index:45}
 nav:has(.langs[open]){overflow:visible}
 .langmenu{position:absolute;right:0;top:calc(100% + 8px);z-index:45;min-width:172px;padding:6px;
-  border-radius:14px;background:rgba(14,18,30,.96);border:1px solid var(--line);
+  border-radius:14px;background:var(--menu);border:1px solid var(--line);
   box-shadow:0 18px 44px rgba(0,0,0,.55);backdrop-filter:blur(10px);
   display:flex;flex-direction:column;gap:2px;animation:menuIn .26s cubic-bezier(.22,.9,.3,1) both}
 /* праворуч лишаємо місце під «✓», інакше він налазить на назву мови */
 .langmenu a{display:flex;align-items:center;gap:10px;padding:9px 28px 9px 11px;border-radius:10px;
   border:0;background:0;font-size:13px;transition:.2s}
-.langmenu a:hover{background:rgba(107,124,255,.16);transform:none}
+.langmenu a:hover{background:rgba(var(--accent-rgb),.16);transform:none}
 .langmenu a b{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--dim);min-width:22px}
 .langmenu a span{color:var(--text)}
 /* обрана мова — у спільному блоці «обрано / натиснуто»;
@@ -245,18 +267,18 @@ nav:has(.langs[open]){overflow:visible}
 
 .me{display:flex;align-items:center;gap:9px;padding:5px 6px 5px 5px;border-radius:999px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:13px;animation:fadeIn .7s .2s both}
-.me img{width:26px;height:26px;border-radius:50%;border:1px solid rgba(107,124,255,.6)}
+.me img{width:26px;height:26px;border-radius:50%;border:1px solid rgba(var(--accent-rgb),.6)}
 .me span{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* аватар і нік — це і є вхід у профіль */
 .me-link{display:flex;align-items:center;gap:9px;padding:0;border:0;background:0;transition:.2s}
 .me-link:hover{transform:none;background:0}
-.me-link:hover img{border-color:rgba(107,124,255,1);box-shadow:0 0 0 3px rgba(107,124,255,.2)}
+.me-link:hover img{border-color:rgba(var(--accent-rgb),1);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.2)}
 .me-link:hover span{color:#fff}
 .me-out{padding:2px 7px;border-radius:999px;color:var(--dim);font-size:12px;border:0;background:0}
 .me-out:hover{color:#fff;background:rgba(255,255,255,.08)}
 /* ми на сторінці профілю — чип світиться, як активна кнопка в шапці */
 .me.active{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));border-color:rgba(255,255,255,.35);
-  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28)}
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.18),0 8px 20px rgba(var(--accent-rgb),.28)}
 .me.active span{color:#fff}
 .me.active img{border-color:rgba(255,255,255,.7)}
 .me.active .me-out{color:rgba(255,255,255,.75)}
@@ -270,9 +292,9 @@ nav:has(.langs[open]){overflow:visible}
 .logo{margin:0;display:flex;flex-wrap:wrap;line-height:1;
   font-size:clamp(38px,8.4vw,96px);font-weight:800;letter-spacing:.03em;text-transform:uppercase}
 .logo span{color:transparent;-webkit-text-stroke:1.6px rgba(255,255,255,.9);
-  text-shadow:0 0 34px rgba(107,124,255,.45);animation:letterIn .75s cubic-bezier(.2,.85,.3,1) both;
+  text-shadow:0 0 34px rgba(var(--accent-rgb),.45);animation:letterIn .75s cubic-bezier(.2,.85,.3,1) both;
   transition:color .35s ease,text-shadow .35s ease}
-.logo:hover span{color:rgba(255,255,255,.96);text-shadow:0 0 46px rgba(107,124,255,.7)}
+.logo:hover span{color:rgba(255,255,255,.96);text-shadow:0 0 46px rgba(var(--accent-rgb),.7)}
 .hline{width:74px;height:2px;background:var(--accent);border-radius:2px;box-shadow:0 0 18px var(--accent);
   animation:grow .7s .45s cubic-bezier(.22,.9,.3,1) both;transform-origin:left}
 .tag{color:var(--dim);font-size:clamp(13px,1.6vw,16px);letter-spacing:.38em;text-transform:uppercase;
@@ -286,7 +308,7 @@ nav:has(.langs[open]){overflow:visible}
 .gbtn{display:inline-flex;align-items:center;gap:10px;padding:16px 30px;border-radius:14px;
   background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:17px;font-weight:700;
   transition:.3s cubic-bezier(.22,.9,.3,1)}
-.gbtn:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.14)}
+.gbtn:hover{transform:translateY(-3px);border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.14)}
 /* службова кнопка поруч із чипом профілю — того ж розміру, іншого відтінку */
 .me.modchip{border-color:rgba(239,83,80,.35);background:rgba(239,83,80,.1);
   padding:5px 13px 5px 11px;transition:.28s cubic-bezier(.22,.9,.3,1)}
@@ -294,13 +316,17 @@ nav:has(.langs[open]){overflow:visible}
 .me.modchip .mi{font-size:14px;line-height:1}
 
 /* ── Картки ── */
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;margin:16px 0;
-  backdrop-filter:blur(14px);transition:.35s cubic-bezier(.22,.9,.3,1)}
+/* Радіус, розмиття й товщина рамки — токенами: обраний стиль вікон міняє
+   саме їх, тож не доводиться перебивати правило для кожної поверхні окремо. */
+.card{background:var(--card);border:var(--line-w,1px) solid var(--line);
+  border-radius:var(--radius);padding:22px;margin:16px 0;
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+  transition:.35s cubic-bezier(.22,.9,.3,1)}
 .row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .avatar{width:76px;height:76px;border-radius:50%;border:3px solid var(--accent);animation:pop .6s both}
 .name{font-size:25px;font-weight:800}
 .pill{display:inline-block;padding:4px 13px;border-radius:999px;font-size:13px;font-weight:700;
-  background:rgba(107,124,255,.16);border:1px solid rgba(107,124,255,.45)}
+  background:rgba(var(--accent-rgb),.16);border:1px solid rgba(var(--accent-rgb),.45)}
 /* Рейтинг: число, під ним підпис, ще нижче — гаманець.
    Усе в стовпчик по центру, інакше чип тулиться збоку до підпису. */
 .score{margin-left:auto;display:flex;flex-direction:column;align-items:center;gap:6px;
@@ -315,7 +341,7 @@ nav:has(.langs[open]){overflow:visible}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
 .tile{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:14px;padding:15px;
   transition:.3s;animation:fadeUp .5s both}
-.tile:hover{background:rgba(107,124,255,.1);transform:translateY(-3px)}
+.tile:hover{background:rgba(var(--accent-rgb),.1);transform:translateY(-3px)}
 .tile b{display:block;font-size:25px;font-weight:800}
 .tile span{font-size:13px;color:var(--dim)}
 .bar{height:10px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
@@ -326,7 +352,7 @@ table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);font-size:15px}
 th{color:var(--dim);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
 tbody tr{transition:.25s;animation:fadeUp .45s both}
-tbody tr:hover{background:rgba(107,124,255,.08)}
+tbody tr:hover{background:rgba(var(--accent-rgb),.08)}
 td.rank{width:56px;color:var(--dim);font-weight:800}
 td.num{text-align:right;font-weight:800}
 .mini{width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-right:10px}
@@ -340,7 +366,7 @@ td.num{text-align:right;font-weight:800}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
 .item{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
   border-radius:16px;overflow:hidden;animation:fadeUp .5s both;transition:.35s cubic-bezier(.22,.9,.3,1)}
-.item:hover{transform:translateY(-4px);border-color:rgba(107,124,255,.35)}
+.item:hover{transform:translateY(-4px);border-color:rgba(var(--accent-rgb),.35)}
 .item .media{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#05070d;cursor:zoom-in}
 .item video.media{cursor:zoom-in;pointer-events:none}
 .spot-m{cursor:zoom-in}
@@ -369,7 +395,10 @@ td.num{text-align:right;font-weight:800}
 .glayout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
 .gside{position:sticky;top:18px;display:flex;flex-direction:column;gap:16px}
 .pane{padding:18px;transition:border-color .3s}
-.pane:hover{border-color:rgba(255,255,255,.14)}
+/* Під курсором рамка світлішає в бік акценту, а не типового білого:
+   раніше наведення збивало обраний колір рамки на стандартний, і стиль
+   вікон виглядав так, ніби він то є, то нема. */
+.pane:hover{border-color:rgba(var(--accent-rgb),.34)}
 .pane-h{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
   color:var(--dim);margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--line)}
 .pane-h b{color:var(--text);font-variant-numeric:tabular-nums}
@@ -379,7 +408,7 @@ td.num{text-align:right;font-weight:800}
 .stat span{font-size:11px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
 .cinelink{display:flex;align-items:center;justify-content:space-between;gap:10px;
   transition:.3s cubic-bezier(.22,.9,.3,1)}
-.cinelink:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.5)}
+.cinelink:hover{transform:translateY(-3px);border-color:rgba(var(--accent-rgb),.5)}
 .cinelink span{color:var(--dim);font-size:13px}
 .grid.wide{grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:18px}
 .item .shot{position:relative;overflow:hidden}
@@ -397,7 +426,7 @@ td.num{text-align:right;font-weight:800}
 .spot:hover .acts{opacity:1}
 .act{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);cursor:pointer;
   background:rgba(5,7,13,.72);color:var(--text);font-size:13px;backdrop-filter:blur(6px);transition:.22s}
-.act:hover{border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.2)}
+.act:hover{border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.2)}
 .act.danger:hover{border-color:rgba(239,83,80,.7);background:rgba(239,83,80,.22)}
 
 /* ── Кінотеатр ── */
@@ -467,7 +496,7 @@ td.num{text-align:right;font-weight:800}
   background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.3)}
 .screen{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:16/9;
   display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.07);
-  box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 18px 60px rgba(107,124,255,.10);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 18px 60px rgba(var(--accent-rgb),.10);
   transition:box-shadow .6s ease}
 
 /* ── Атмосфера залу ──
@@ -476,13 +505,13 @@ td.num{text-align:right;font-weight:800}
    і прозорості: жодних важких фільтрів, тож не гальмує. */
 .stagewrap::before{content:'';position:absolute;left:6%;right:6%;top:14%;bottom:-6%;z-index:0;
   border-radius:50%;pointer-events:none;opacity:0;transition:opacity .8s ease;
-  background:radial-gradient(ellipse at center,rgba(107,124,255,.30),rgba(107,124,255,0) 70%);
+  background:radial-gradient(ellipse at center,rgba(var(--accent-rgb),.30),rgba(var(--accent-rgb),0) 70%);
   filter:blur(46px)}
 .room.live .stagewrap::before{opacity:1;animation:glowBreath 7s ease-in-out infinite}
 @keyframes glowBreath{0%,100%{opacity:.75}50%{opacity:1}}
-.room.live .screen{box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 26px 90px rgba(107,124,255,.28)}
+.room.live .screen{box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 26px 90px rgba(var(--accent-rgb),.28)}
 /* світло зі сцени лягає на саму кімнату */
-.room.live{border-color:rgba(107,124,255,.28)}
+.room.live{border-color:rgba(var(--accent-rgb),.28)}
 /* поки дивимось — усе стороннє тьмяніє, щоб не тягнуло око на себе;
    клас вішаємо просто на самі панелі, без залежності від батька */
 .cpanels{transition:opacity .5s ease}
@@ -503,8 +532,8 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 /* розділювач перед групою правих кнопок */
 .cbar .vol{margin-left:6px;padding-left:14px;border-left:1px solid var(--line)}
 .btn.play{width:46px;height:46px;padding:0;border-radius:50%;font-size:16px;flex:none;
-  background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));box-shadow:0 8px 22px rgba(107,124,255,.35)}
-.btn.play:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 12px 28px rgba(107,124,255,.5)}
+  background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));box-shadow:0 8px 22px rgba(var(--accent-rgb),.35)}
+.btn.play:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 12px 28px rgba(var(--accent-rgb),.5)}
 .btn.play:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 .btn.ghost{background:rgba(255,255,255,.05);border:1px solid var(--line)}
 /* Смуга тонка, але з високою зоною влучання — по ній зручно клікати */
@@ -516,18 +545,18 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .seek[data-admin="1"]{cursor:pointer}
 .seek i{position:absolute;left:0;top:50%;height:5px;margin-top:-2.5px;width:0;border-radius:999px;
   background:linear-gradient(90deg,#6b7cff,#9b6bff);
-  box-shadow:0 0 14px rgba(107,124,255,.55);
+  box-shadow:0 0 14px rgba(var(--accent-rgb),.55);
   transition:width .25s linear,height .18s,margin-top .18s}
 .seek b{position:absolute;top:50%;left:0;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;
   background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.6);opacity:0;transform:scale(.6);
   transition:opacity .2s,transform .2s}
 .seek[data-admin="1"]:hover::before,.seek[data-admin="1"]:hover i{height:8px;margin-top:-4px}
 .seek[data-admin="1"]:hover b{opacity:1;transform:scale(1)}
-.seek[data-admin="1"]:hover i{box-shadow:0 0 20px rgba(107,124,255,.8)}
+.seek[data-admin="1"]:hover i{box-shadow:0 0 20px rgba(var(--accent-rgb),.8)}
 .tm{font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
 .btn.icon{width:40px;height:40px;padding:0;flex:none;border-radius:12px;font-size:15px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
-.btn.icon:hover{border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.14)}
+.btn.icon:hover{border-color:rgba(var(--accent-rgb),.55);background:rgba(var(--accent-rgb),.14)}
 .btn.icon:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 /* увімкнений перемикач у панелі — той самий вигляд «обрано», що й усюди
    (сам колір задає спільний блок у кінці стилів) */
@@ -619,7 +648,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .vol input[type=range]{width:96px;height:4px;-webkit-appearance:none;appearance:none;
   background:rgba(255,255,255,.16);border-radius:999px;outline:none;cursor:pointer}
 .vol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;
-  border-radius:50%;background:#fff;box-shadow:0 0 10px rgba(107,124,255,.7);cursor:pointer}
+  border-radius:50%;background:#fff;box-shadow:0 0 10px rgba(var(--accent-rgb),.7);cursor:pointer}
 .vol input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#fff}
 .btn.icon.flat{width:34px;height:34px;background:0;border:0;font-size:15px}
 .btn.icon.flat:hover{background:rgba(255,255,255,.08)}
@@ -630,18 +659,18 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .qual summary{list-style:none;cursor:pointer;padding:8px 12px;border-radius:10px;font-size:12px;
   letter-spacing:.06em;background:rgba(255,255,255,.05);border:1px solid var(--line);transition:.25s}
 .qual summary::-webkit-details-marker{display:none}
-.qual summary:hover{border-color:rgba(107,124,255,.55)}
+.qual summary:hover{border-color:rgba(var(--accent-rgb),.55)}
 .qmenu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;min-width:118px;padding:6px;
-  border-radius:12px;background:rgba(14,18,30,.97);border:1px solid var(--line);
+  border-radius:12px;background:var(--menu);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   animation:menuIn .22s cubic-bezier(.22,.9,.3,1) both}
 /* пункти меню якості й озвучки виглядають однаково — це один і той самий
    спосіб вибору, лише різні списки */
 .qopt,.vopt,.sopt{padding:8px 28px 8px 11px;border:0;border-radius:8px;background:0;color:var(--text);
   font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.18s;position:relative}
-.qopt:hover,.vopt:hover,.sopt:hover{background:rgba(107,124,255,.16)}
+.qopt:hover,.vopt:hover,.sopt:hover{background:rgba(var(--accent-rgb),.16)}
 /* увімкнені субтитри видно й по самій кнопці, не лише в списку */
-#cin-subs.lit summary{border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.16);color:#fff}
+#cin-subs.lit summary{border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.16);color:#fff}
 /* обрана якість / озвучка — у спільному блоці «обрано / натиснуто» */
 
 /* ── Вікно «зал зачинено» ── */
@@ -673,10 +702,10 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .qitem{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;
   background:rgba(255,255,255,.035);border:1px solid var(--line);animation:fadeUp .35s both;
   transition:border-color .25s,background .25s,transform .25s}
-.qitem:hover{border-color:rgba(107,124,255,.4);background:rgba(107,124,255,.07);transform:translateX(2px)}
+.qitem:hover{border-color:rgba(var(--accent-rgb),.4);background:rgba(var(--accent-rgb),.07);transform:translateX(2px)}
 .qn{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;
   border-radius:50%;background:rgba(255,255,255,.06);font-size:11px;color:var(--dim);font-weight:700}
-.qitem:first-child .qn{background:rgba(107,124,255,.25);color:#fff}
+.qitem:first-child .qn{background:rgba(var(--accent-rgb),.25);color:#fff}
 /* Назва завжди має пріоритет: на вузькій картці кнопки переносяться нижче,
    а не з'їдають підпис до трьох літер. */
 .qitem{flex-wrap:wrap}
@@ -691,7 +720,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .viewer .act{width:26px;height:26px;font-size:11px;opacity:.45}
 .viewer .act.ctl{margin-left:auto}
 .viewer:hover .act{opacity:1}
-.act.grant.on{background:rgba(107,124,255,.25);border-color:rgba(107,124,255,.6)}
+.act.grant.on{background:rgba(var(--accent-rgb),.25);border-color:rgba(var(--accent-rgb),.6)}
 /* право паузи ввімкнене — зелене; забране — приглушене */
 .act.ctl.on{background:rgba(67,196,123,.22);border-color:rgba(67,196,123,.55);opacity:.85}
 .viewer:hover .act.ctl.on{opacity:1}
@@ -718,8 +747,8 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .ltop{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .lu{font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .la{color:var(--dim);white-space:nowrap}
-.lchip{padding:1px 7px;border-radius:999px;background:rgba(107,124,255,.16);
-  border:1px solid rgba(107,124,255,.3);font-size:11px;white-space:nowrap}
+.lchip{padding:1px 7px;border-radius:999px;background:rgba(var(--accent-rgb),.16);
+  border:1px solid rgba(var(--accent-rgb),.3);font-size:11px;white-space:nowrap}
 .lreason{color:var(--text);opacity:.8;margin-top:3px;line-height:1.4;
   overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .lsub{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--dim);font-size:11px}
@@ -737,7 +766,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .viewer>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .viewer .hint{flex:none;font-size:11px}
 .viewer img{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);
-  box-shadow:0 0 0 2px rgba(107,124,255,.14)}
+  box-shadow:0 0 0 2px rgba(var(--accent-rgb),.14)}
 .gate{font-size:44px;margin-bottom:14px}
 @media(max-width:980px){
   .glayout{grid-template-columns:1fr}
@@ -751,7 +780,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .spot::before{content:'';position:absolute;inset:-1px;border-radius:20px;pointer-events:none;
   border:1px solid transparent;transition:.4s}
 .spot:hover{transform:translateY(-4px)}
-.spot:hover::before{border-color:rgba(107,124,255,.45);box-shadow:0 0 40px rgba(107,124,255,.14) inset}
+.spot:hover::before{border-color:rgba(var(--accent-rgb),.45);box-shadow:0 0 40px rgba(var(--accent-rgb),.14) inset}
 .spot-h{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--dim);margin-bottom:13px}
 .spot-h i{font-style:normal;font-size:16px;color:var(--accent);text-shadow:0 0 14px var(--accent)}
@@ -772,7 +801,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   color:var(--dim);margin-right:6px}
 .tabs a{padding:7px 15px;border-radius:999px;font-size:13px;border:1px solid var(--line);
   background:rgba(255,255,255,.04);transition:.28s cubic-bezier(.22,.9,.3,1)}
-.tabs a:hover{transform:translateY(-2px);border-color:rgba(107,124,255,.5)}
+.tabs a:hover{transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.5)}
 /* вигляд обраної вкладки — у спільному блоці «обрано / натиснуто» вище */
 
 .like{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:6px 13px;border-radius:999px;
@@ -785,29 +814,29 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .up input[type=file],.up input[type=text],.up input[type=number]{width:100%;padding:12px 14px;
   border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);
   color:var(--text);font:inherit;transition:.2s}
-.up input[type=text]:focus,.up input[type=number]:focus{outline:0;border-color:rgba(107,124,255,.6);
-  background:rgba(255,255,255,.07);box-shadow:0 0 0 3px rgba(107,124,255,.16)}
+.up input[type=text]:focus,.up input[type=number]:focus{outline:0;border-color:rgba(var(--accent-rgb),.6);
+  background:rgba(255,255,255,.07);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.16)}
 .up input::placeholder{color:var(--dim)}
 /* рідна кнопка вибору файлу — у тому ж стилі, що й решта кнопок сайту */
 .up input[type=file]::file-selector-button{margin-right:12px;padding:8px 14px;border-radius:10px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);
   font:inherit;font-weight:600;cursor:pointer;transition:.2s}
-.up input[type=file]:hover::file-selector-button{border-color:rgba(107,124,255,.55);
-  background:rgba(107,124,255,.16);color:#fff}
+.up input[type=file]:hover::file-selector-button{border-color:rgba(var(--accent-rgb),.55);
+  background:rgba(var(--accent-rgb),.16);color:#fff}
 /* Головна дія («Застосувати», «Опублікувати») — той самий вигляд,
    що й «обрано»: акцентна заливка, світла рамка й кільце. Один стиль
    на весь сайт, тож нові кнопки просто беруть .btn і виглядають так само. */
 .btn{display:inline-block;padding:12px 22px;border-radius:12px;
   background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
   border:1px solid rgba(255,255,255,.35);font-weight:700;font:inherit;cursor:pointer;
-  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.28);
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.18),0 8px 20px rgba(var(--accent-rgb),.28);
   transition:.3s cubic-bezier(.22,.9,.3,1)}
 .btn:hover{transform:translateY(-2px);background:linear-gradient(180deg,var(--accent-up),var(--accent));
-  box-shadow:0 0 0 3px rgba(107,124,255,.24),0 12px 28px rgba(107,124,255,.42)}
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.24),0 12px 28px rgba(var(--accent-rgb),.42)}
 .btn:disabled{opacity:.5;box-shadow:none;transform:none;cursor:default}
 /* другорядні кнопки лишаються тихими — акцент має бути один на екран */
 .btn.ghost{box-shadow:none}
-.btn.ghost:hover{background:rgba(107,124,255,.16);border-color:rgba(107,124,255,.55);box-shadow:none}
+.btn.ghost:hover{background:rgba(var(--accent-rgb),.16);border-color:rgba(var(--accent-rgb),.55);box-shadow:none}
 .hint{font-size:13px;color:var(--dim)}
 .err{color:#ff9a97;font-size:14px}
 .lightbox{position:fixed;inset:0;background:rgba(3,5,10,.92);display:none;align-items:center;
@@ -845,12 +874,12 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .lbclose{position:absolute;right:18px;top:16px;z-index:2;width:38px;height:38px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;
   color:var(--text);background:rgba(12,16,26,.8);border:1px solid var(--line);transition:.2s}
-.lbclose:hover{background:rgba(107,124,255,.3);transform:rotate(90deg)}
+.lbclose:hover{background:rgba(var(--accent-rgb),.3);transform:rotate(90deg)}
 .lbnav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:46px;height:46px;
   border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;
   cursor:pointer;color:var(--text);background:rgba(12,16,26,.8);border:1px solid var(--line);
   transition:.2s;opacity:.75}
-.lbnav:hover{opacity:1;background:rgba(107,124,255,.3)}
+.lbnav:hover{opacity:1;background:rgba(var(--accent-rgb),.3)}
 .lbnav[disabled]{opacity:.18;pointer-events:none}
 .lbprev{left:18px}
 .lbnext{right:18px}
@@ -869,7 +898,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   backdrop-filter:blur(8px);opacity:.6;transition:.3s cubic-bezier(.22,.9,.3,1)}
 .gh svg{width:17px;height:17px;display:block}
 .gh:hover{opacity:1;color:#fff;transform:translateY(-2px);
-  border-color:rgba(107,124,255,.55);background:rgba(107,124,255,.16)}
+  border-color:rgba(var(--accent-rgb),.55);background:rgba(var(--accent-rgb),.16)}
 .gh:active{transform:scale(.94)}
 @media(max-width:640px){.ghbar{right:12px;bottom:12px;gap:6px}.gh{width:32px;height:32px}}
 
@@ -929,7 +958,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-edit{display:none;width:100%;min-height:110px;margin-top:10px;padding:12px 14px;
   border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);
   color:var(--text);font:inherit;font-size:14px;resize:vertical;transition:.2s}
-.pf-edit:focus{outline:0;border-color:rgba(107,124,255,.6);box-shadow:0 0 0 3px rgba(107,124,255,.16)}
+.pf-edit:focus{outline:0;border-color:rgba(var(--accent-rgb),.6);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.16)}
 .pf-aboutbox.editing .pf-text{display:none}
 .pf-aboutbox.editing .pf-edit{display:block}
 
@@ -976,7 +1005,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-shot-i{position:relative;display:block;border-radius:14px;overflow:hidden;
   border:1px solid var(--line);aspect-ratio:16/10;animation:fadeUp .5s both;
   transition:.3s cubic-bezier(.22,.9,.3,1)}
-.pf-shot-i:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.5);
+.pf-shot-i:hover{transform:translateY(-3px);border-color:rgba(var(--accent-rgb),.5);
   box-shadow:0 14px 34px rgba(0,0,0,.45)}
 .pf-shot-i img{width:100%;height:100%;object-fit:cover;display:block;transition:.5s}
 .pf-shot-i:hover img{transform:scale(1.04)}
@@ -1012,11 +1041,11 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-tab{padding:9px 14px;border-radius:11px;border:1px solid var(--line);cursor:pointer;
   background:rgba(255,255,255,.04);color:var(--dim);font:inherit;font-size:13px;
   display:flex;align-items:center;gap:7px;transition:.25s cubic-bezier(.22,.9,.3,1)}
-.pf-tab:hover{color:var(--text);border-color:rgba(107,124,255,.5);transform:translateY(-2px)}
+.pf-tab:hover{color:var(--text);border-color:rgba(var(--accent-rgb),.5);transform:translateY(-2px)}
 .pf-tab:active{transform:scale(.97)}
 .pf-tab.on{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
   border-color:rgba(255,255,255,.35);
-  box-shadow:0 0 0 3px rgba(107,124,255,.18),0 8px 20px rgba(107,124,255,.26)}
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.18),0 8px 20px rgba(var(--accent-rgb),.26)}
 .pf-tab .pf-tn{font-size:11px;opacity:.75}
 .pf-panel[hidden]{display:none}
 .pf-panel{animation:fadeUp .32s cubic-bezier(.22,.9,.3,1) both}
@@ -1032,16 +1061,16 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-sw span{position:absolute;left:0;right:0;bottom:0;padding:4px 7px;font-size:11px;
   text-align:left;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.72));
   text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pf-sw:hover{transform:translateY(-3px);border-color:rgba(107,124,255,.55)}
+.pf-sw:hover{transform:translateY(-3px);border-color:rgba(var(--accent-rgb),.55)}
 .pf-sw:active{transform:scale(.96)}
-.pf-sw.on{border-color:rgba(107,124,255,.85);box-shadow:0 0 0 3px rgba(107,124,255,.22)}
+.pf-sw.on{border-color:rgba(var(--accent-rgb),.85);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.22)}
 .pf-sw.on::after{content:'✓';position:absolute;right:7px;top:5px;font-size:12px;
   text-shadow:0 1px 4px rgba(0,0,0,.9)}
 .pf-sw.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
   background-size:300% 300%;animation:flow 9s ease-in-out infinite}
 .pf-sw.accent{background:radial-gradient(circle at 38% 34%,var(--c),#0a0d16 74%)}
 /* стиль вікон показуємо самим вікном — маленька картка в тому ж вигляді */
-.pf-sw.card{border-width:1px;border-style:solid;backdrop-filter:blur(8px)}
+.pf-sw.card{border-style:solid;backdrop-filter:blur(8px)}
 .pf-sw.card::before{content:'';position:absolute;left:9px;right:9px;top:12px;height:6px;
   border-radius:999px;background:rgba(255,255,255,.22)}
 .pf-sw.frame{background:#0a0d16}
@@ -1055,8 +1084,8 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-shot{height:64px;border-radius:12px;border:1px solid var(--line);cursor:pointer;
   background:rgba(255,255,255,.05) center/cover no-repeat;color:var(--dim);
   font:inherit;font-size:12px;transition:.25s cubic-bezier(.22,.9,.3,1)}
-.pf-shot:hover{transform:translateY(-2px);border-color:rgba(107,124,255,.55)}
-.pf-shot.on{border-color:rgba(107,124,255,.8);box-shadow:0 0 0 3px rgba(107,124,255,.22)}
+.pf-shot:hover{transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.55)}
+.pf-shot.on{border-color:rgba(var(--accent-rgb),.8);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.22)}
 .pf-shot:active{transform:scale(.96)}
 
 /* ── Магазин косметики ──
@@ -1064,27 +1093,36 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    градієнт. Замкнені набори видно всім — щоб було зрозуміло, заради
    чого бустити сервер. */
 .shop{display:flex;flex-direction:column;gap:26px}
-/* Гаманець липне під шапку: раніше баланс лишався десь угорі сторінки,
-   і, гортаючи магазин, не було видно, чи вистачає на річ перед тобою. */
-.sh-wallet{position:sticky;top:72px;z-index:35;
-  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
-  background:linear-gradient(135deg,rgba(107,124,255,.14),rgba(155,107,255,.07)),
-    linear-gradient(0deg,rgba(9,12,20,.96),rgba(9,12,20,.96));
+/* ── Гаманець ──
+   Був картою на всю ширину сторінки, у якій жили два елементи: число
+   ліворуч і кнопка праворуч, а між ними — порожнеча на пів екрана.
+   Тепер це компактна плашка по ширині вмісту: місця займає рівно стільки,
+   скільки треба, і так само липне під шапку, щоб баланс було видно
+   під час гортання. */
+.sh-wallet{position:sticky;top:72px;z-index:35;align-self:flex-start;
+  display:inline-flex;align-items:center;gap:10px;width:fit-content;max-width:100%;
+  padding:7px 8px 7px 14px;border-radius:999px;
+  background:linear-gradient(135deg,rgba(var(--accent-rgb),.18),rgba(155,107,255,.10)),
+    linear-gradient(0deg,rgba(9,12,20,.94),rgba(9,12,20,.94));
+  border:1px solid var(--line);
+  box-shadow:0 10px 30px rgba(0,0,0,.38);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-/* на вузьких екранах шапка нижча — і гаманець тримається щільніше */
+/* кнопка цін — частина плашки, а не щось на іншому кінці смуги */
+.sh-wallet .sh-openprices{margin-left:4px;border-radius:999px}
 @media(max-width:600px){
-  .sh-wallet{top:64px;padding:12px 14px}
-  .sh-bal b{font-size:26px}
+  .sh-wallet{top:64px}
+  .sh-bal b{font-size:20px}
+  .sh-bal .sh-coin{font-size:19px}
 }
-.sh-bal{display:flex;align-items:center;gap:10px}
-.sh-bal b{font-size:34px;line-height:1;font-weight:800;letter-spacing:-.02em;
+.sh-bal{display:flex;align-items:baseline;gap:8px}
+.sh-bal b{font-size:23px;line-height:1;font-weight:800;letter-spacing:-.02em;
   background:linear-gradient(180deg,#fff,#b9c2ff);-webkit-background-clip:text;
   background-clip:text;color:transparent}
 /* підпис «FP» дрібний, але сама монетка — ні: інакше правило для span
    тиснуло б і її (тому тут :not, а не окремий клас нижче) */
-.sh-bal span:not(.sh-coin){color:var(--dim);font-size:13px;letter-spacing:.1em}
-.sh-bal .sh-coin{font-size:30px;line-height:1;display:inline-block;
-  filter:drop-shadow(0 0 12px rgba(255,214,102,.45));
+.sh-bal span:not(.sh-coin){color:var(--dim);font-size:11px;letter-spacing:.12em}
+.sh-bal .sh-coin{font-size:21px;line-height:1;display:inline-block;align-self:center;
+  filter:drop-shadow(0 0 10px rgba(255,214,102,.45));
   animation:coin 3.5s ease-in-out infinite;transform-origin:center}
 @keyframes coin{0%,88%,100%{transform:rotate(0) scale(1)}92%{transform:rotate(-12deg) scale(1.14)}96%{transform:rotate(10deg) scale(1.08)}}
 .sh-boost{margin-left:auto;padding:9px 14px;border-radius:12px;font-size:13px;color:var(--dim);
@@ -1098,7 +1136,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   padding:11px 13px;border-radius:12px;font-size:14px;border:1px solid transparent;
   color:var(--dim);transition:.22s cubic-bezier(.22,.9,.3,1)}
 .sh-cat:hover{background:rgba(255,255,255,.05);color:var(--text)}
-.sh-cat.on{background:rgba(107,124,255,.16);border-color:rgba(107,124,255,.4);color:#fff}
+.sh-cat.on{background:rgba(var(--accent-rgb),.16);border-color:rgba(var(--accent-rgb),.4);color:#fff}
 .sh-cn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sh-cc{font-size:12px;color:var(--dim);flex:none}
 .sh-cat.on .sh-cc{color:#c9d0ff}
@@ -1120,7 +1158,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;
   width:max-content;max-width:min(440px,92vw)}
 .toast{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:13px;
-  font-size:14px;color:var(--text);background:rgba(14,18,30,.96);border:1px solid var(--line);
+  font-size:14px;color:var(--text);background:var(--menu);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);backdrop-filter:blur(10px);
   animation:toastIn .3s cubic-bezier(.22,.9,.3,1) both;pointer-events:auto}
 .toast.out{animation:toastOut .28s ease-in both}
@@ -1156,8 +1194,8 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   min-height:170px;padding:14px;border-radius:14px;cursor:pointer;
   border:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.03);
   transition:.25s cubic-bezier(.22,.9,.3,1)}
-.sh-updrop:hover{border-color:rgba(107,124,255,.6);background:rgba(107,124,255,.07)}
-.sh-updrop.has{border-style:solid;border-color:rgba(107,124,255,.45)}
+.sh-updrop:hover{border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.07)}
+.sh-updrop.has{border-style:solid;border-color:rgba(var(--accent-rgb),.45)}
 .sh-upshot{display:none;width:100%;height:150px;border-radius:11px;
   background:#0a0d16 center/contain no-repeat}
 .sh-updrop.has .sh-upshot{display:block}
@@ -1166,7 +1204,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-upfields{display:flex;gap:10px;flex-wrap:wrap}
 .sh-upfields input{padding:10px 12px;border-radius:11px;font:inherit;font-size:13px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
-.sh-upfields input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+.sh-upfields input:focus{outline:0;border-color:rgba(var(--accent-rgb),.6)}
 #sh-uptitle{flex:1;min-width:180px}
 #sh-upprice{width:130px;text-align:right}
 .sh-upacts{display:flex;gap:8px;align-items:center}
@@ -1191,8 +1229,8 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pv-th{width:56px;height:38px;flex:none;border-radius:9px;cursor:pointer;padding:0;
   border:1px solid var(--line);background:#0a0d16 center/cover no-repeat;
   transition:.22s cubic-bezier(.22,.9,.3,1)}
-.pv-th:hover{transform:translateY(-2px);border-color:rgba(107,124,255,.55)}
-.pv-th.on{border-color:rgba(107,124,255,.85);box-shadow:0 0 0 3px rgba(107,124,255,.22)}
+.pv-th:hover{transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.55)}
+.pv-th.on{border-color:rgba(var(--accent-rgb),.85);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.22)}
 .pv-th.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
   background-size:300% 300%;animation:flow 9s ease-in-out infinite}
 .pv-th.ac{background:radial-gradient(circle at 38% 34%,var(--c),#0a0d16 74%)}
@@ -1224,7 +1262,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-myprice{width:96px;flex:none}
 .sh-my input{padding:8px 11px;border-radius:10px;font:inherit;font-size:13px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
-.sh-my input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+.sh-my input:focus{outline:0;border-color:rgba(var(--accent-rgb),.6)}
 
 /* вікно цін: список у стовпчик, кнопка 🚀 поруч із кожним */
 /* Вікно цін: у рядку видно саму річ, її категорію й ціну — без цього
@@ -1257,9 +1295,9 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-card{position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;
   border-radius:16px;background:var(--card);border:1px solid var(--line);
   scroll-margin-top:90px;animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
-.sh-card:hover{transform:translateY(-4px);border-color:rgba(107,124,255,.4);
+.sh-card:hover{transform:translateY(-4px);border-color:rgba(var(--accent-rgb),.4);
   box-shadow:0 16px 40px rgba(0,0,0,.45)}
-.sh-card.mine{border-color:rgba(107,124,255,.5)}
+.sh-card.mine{border-color:rgba(var(--accent-rgb),.5)}
 .sh-card.mine::after{content:'✓';position:absolute;right:14px;top:12px;font-size:12px;
   color:#c9d0ff;opacity:.9}
 .sh-card.locked{opacity:.62}
@@ -1273,7 +1311,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   height:118px;width:100%;padding:0;cursor:zoom-in;font:inherit;
   border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.1);
   box-shadow:inset 0 0 30px rgba(0,0,0,.5);transition:.35s cubic-bezier(.22,.9,.3,1)}
-.sh-card:hover .sh-prev{transform:scale(1.02);border-color:rgba(107,124,255,.45)}
+.sh-card:hover .sh-prev{transform:scale(1.02);border-color:rgba(var(--accent-rgb),.45)}
 .sh-prev:active{transform:scale(.99)}
 /* скільки зразків не влізло */
 .sh-more{position:absolute;right:8px;bottom:8px;padding:2px 8px;border-radius:999px;
@@ -1288,7 +1326,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 @media(hover:none){.sh-zoom{display:none}}
 .sh-prev i{display:block}
 .sh-prev i.ac{background:radial-gradient(circle at 40% 35%,var(--c),#0a0d16 74%)}
-.sh-prev i.cd{border:1px solid;border-radius:8px;margin:9px 4px;backdrop-filter:blur(6px)}
+.sh-prev i.cd{border-style:solid;margin:9px 4px;backdrop-filter:blur(6px)}
 .sh-prev i.fr{background:#0a0d16;position:relative}
 .sh-prev i.fr::after{content:'';position:absolute;left:50%;top:50%;width:34px;height:34px;
   margin:-17px 0 0 -17px;border-radius:50%;border:2px solid var(--c);
@@ -1309,12 +1347,12 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-price{display:flex;gap:8px}
 .sh-price input{width:100%;padding:8px 11px;border-radius:10px;font:inherit;font-size:13px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
-.sh-price input:focus{outline:0;border-color:rgba(107,124,255,.6)}
+.sh-price input:focus{outline:0;border-color:rgba(var(--accent-rgb),.6)}
 .sh-price .btn{white-space:nowrap;padding:8px 12px}
 /* коротка іскра після вдалої покупки */
 .sh-card.bought{animation:bought .7s cubic-bezier(.22,.9,.3,1)}
-@keyframes bought{0%{box-shadow:0 0 0 0 rgba(107,124,255,.55)}
-  60%{box-shadow:0 0 0 14px rgba(107,124,255,0)}100%{box-shadow:0 0 0 0 rgba(107,124,255,0)}}
+@keyframes bought{0%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),.55)}
+  60%{box-shadow:0 0 0 14px rgba(var(--accent-rgb),0)}100%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),0)}}
 @media(max-width:560px){.sh-wallet .hint{margin-left:0;text-align:left}}
 
 /* ── Графік репутації на профілі ── */
@@ -1334,11 +1372,11 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .chhair{stroke:rgba(255,255,255,.18);stroke-width:1;opacity:0;transition:opacity .15s}
 .hp:hover .chhair{opacity:1}
 .chline{stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;
-  filter:drop-shadow(0 4px 14px rgba(107,124,255,.45));
+  filter:drop-shadow(0 4px 14px rgba(var(--accent-rgb),.45));
   stroke-dasharray:2400;stroke-dashoffset:2400;animation:draw 1.4s cubic-bezier(.22,.9,.3,1) .15s forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
 .charea{opacity:0;animation:fadeIn .8s .5s forwards}
-.chdot{animation:pop .5s 1.2s both;filter:drop-shadow(0 0 10px rgba(107,124,255,.8))}
+.chdot{animation:pop .5s 1.2s both;filter:drop-shadow(0 0 10px rgba(var(--accent-rgb),.8))}
 /* крапки під курсором: невидимі, поки не наведеш */
 .hp circle{fill:#fff;opacity:0;transition:opacity .15s;pointer-events:none}
 .hp:hover circle{opacity:1}
@@ -1361,7 +1399,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tabs a.on,.langmenu a.on,.drop-opt.on,.qopt.on,.vopt.on,.sopt.on{
   background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));color:#fff;
   border-color:rgba(255,255,255,.35);
-  box-shadow:0 0 0 3px rgba(107,124,255,.22),0 8px 20px rgba(107,124,255,.3)}
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.22),0 8px 20px rgba(var(--accent-rgb),.3)}
 .pick-el.on::after{opacity:.9}
 .pick-el:not(.on){opacity:.72}
 .pick-el:not(.on):hover{opacity:1;transform:translateY(-1px)}
@@ -1380,9 +1418,9 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 /* Головна дія на головній сторінці — у кольорах сайту, а не Discord */
 .dbtn.site{background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));
   border:1px solid rgba(255,255,255,.35);
-  box-shadow:0 0 0 3px rgba(107,124,255,.2),0 10px 30px rgba(107,124,255,.36)}
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.2),0 10px 30px rgba(var(--accent-rgb),.36)}
 .dbtn.site:hover{background:linear-gradient(180deg,var(--accent-up),var(--accent));
-  box-shadow:0 0 0 3px rgba(107,124,255,.26),0 16px 42px rgba(107,124,255,.5)}
+  box-shadow:0 0 0 3px rgba(var(--accent-rgb),.26),0 16px 42px rgba(var(--accent-rgb),.5)}
 `;
 
 // ─────────────────────────────────────────────
@@ -2971,7 +3009,7 @@ window.CosmeticPreview=(function(){
 
     var stage=box.querySelector('.pv-stage'),ava=box.querySelector('.pv-ava'),
         head=box.querySelector('.pv-h b'),dot=box.querySelector('.pv-bar i.on'),
-        btn=box.querySelector('.pv-btn');
+        btn=box.querySelector('.pv-btn'),card=box.querySelector('.pv-card');
 
     /* Показуємо обраний варіант так, як він виглядатиме на сторінці. */
     function show(i){
@@ -2985,6 +3023,21 @@ window.CosmeticPreview=(function(){
       var frame=(it.kind==='frame'&&v.color)||null;
       ava.style.borderColor=frame||'';
       ava.style.boxShadow=frame?('0 0 0 4px '+frame+'33,0 0 24px '+frame+'66'):'';
+
+      /* Стиль вікон показуємо на самій картці: раніше передперегляд його
+         взагалі не враховував, тож «Вікна» виглядали так, ніби нічого
+         не роблять. Тепер видно і округлість, і рамку, і тінь. */
+      if(it.kind==='card'){
+        card.style.background=v.bg||'';
+        card.style.borderColor=v.line||'';
+        card.style.borderWidth=(v.width||1)+'px';
+        card.style.borderRadius=(v.radius==null?18:v.radius)+'px';
+        card.style.backdropFilter='blur('+(v.blur||0)+'px)';
+        card.style.boxShadow=v.shadow||'none';
+      }else{
+        card.style.background='';card.style.borderColor='';card.style.borderWidth='';
+        card.style.borderRadius='';card.style.backdropFilter='';card.style.boxShadow='';
+      }
       box.querySelectorAll('.pv-th').forEach(function(b,k){b.classList.toggle('on',k===i)});
     }
     show(0);
@@ -3414,15 +3467,25 @@ const PROFILE_JS = `
         var p=[(n>>16)&255,(n>>8)&255,n&255].map(function(v){return Math.max(0,Math.min(255,v+d))});
         return '#'+p.map(function(v){return v.toString(16).padStart(2,'0')}).join('');
       };
+      /* той самий колір числами — його беруть усі напівпрозорі підсвітки */
+      var rgb=function(hex){
+        var n=parseInt(String(hex).replace('#',''),16);
+        return ((n>>16)&255)+','+((n>>8)&255)+','+(n&255);
+      };
       css+=':root{--accent:'+look.accent+';--accent-hi:'+sh(look.accent,18)
-        +';--accent-lo:'+sh(look.accent,-18)+';--accent-up:'+sh(look.accent,30)+'}';
+        +';--accent-lo:'+sh(look.accent,-18)+';--accent-up:'+sh(look.accent,30)
+        +';--accent-rgb:'+rgb(look.accent)+'}';
     }
     if(look&&look.frame)css+='.avatar{border-color:'+look.frame.color+'!important;box-shadow:0 0 0 4px '+look.frame.color+'33,0 0 26px '+look.frame.color+'66}';
     if(look&&look.card){
-      var c=look.card;
-      css+=':root{--card:'+c.bg+';--line:'+c.line+'}';
-      css+='.card,.pane{border-radius:'+(c.radius||18)+'px;backdrop-filter:blur('+(c.blur||14)+'px)'
-        +(c.shadow?';box-shadow:'+c.shadow:'')+'}';
+      var c=look.card,rad=(c.radius||18),bl=(c.blur||14);
+      css+=':root{--card:'+c.bg+';--line:'+c.line+';--radius:'+rad+'px;--blur:'+bl+'px'
+        +';--line-w:'+(c.width||1)+'px}';
+      css+=':root{--menu:'+(c.menu||('linear-gradient(0deg,rgba(8,11,18,.94),rgba(8,11,18,.94)),'+c.bg))+'}';
+      /* той самий перелік поверхонь, що й на сервері — інакше після вибору
+         без перезавантаження стиль лягав би лише на частину вікон */
+      css+='${CARD_SURFACES}{border-radius:'+rad+'px;backdrop-filter:blur('+bl+'px);'
+        +'-webkit-backdrop-filter:blur('+bl+'px)'+(c.shadow?';box-shadow:'+c.shadow:'')+'}';
     }
     st.textContent=css;
 
@@ -3923,18 +3986,34 @@ function skinCss(look, { page = null } = {}) {
 
   if (look.accent && show('accent')) {
     // Перевизначаємо самі токени — далі все оформлення підхоплює їх само,
-    // включно зі станом під курсором.
+    // включно зі станом під курсором, підсвітками й тінями.
     rules.push(`:root{--accent:${look.accent};`
       + `--accent-hi:${shade(look.accent, 18)};`
       + `--accent-lo:${shade(look.accent, -18)};`
-      + `--accent-up:${shade(look.accent, 30)}}`);
+      + `--accent-up:${shade(look.accent, 30)};`
+      + `--accent-rgb:${rgbOf(look.accent)}}`);
   }
 
   if (look.card && show('card')) {
     const c = look.card;
-    rules.push(`:root{--card:${c.bg};--line:${c.line}}`);
-    rules.push(`.card,.pane{border-radius:${c.radius ?? 18}px;`
-      + `backdrop-filter:blur(${c.blur ?? 14}px);-webkit-backdrop-filter:blur(${c.blur ?? 14}px)`
+    const radius = c.radius ?? 18;
+    const blur = c.blur ?? 14;
+
+    // Токени бере все оформлення само — разом із поверхнею спливних меню,
+    // яку раніше ніщо не чіпало, тож меню лишалися типово-темними навіть
+    // при світлому чи прозорому стилі вікон.
+    rules.push(`:root{--card:${c.bg};--line:${c.line};--radius:${radius}px;--blur:${blur}px;`
+      + `--line-w:${c.width ?? 1}px}`);
+
+    // Меню й модальні вікна: обраний відтінок поверх щільної підкладки,
+    // інакше майже прозорий стиль зробив би їх нечитабельними.
+    rules.push(`:root{--menu:${c.menu ?? `linear-gradient(0deg,rgba(8,11,18,.94),rgba(8,11,18,.94)),${c.bg}`}}`);
+
+    // Стиль поширюємо на всі поверхні-панелі, а не лише на .card:
+    // раніше вікна кінотеатру, гардероба, магазину й передперегляду
+    // лишалися з типовим виглядом, і оформлення застосовувалось «наполовину».
+    rules.push(`${CARD_SURFACES}{border-radius:${radius}px;`
+      + `backdrop-filter:blur(${blur}px);-webkit-backdrop-filter:blur(${blur}px)`
       + `${c.shadow ? `;box-shadow:${c.shadow}` : ''}}`);
   }
 
@@ -3953,6 +4032,14 @@ function skinCss(look, { page = null } = {}) {
   }
 
   return rules.length ? `<style>${rules.join('\n')}</style>` : '';
+}
+
+/** «107,124,255» — той самий колір для rgba(): підсвітки, обведення, тіні. */
+function rgbOf(hex) {
+  const m = /^#?([\da-f]{6})$/i.exec(String(hex));
+  if (!m) return '107,124,255';
+  const n = parseInt(m[1], 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
 }
 
 /** Трохи темніший відтінок того самого кольору — для градієнта кнопок. */
@@ -4252,8 +4339,12 @@ export function profilePage(profile, {
     }
     if (it.kind === 'accent' || it.kind === 'frame') style = `--c:${esc(it.value.color)}`;
     if (it.kind === 'card') {
+      // показуємо саме те, чим стилі різняться: округлість, товщину рамки й тінь
       style = `background:${esc(it.value.bg)};border-color:${esc(it.value.line)};`
-        + `border-radius:${it.value.radius ?? 18}px`;
+        + `border-width:${it.value.width ?? 1}px;`
+        + `border-radius:${it.value.radius ?? 18}px;`
+        + `backdrop-filter:blur(${Math.min(it.value.blur ?? 8, 12)}px)`
+        + (it.value.shadow ? `;box-shadow:${it.value.shadow}` : '');
     }
     const cls = ['pf-sw', it.kind, it.value.type === 'motion' ? 'mo' : '', on ? 'on' : '']
       .filter(Boolean).join(' ');
@@ -5069,7 +5160,11 @@ export function shopPage({
     }
     if (v.type === 'image') return `<i class="im" style="background-image:url(${esc(v.url)})"></i>`;
     if (it.kind === 'accent') return `<i class="ac" style="--c:${esc(v.color)}"></i>`;
-    if (it.kind === 'card') return `<i class="cd" style="background:${esc(v.bg)};border-color:${esc(v.line)}"></i>`;
+    if (it.kind === 'card') {
+      return `<i class="cd" style="background:${esc(v.bg)};border-color:${esc(v.line)};`
+        + `border-width:${v.width ?? 1}px;border-radius:${Math.min(v.radius ?? 8, 14)}px`
+        + `${v.shadow ? `;box-shadow:${v.shadow}` : ''}"></i>`;
+    }
     return `<i class="fr" style="--c:${esc(v.color)}"></i>`;
   };
   /**
@@ -5336,7 +5431,7 @@ export function shopPage({
     : '';
 
   return `<div class="shop" data-boost="🚀 ${esc(t(lang, 'shop.boosterOnly'))}">
-    <div class="card pane sh-wallet rise">
+    <div class="sh-wallet rise">
       <div class="sh-bal">
         <span class="sh-coin">✨</span>
         <b id="sh-balance">${fmt(balance)}</b>
