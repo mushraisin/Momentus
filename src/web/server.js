@@ -21,6 +21,7 @@ import { signUrl, handleStream } from './mediaProxy.js';
 import { ytdlpAvailable } from './ytdlp.js';
 import { gamesOf } from '../services/gamesService.js';
 import { duelFor, castVote, TOP_REWARD } from '../services/voteService.js';
+import { voteInboxRepo } from '../database/repositories.js';
 import { OWNER_ID, ACCESS } from '../config/constants.js';
 import { accessService } from '../services/accessService.js';
 import { punishmentService, KIND_LABEL, WARN_LIMIT } from '../services/punishmentService.js';
@@ -1937,6 +1938,27 @@ async function html(res, code, guild, session, lang, path, title, body,
   // Обидва — з кешу каркаса; окремий запит по /custom.css був зайвим,
   // бо перелік асетів у нас уже є.
   const { assets, pages } = await shellData(guild.id);
+
+  // Непобачені сповіщення: хтось віддав голос або впала нагорода за місце.
+  // Показуємо їх на будь-якій сторінці, окрім головної (у неї свій каркас),
+  // і одразу гасимо — щоб про кожну подію сказати рівно один раз.
+  let news = [];
+  if (session) {
+    const rows = await voteInboxRepo.unseen(guild.id, session.user_id).catch(() => []);
+    if (rows.length) {
+      news = rows.map((r) => {
+        const m = guild.members.cache.get(r.from_id);
+        return {
+          kind: r.kind ?? 'vote',
+          amount: Number(r.amount) || 1,
+          place: r.place ?? null,
+          name: m?.displayName ?? r.from_id ?? '',
+          avatar: r.from_id ? avatarUrl(r.from_id, m?.user?.avatar ?? null, 64) : null,
+        };
+      });
+      await voteInboxRepo.markSeen(guild.id, session.user_id).catch(() => {});
+    }
+  }
   const hasCustomCss = assets.has('/custom.css');
 
   const nav = [
@@ -1965,7 +1987,7 @@ async function html(res, code, guild, session, lang, path, title, body,
     title: `${title} · ${guild.name}`,
     guildName: guild.name,
     og: og ?? ogFor(guild, path, title),
-    body, nav, session, hasCustomCss, lang, path, query, gallery, page, look,
+    body, nav, session, hasCustomCss, lang, path, query, gallery, page, look, news,
   });
   return send(res, code, 'text/html; charset=utf-8', out);
 }

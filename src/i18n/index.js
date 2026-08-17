@@ -206,6 +206,8 @@ const DICT = {
     'top.days': 'на сервері',
     'top.votes': 'голосів',
     'top.daily': 'Щодня за це місце',
+    'news.vote': '{name} віддав вам голос — +{n} ✨FP',
+    'news.top': '+{n} ✨FP за {place} місце в рейтингу',
     'top.empty': 'Даних ще немає.',
 
     // ── галерея ──
@@ -514,6 +516,8 @@ const DICT = {
     'top.days': 'on server',
     'top.votes': 'votes',
     'top.daily': 'Daily for this place',
+    'news.vote': '{name} voted for you — +{n} ✨FP',
+    'news.top': '+{n} ✨FP for place {place} in the leaderboard',
     'top.empty': 'No data yet.',
 
     'gal.title': 'Gallery',

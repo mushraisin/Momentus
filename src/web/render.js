@@ -1076,12 +1076,19 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 @media(max-width:520px){.gmbar{flex-basis:22%}}
 
 /* ── Голосування ──
-   Двоє випадкових, один голос, ніяких пояснень: що робити — видно з самих
-   облич і того, що на них можна натиснути. Голос нічого не коштує, тож і
+   Окреме спливаюче вікно: троє випадкових, один голос, ніяких пояснень —
+   що робити, видно з самих облич. Голос нічого не коштує, тож і
    попереджати нема про що. */
-.vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;
-  padding:16px;border-radius:var(--radius);background:var(--card);
-  border:var(--line-w,1px) solid var(--line);backdrop-filter:blur(var(--blur))}
+.vsback{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+  padding:22px;background:rgba(3,5,10,.82);backdrop-filter:blur(6px);animation:fadeIn .22s both}
+.vsback[hidden]{display:none}
+.vswin{position:relative;width:min(560px,94vw);padding:26px 22px 22px;
+  border-radius:var(--radius);background:var(--card);border:var(--line-w,1px) solid var(--line);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);backdrop-filter:blur(var(--blur));
+  animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
+.vs-x{position:absolute;right:10px;top:10px}
+.vs-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:520px){.vs-row{grid-template-columns:1fr}}
 .vs-one{display:flex;flex-direction:column;align-items:center;gap:9px;padding:14px 10px;
   border-radius:16px;cursor:pointer;background:rgba(255,255,255,.03);
   border:1px solid var(--line);color:var(--text);font:inherit;
@@ -1097,17 +1104,17 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .vs-one:active:not(:disabled){transform:scale(.97)}
 .vs-one:disabled{opacity:.5;cursor:default}
 .vs-one.won{border-color:rgba(67,196,123,.6);background:rgba(67,196,123,.12)}
-.vs-mid{font-size:20px;opacity:.5}
-@media(max-width:520px){
-  .vs{gap:8px;padding:12px}
-  .vs-one img{width:54px;height:54px}
-}
+@media(max-width:520px){.vs-one img{width:54px;height:54px}}
 
 /* ── Рейтинг картками ──
    Кожен показаний своїм банером, акцентом і рамкою — тим самим, що й у
    профілі. Перші три — ширшими картками з медаллю, щоб перемога читалась. */
 .tpwrap{display:flex;flex-direction:column;gap:14px;margin-top:4px}
-.tp-podium{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+/* Трійка лідерів — у ДВА стовпці, а не в три: у три банер стискався до
+   вузької смужки, і картинка, заради якої його ставили, не читалась.
+   Перше місце займає весь рядок. */
+.tp-podium{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.tp-podium .tp-1{grid-column:1/-1}
 .tp-rest{display:flex;flex-direction:column;gap:10px}
 /* Картка живе в оформленні СВОГО власника: --tp-* приходять із його стилю
    вікон. Відкат тут навмисно нейтральний, а не на токени сайту: інакше
@@ -1169,7 +1176,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tp-score b{font-size:22px;font-weight:800;color:var(--c)}
 .tp-score span{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
 /* трійка лідерів — вища смуга банера й більший аватар */
-.tp-top .tp-head{height:132px}
+.tp-top .tp-head{height:172px}
 .tp-top .tp-face{width:76px;height:76px}
 .tp-top .tp-id{padding-top:26px}
 .tp-top .tp-id b{font-size:19px}
@@ -1378,6 +1385,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   animation:toastIn .3s cubic-bezier(.22,.9,.3,1) both;pointer-events:auto}
 .toast.out{animation:toastOut .28s ease-in both}
 .toast i{font-style:normal;font-size:16px;line-height:1;flex:none}
+.toast-face{width:30px;height:30px;flex:none;border-radius:50%;border:1px solid var(--line)}
 .toast.good{border-color:rgba(67,196,123,.42);background:rgba(16,38,27,.96)}
 .toast.bad{border-color:rgba(239,83,80,.45);background:rgba(42,16,16,.96)}
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
@@ -3203,12 +3211,20 @@ const SHOWCASE_JS = `
 })();
 `;
 
-/** Голосування на сторінці рейтингу. */
+/** Голосування: спливаюче вікно на сторінці рейтингу. */
 const VOTE_JS = `
 (function(){
   var box=document.getElementById('vs');
   if(!box)return;
+
+  function shut(){box.hidden=true;document.body.style.overflow=''}
+  /* Вікно показуємо одразу: голос доступний раз на добу, тож нагадувати
+     про нього кнопкою десь на сторінці було б слабше. */
+  box.hidden=false;document.body.style.overflow='hidden';
+  addEventListener('keydown',function(e){if(e.key==='Escape'&&!box.hidden)shut()});
+
   box.addEventListener('click',function(e){
+    if(e.target===box||e.target.closest('.vs-x')){shut();return}
     var b=e.target.closest('.vs-one');
     if(!b||b.disabled)return;
     box.querySelectorAll('.vs-one').forEach(function(x){x.disabled=true});
@@ -3219,9 +3235,10 @@ const VOTE_JS = `
           if(window.toast)window.toast(window.errText?window.errText(j.error):j.error,'bad');
           return;
         }
-        /* Підтвердження — самою карткою, без тексту: обраний зеленіє,
-           а нова пара випаде через добу. */
+        /* Підтвердження — самою карткою: обраний зеленіє, і вікно
+           закривається, бо голос уже віддано. */
         b.classList.add('won');
+        setTimeout(shut,700);
       }).catch(function(){
         box.querySelectorAll('.vs-one').forEach(function(x){x.disabled=false});
       });
@@ -4473,14 +4490,16 @@ function errorDict(lang) {
  * не було сказано взагалі, або текст лягав у самому низу сторінки.
  */
 const TOAST_JS = `
-window.toast=function(text,kind){
+window.toast=function(text,kind,avatar){
   if(!text)return;
   var box=document.querySelector('.toasts');
   if(!box){box=document.createElement('div');box.className='toasts';document.body.appendChild(box)}
   var el=document.createElement('div');
   el.className='toast'+(kind?' '+kind:'');
+  /* Замість значка може бути аватарка — тоді видно, ХТО саме це зробив. */
   var ico={good:'✓',bad:'✕'}[kind];
-  el.innerHTML=(ico?'<i>'+ico+'</i>':'')+'<span></span>';
+  el.innerHTML=(avatar?'<img class="toast-face" alt="">':(ico?'<i>'+ico+'</i>':''))+'<span></span>';
+  if(avatar)el.querySelector('.toast-face').src=avatar;
   el.querySelector('span').textContent=text;
   box.appendChild(el);
   /* більше трьох на екрані — це вже шум */
@@ -4491,6 +4510,25 @@ window.toast=function(text,kind){
   },kind==='bad'?4200:2600);
 };
 `;
+
+/**
+ * Сповіщення, які людина ще не бачила: хтось віддав їй голос або впала
+ * нагорода за місце в рейтингу. Виводяться спливаючими вікнами — з ніком
+ * і аватаркою того, хто голосував.
+ */
+function newsJs(news, lang) {
+  const items = news.map((n) => ({
+    text: n.kind === 'top'
+      ? t(lang, 'news.top', { n: n.amount, place: n.place })
+      : t(lang, 'news.vote', { name: n.name, n: n.amount }),
+    avatar: n.kind === 'top' ? null : n.avatar,
+  }));
+  // невелика затримка й крок між ними — інакше кілька сповіщень
+  // вискакують одночасно й перекривають одне одного
+  return `(function(){var L=${JSON.stringify(items)};`
+    + 'L.forEach(function(n,i){setTimeout(function(){'
+    + 'if(window.toast)window.toast(n.text,"good",n.avatar)},600+i*900)})})();';
+}
 
 function shell({ title, content, hasCustomCss, extraJs = '', meta = '', skin = '', lang = 'uk', description = '' }) {
   return `<!doctype html>
@@ -4522,6 +4560,7 @@ ${extraJs ? `<script>${extraJs}</script>` : ''}
 export function layout({
   title, guildName, body, nav = [], session, hasCustomCss,
   lang = 'uk', path = '/', query = '', gallery = false, page = null, og = null, look = null,
+  news = [],
 }) {
   // apart — кнопка стоїть окремо від основних, з розділювачем
   const navHtml = nav
@@ -4552,6 +4591,9 @@ export function layout({
     skin: skinCss(look, { page }),
     meta: og ? metaTags(og) : '',
     extraJs: [
+      // Сповіщення про голоси й нагороди. Показуються один раз — сервер
+      // гасить їх одразу, щойно віддав сторінці.
+      news.length ? newsJs(news, lang) : '',
       // словник відмов і спливні повідомлення потрібні там, де щось купують
       // або віддають голос
       ['shop', 'me', 'top'].includes(page) ? errorDict(lang) : '',
@@ -4724,23 +4766,22 @@ export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
     </a>`;
   };
 
-  // Голосування: двоє, один голос, без пояснень — усе видно з самих карток.
-  const face = (p) => `<button class="vs-one" data-user="${esc(p.userId)}"
-      ${duel.canVote ? '' : 'disabled'}>
+  // Голосування — окремим спливаючим вікном, а не смугою на сторінці:
+  // так воно не тисне рейтинг і його видно одразу, коли заходиш.
+  const face = (p) => `<button class="vs-one" data-user="${esc(p.userId)}">
     <img src="${esc(avatarUrl(p.userId, null, 96))}" alt="" loading="lazy">
     <b>${esc(p.username)}</b>
   </button>`;
 
-  const vsBox = duel
-    ? `<div class="vs rise" id="vs" data-next="${duel.nextAt || 0}">
-        ${face(duel.a)}
-        <span class="vs-mid">✨</span>
-        ${face(duel.b)}
-      </div>`
+  const vsBox = (duel && duel.canVote && (duel.people ?? []).length)
+    ? `<div class="vsback" id="vs" hidden><div class="vswin">
+        <button class="gate-x vs-x" aria-label="×">×</button>
+        <div class="vs-row">${duel.people.map(face).join('')}</div>
+      </div></div>`
     : '';
 
-  return `<div class="tpwrap">
-    ${vsBox}
+  return `${vsBox}
+  <div class="tpwrap">
     <div class="tp-podium">${rows.slice(0, 3).map(card).join('')}</div>
     ${rows.length > 3
     ? `<div class="tp-rest">${rows.slice(3).map((r, i) => card(r, i + 3)).join('')}</div>`

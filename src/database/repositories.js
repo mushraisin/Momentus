@@ -926,18 +926,45 @@ export const duelRepo = {
     return get('SELECT * FROM duels WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
   },
 
-  set(guildId, userId, a, b) {
+  set(guildId, userId, a, b, c) {
     return run(`
-      INSERT INTO duels (guild_id, user_id, a, b, drawn_at, voted_at)
-      VALUES (?, ?, ?, ?, ?, NULL)
+      INSERT INTO duels (guild_id, user_id, a, b, c, drawn_at, voted_at)
+      VALUES (?, ?, ?, ?, ?, ?, NULL)
       ON CONFLICT(guild_id, user_id) DO UPDATE SET
-        a = excluded.a, b = excluded.b, drawn_at = excluded.drawn_at, voted_at = NULL
-    `, [guildId, userId, a, b, Date.now()]);
+        a = excluded.a, b = excluded.b, c = excluded.c,
+        drawn_at = excluded.drawn_at, voted_at = NULL
+    `, [guildId, userId, a, b, c ?? null, Date.now()]);
   },
 
   markVoted(guildId, userId) {
     return run('UPDATE duels SET voted_at = ? WHERE guild_id = ? AND user_id = ?',
       [Date.now(), guildId, userId]);
+  },
+};
+
+/**
+ * Хто кому віддав голос. Потрібно, щоб сказати людині про це рівно один раз —
+ * коли вона наступного разу зайде на сайт, а не щоразу при кожному оновленні.
+ */
+export const voteInboxRepo = {
+  add(guildId, userId, fromId, { kind = 'vote', amount = 1, place = null } = {}) {
+    return run(`
+      INSERT INTO vote_inbox (guild_id, user_id, from_id, at, seen, kind, amount, place)
+      VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+    `, [guildId, userId, fromId ?? '', Date.now(), kind, amount, place]);
+  },
+
+  unseen(guildId, userId, limit = 5) {
+    return all(`
+      SELECT id, from_id, at, kind, amount, place FROM vote_inbox
+      WHERE guild_id = ? AND user_id = ? AND seen = 0
+      ORDER BY at DESC LIMIT ?
+    `, [guildId, userId, limit]);
+  },
+
+  markSeen(guildId, userId) {
+    return run('UPDATE vote_inbox SET seen = 1 WHERE guild_id = ? AND user_id = ? AND seen = 0',
+      [guildId, userId]);
   },
 };
 

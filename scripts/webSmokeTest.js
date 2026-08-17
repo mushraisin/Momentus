@@ -1641,29 +1641,30 @@ ok('тло не гасне під фоном, роль у своєму коль�
 
   // ── пара ──
   const d = await V.duelFor(guild, '701');
-  assert.ok(d && d.a && d.b, 'пара випала');
-  assert.notEqual(d.a.userId, d.b.userId, 'двоє різних');
-  assert.ok(![d.a.userId, d.b.userId].includes('701'), 'сам себе не пропонується');
-  assert.ok(![d.a.userId, d.b.userId].includes('botX'), 'ботів у парі немає');
+  const ids = (d?.people ?? []).map((p) => p.userId);
+  assert.ok(ids.length >= 2, `показано кількох (${ids.length})`);
+  assert.equal(new Set(ids).size, ids.length, 'усі різні');
+  assert.ok(!ids.includes('701'), 'сам себе не пропонується');
+  assert.ok(!ids.includes('botX'), 'ботів у виборі немає');
 
   const same = await V.duelFor(guild, '701');
-  assert.equal(same.a.userId, d.a.userId, 'пара не перекидається до голосу');
+  assert.deepEqual(same.people.map((p) => p.userId), ids, 'вибір не перекидається до голосу');
 
   // ── голос: обидва отримують по 1 FP, голосуючий нічого не витрачає ──
   const mine = (await wr.get(G, '701')).balance;
-  const theirs = (await wr.get(G, d.a.userId)).balance;
-  const voted = await V.castVote(guild, '701', d.a.userId);
+  const theirs = (await wr.get(G, ids[0])).balance;
+  const voted = await V.castVote(guild, '701', ids[0]);
   assert.ok(voted.ok, 'голос зараховано');
-  assert.equal((await wr.get(G, d.a.userId)).balance, theirs + 1, 'обраному +1 FP');
+  assert.equal((await wr.get(G, ids[0])).balance, theirs + 1, 'обраному +1 FP');
   assert.equal((await wr.get(G, '701')).balance, mine + 1, 'голосуючому теж +1 FP');
-  assert.equal(Number((await ur.get(G, d.a.userId)).votes_got), 1, 'голос порахований');
+  assert.equal(Number((await ur.get(G, ids[0])).votes_got), 1, 'голос порахований');
 
-  const twice = await V.castVote(guild, '701', d.b.userId);
+  const twice = await V.castVote(guild, '701', ids[1]);
   assert.equal(twice.reason, 'cooldown', 'двічі за добу не можна');
   assert.equal((await V.duelFor(guild, '701')).canVote, false, 'нова пара — лише за добу');
 
   // голос повз свою пару не проходить
-  await duelRepo.set(G, '702', '703', '701');
+  await duelRepo.set(G, '702', '703', '701', null);
   assert.equal((await V.castVote(guild, '702', 'botX')).reason, 'not in pair', 'чужий вибір відхилено');
 
   // ── щоденні нагороди 3 / 2 / 1 ──
@@ -1683,7 +1684,7 @@ ok('тло не гасне під фоном, роль у своєму коль�
   const page = await req('/top', auth);
   assert.ok(!page.body.includes('>Робот<'), 'бота в рейтингу немає');
   assert.ok(page.body.includes('id="vs"'), 'блок голосування є');
-  assert.equal((page.body.match(/class="vs-one"/g) ?? []).length, 2, 'рівно двоє на вибір');
+  assert.ok((page.body.match(/class="vs-one"/g) ?? []).length >= 2, 'кількох показано на вибір');
   assert.ok(!/<div class="vs[^"]*"[^>]*>[\s\S]{0,200}<p/.test(page.body),
     'без пояснювального тексту');
 

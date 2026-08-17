@@ -1,5 +1,5 @@
 import {
-  duelRepo, usersRepo, walletRepo, reputationRepo,
+  duelRepo, usersRepo, walletRepo, reputationRepo, voteInboxRepo,
 } from '../database/repositories.js';
 import { configService } from './configService.js';
 import { createLogger } from '../core/logger.js';
@@ -39,31 +39,38 @@ async function candidates(guild, exceptId) {
   return out;
 }
 
-/** Двоє випадкових із списку. */
-function pickTwo(list) {
+/** Скільки людей показуємо на вибір. */
+export const CHOICES = 3;
+
+/** Кілька випадкових і різних із списку. */
+function pickSome(list, n = CHOICES) {
   if (list.length < 2) return null;
-  const i = Math.floor(Math.random() * list.length);
-  let j = Math.floor(Math.random() * (list.length - 1));
-  if (j >= i) j++;
-  return [list[i], list[j]];
+  const pool = [...list];
+  const out = [];
+  while (out.length < Math.min(n, pool.length)) {
+    out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  return out;
 }
 
 /**
- * Пара для цієї людини: та сама, поки не проголосувала й поки не минула доба.
- * @returns {Promise<{a:object,b:object,canVote:boolean,nextAt:number}|null>}
+ * Кого показати цій людині: ті самі, поки вона не проголосувала й поки не
+ * минула доба.
+ * @returns {Promise<{people:object[],canVote:boolean,nextAt:number}|null>}
  */
 export async function duelFor(guild, userId) {
   const cur = await duelRepo.get(guild.id, userId).catch(() => null);
   const votedAt = Number(cur?.voted_at ?? 0);
   const waiting = votedAt && Date.now() - votedAt < COOLDOWN_MS;
 
-  // Ще не голосувала — лишаємо ту саму пару; проголосувала й доба не минула —
-  // показуємо, коли буде нова.
+  // Ще не голосувала — лишаємо тих самих; проголосувала й доба не минула —
+  // показуємо, коли буде новий вибір.
   if (cur && (waiting || !votedAt)) {
-    const who = await namesOf(guild, [cur.a, cur.b]);
+    const ids = [cur.a, cur.b, cur.c].filter(Boolean);
+    const who = await namesOf(guild, ids);
     if (who) {
       return {
-        a: who[0], b: who[1],
+        people: who,
         canVote: !votedAt,
         nextAt: votedAt ? votedAt + COOLDOWN_MS : 0,
       };
@@ -71,14 +78,15 @@ export async function duelFor(guild, userId) {
   }
 
   const list = await candidates(guild, userId);
-  const pair = pickTwo(list);
-  if (!pair) return null;
+  const some = pickSome(list);
+  if (!some) return null;
 
-  await duelRepo.set(guild.id, userId, pair[0].userId, pair[1].userId).catch(() => {});
-  return { a: pair[0], b: pair[1], canVote: true, nextAt: 0 };
+  await duelRepo.set(guild.id, userId, some[0].userId, some[1].userId,
+    some[2]?.userId ?? null).catch(() => {});
+  return { people: some, canVote: true, nextAt: 0 };
 }
 
-/** Імена пари; null — якщо когось із них уже немає серед учасників. */
+/** Імена вибору; null — якщо когось із них уже немає серед учасників. */
 async function namesOf(guild, ids) {
   const out = [];
   for (const id of ids) {
@@ -98,7 +106,9 @@ async function namesOf(guild, ids) {
 export async function castVote(guild, voterId, targetId) {
   const cur = await duelRepo.get(guild.id, voterId).catch(() => null);
   if (!cur) return { ok: false, reason: 'no duel' };
-  if (![cur.a, cur.b].includes(String(targetId))) return { ok: false, reason: 'not in pair' };
+  if (![cur.a, cur.b, cur.c].filter(Boolean).includes(String(targetId))) {
+    return { ok: false, reason: 'not in pair' };
+  }
   if (String(targetId) === String(voterId)) return { ok: false, reason: 'self' };
 
   const votedAt = Number(cur.voted_at ?? 0);
@@ -110,6 +120,8 @@ export async function castVote(guild, voterId, targetId) {
   await walletRepo.add(guild.id, voterId, 1);
   await usersRepo.bump(guild.id, targetId, 'votes_got', 1).catch(() => {});
   await duelRepo.markVoted(guild.id, voterId);
+  // адресат дізнається про це, коли наступного разу зайде на сайт
+  await voteInboxRepo.add(guild.id, targetId, voterId).catch(() => {});
 
   const w = await walletRepo.get(guild.id, voterId);
   log.info(`${voterId} проголосував за ${targetId} — обом по 1 FP`);
@@ -132,6 +144,10 @@ export async function payoutTop(guild) {
   let paid = 0;
   for (const [i, r] of top.entries()) {
     await walletRepo.add(guild.id, r.user_id, TOP_REWARD[i]).catch(() => {});
+    // людина дізнається про нагороду, коли наступного разу зайде на сайт
+    await voteInboxRepo.add(guild.id, r.user_id, null, {
+      kind: 'top', amount: TOP_REWARD[i], place: i + 1,
+    }).catch(() => {});
     paid += TOP_REWARD[i];
   }
 
