@@ -364,13 +364,16 @@ async function attach(canvas, name) {
  * самих оцінок.
  */
 export async function profileCard(profile, {
-  username, avatarUrl, roleName, roleColor, accent: tone,
+  username, avatarUrl, roleName, roleColor,
   bannerUrl = null, level = 1,
 } = {}) {
   if (!canRender) return null;
   try {
-    const tint = roleColor || tone || C.accent;
-    const accent = roleColor || tone || C.faint;
+    // Тон картки сталий і не залежить від ролі: інакше вигляд стрибав щоразу,
+    // коли людині міняли роль. Колір ролі лишається тільки на її ж чипі —
+    // там він несе сенс, а не фарбує все навколо.
+    const tint = C.accent;
+    const accent = C.accent;
 
     const headH = 150;
     const H = 276;
@@ -401,7 +404,9 @@ export async function profileCard(profile, {
     // як на картці сайту, щоб дві картки читались однаково.
     let metaX = textX;
     if (roleName) {
-      metaX += rolePill(ctx, fitText2(ctx, roleName, nameMax - 110, 15), textX, metaCy, accent) + 10;
+      // сам чип ролі — у її кольорі: це єдине місце, де він доречний
+      metaX += rolePill(ctx, fitText2(ctx, roleName, nameMax - 110, 15), textX, metaCy,
+        roleColor || C.dim) + 10;
     }
     txt(ctx, `◆ ${level} РІВЕНЬ`, metaX, metaCy, { size: 12, weight: 600, color: tint });
 

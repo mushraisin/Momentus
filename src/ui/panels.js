@@ -99,7 +99,7 @@ export async function profileView(guild, userId, user) {
     avatarUrl,
     roleName: role?.name,
     roleColor: role?.color,
-    accent: memberAccent(member),
+    // тон картки більше не залежить від ролі, тож і передавати його нема сенсу
     bannerUrl,
     level: wallet.level ?? 1,
   });
