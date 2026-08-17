@@ -3435,15 +3435,18 @@ export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 
 //  Каркас
 // ─────────────────────────────────────────────
 /** Спадний вибір мови. На <details> — працює навіть без JS. */
-function langSwitch(lang, path) {
+function langSwitch(lang, path, query = '') {
   const cur = LANGS[lang] ?? LANGS.uk;
+  // Решту параметрів сторінки несемо з собою: без цього вибір мови на
+  // «/gallery?sort=top» повертав стрічку до типового сортування.
+  const keep = String(query ?? '');
   const opts = Object.values(LANGS).map((l) =>
-    `<a href="${esc(path)}?lang=${l.code}" class="${l.code === lang ? 'on' : ''}">
+    `<a href="${esc(path)}?${keep ? `${esc(keep)}&amp;` : ''}lang=${l.code}" class="${l.code === lang ? 'on' : ''}">
       <b>${l.short}</b><span>${esc(l.name)}</span></a>`,
   ).join('');
 
   return `<details class="langs">
-    <summary aria-label="Мова"><b>${cur.short}</b><i></i></summary>
+    <summary aria-label="${esc(t(lang, 'nav.lang'))}"><b>${cur.short}</b><i></i></summary>
     <div class="langmenu">${opts}</div>
   </details>`;
 }
@@ -3471,9 +3474,11 @@ function metaTags({ title, description, image, url, type = 'website' }) {
     ['twitter:description', description],
     ['twitter:image', image],
   ];
+  // og:* читаються з property, twitter:* — з name. Раніше всі йшли через
+  // property, і частина месенджерів просто не бачила картку.
   return tags
     .filter(([, v]) => v)
-    .map(([k, v]) => `<meta property="${k}" content="${esc(v)}">`)
+    .map(([k, v]) => `<meta ${k.startsWith('twitter:') ? 'name' : 'property'}="${k}" content="${esc(v)}">`)
     .join('\n');
 }
 
@@ -3508,7 +3513,9 @@ function skinCss(look, { page = null } = {}) {
       + 'background-size:300% 300%;animation:flow 18s ease-in-out infinite}',
     );
   }
-  if (bg?.type === 'image') {
+  // Старі записи могли мати префікс own:, для якого адреси вже немає, —
+  // тоді у CSS ішло url(null) і фон ставав просто зламаним правилом.
+  if (bg?.type === 'image' && bg.url) {
     rules.push(`.bg{background:#05070d url(${bg.url}) center/cover no-repeat fixed}`);
     // під власною картинкою текст мусить лишатися читабельним
     rules.push('.bg::after{content:"";position:absolute;inset:0;background:rgba(4,6,12,.55)}');
@@ -3559,12 +3566,16 @@ function shade(hex, amount) {
   return `#${ch.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
-function shell({ title, content, hasCustomCss, extraJs = '', meta = '', skin = '' }) {
+function shell({ title, content, hasCustomCss, extraJs = '', meta = '', skin = '', lang = 'uk', description = '' }) {
   return `<!doctype html>
-<html lang="uk"><head>
+<html lang="${esc(lang)}"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#05070d">
+<!-- Сайт існує лише в темному вигляді: без цього браузер малює рідні
+     елементи (поля, календарі, автозаповнення) світлими, і вони б'ють по очах. -->
+<meta name="color-scheme" content="dark">
+${description ? `<meta name="description" content="${esc(description)}">` : ''}
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -3584,7 +3595,7 @@ ${extraJs ? `<script>${extraJs}</script>` : ''}
 
 export function layout({
   title, guildName, body, nav = [], session, hasCustomCss,
-  lang = 'uk', path = '/', gallery = false, page = null, og = null, look = null,
+  lang = 'uk', path = '/', query = '', gallery = false, page = null, og = null, look = null,
 }) {
   // apart — кнопка стоїть окремо від основних, з розділювачем
   const navHtml = nav
@@ -3610,6 +3621,8 @@ export function layout({
   return shell({
     title,
     hasCustomCss,
+    lang,
+    description: og?.description ?? '',
     skin: skinCss(look, { page }),
     meta: og ? metaTags(og) : '',
     extraJs: [
@@ -3629,7 +3642,7 @@ export function layout({
            Ширина самої сторінки нижче може бути різна — це вже не впливає. -->
       <div class="topbar-in">
         <a class="brand" href="/"><span class="dot"></span>${esc(guildName)}</a>
-        <nav>${navHtml}${auth}${langSwitch(lang, path)}</nav>
+        <nav>${navHtml}${auth}${langSwitch(lang, path, query)}</nav>
       </div>
     </div>
     <div class="wrap${wide} under-top">
@@ -3669,6 +3682,8 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
 
   return shell({
     title: 'Моментус',
+    lang,
+    description: og?.description ?? '',
     meta: og ? metaTags(og) : '',
     content: `<div class="wrap">
       <header><span></span><nav>${chip}${modChip}${langSwitch(lang, '/')}</nav></header>

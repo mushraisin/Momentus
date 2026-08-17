@@ -743,6 +743,9 @@ async function handleModal(interaction) {
     const { sitePagesRepo } = await import('../database/repositories.js');
     if (oldSlug && oldSlug !== slug) await sitePagesRepo.remove(guildId, oldSlug);
     await sitePagesRepo.save(guildId, { slug, title, body, published });
+    // Сайт тримає перелік сторінок у пам'яті — інакше меню оновилося б не одразу.
+    const { invalidateShellCache } = await import('../web/server.js');
+    invalidateShellCache(guildId);
     return safeUpdate(interaction, admin.sitePanel(interaction.guild));
   }
 
@@ -752,6 +755,8 @@ async function handleModal(interaction) {
     const { siteAssetsRepo } = await import('../database/repositories.js');
     if (!css) await siteAssetsRepo.remove(guildId, '/custom.css');
     else await siteAssetsRepo.save(guildId, { path: '/custom.css', mime: 'text/css; charset=utf-8', content: css });
+    const { invalidateShellCache } = await import('../web/server.js');
+    invalidateShellCache(guildId);
     return safeUpdate(interaction, admin.sitePanel(interaction.guild));
   }
 

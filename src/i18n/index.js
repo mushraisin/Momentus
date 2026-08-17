@@ -21,6 +21,7 @@ const DICT = {
     'nav.mod': 'Модерація',
     'nav.login': 'Вхід',
     'nav.logout': 'Вийти',
+    'nav.lang': 'Мова',
 
     // ── модерація ──
     'shop.title': 'Магазин',
@@ -257,6 +258,7 @@ const DICT = {
     'nav.mod': 'Moderation',
     'nav.login': 'Sign in',
     'nav.logout': 'Sign out',
+    'nav.lang': 'Language',
 
     'shop.title': 'Shop',
     'shop.by': 'by',

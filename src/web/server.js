@@ -124,6 +124,43 @@ function publicUrl() {
 }
 
 // ─────────────────────────────────────────────
+//  Кеш каркаса сторінки
+// ─────────────────────────────────────────────
+/**
+ * Перелік асетів і власних сторінок потрібен на кожен запит: перший — щоб
+ * зрозуміти, чи це взагалі асет, другий — щоб зібрати меню. Обидва майже
+ * ніколи не міняються, тож ходити по них у Turso щоразу — три мережеві
+ * запити на кожну сторінку ще до того, як почнеться корисна робота.
+ * Тримаємо їх коротко в пам'яті; правки з панелі власника доїжджають
+ * за секунди, а сторінка перестає чекати на мережу.
+ */
+const SHELL_TTL = 20_000;
+const shellCache = new Map(); // guildId → { at, assets:Set, pages:[] }
+
+async function shellData(guildId) {
+  const hit = shellCache.get(guildId);
+  if (hit && Date.now() - hit.at < SHELL_TTL) return hit;
+
+  const [assets, pages] = await Promise.all([
+    siteAssetsRepo.list(guildId).catch(() => []),
+    sitePagesRepo.list(guildId).catch(() => []),
+  ]);
+  const fresh = { at: Date.now(), assets: new Set(assets.map((a) => a.path)), pages };
+  shellCache.set(guildId, fresh);
+  return fresh;
+}
+
+async function hasAsset(guildId, path) {
+  return (await shellData(guildId)).assets.has(path);
+}
+
+/** Скинути кеш після правок із панелі власника — щоб не чекати TTL. */
+export function invalidateShellCache(guildId = null) {
+  if (guildId) shellCache.delete(guildId);
+  else shellCache.clear();
+}
+
+// ─────────────────────────────────────────────
 //  Маршрутизація
 // ─────────────────────────────────────────────
 async function handle(req, res) {
@@ -146,20 +183,28 @@ async function handle(req, res) {
     ?? configService.get(guild.id, 'general.locale'),
   );
   const setLangCookie = url.searchParams.has('lang')
-    ? `lang=${lang}; Path=/; Max-Age=${365 * 24 * 3600}; SameSite=Lax`
+    ? `lang=${lang}; Path=/; Max-Age=${365 * 24 * 3600}; SameSite=Lax${isSecure(req) ? '; Secure' : ''}`
     : null;
   if (setLangCookie) {
-    // після вибору мови повертаємось на ту саму сторінку без ?lang
-    res.writeHead(302, { Location: path, 'Set-Cookie': setLangCookie });
+    // Після вибору мови повертаємось на ту саму сторінку без ?lang, але з
+    // рештою параметрів: інакше вибір мови збивав сортування галереї.
+    const rest = new URLSearchParams(url.searchParams);
+    rest.delete('lang');
+    const back = rest.size ? `${path}?${rest}` : path;
+    res.writeHead(302, { Location: back, 'Set-Cookie': setLangCookie });
     return res.end();
   }
 
   // ── асети з БД ──
-  const asset = await siteAssetsRepo.get(guild.id, path).catch(() => null);
-  if (asset) {
-    const buf = asset.encoding === 'base64' ? Buffer.from(asset.content, 'base64') : Buffer.from(asset.content, 'utf8');
-    res.writeHead(200, { 'Content-Type': asset.mime, 'Cache-Control': 'public, max-age=300' });
-    return res.end(buf);
+  // Спершу звіряємось із кешем шляхів: інакше кожен запит до сайту — навіть
+  // /api/* і /media/* — тягнув окремий похід у Turso по той самий асет.
+  if (await hasAsset(guild.id, path)) {
+    const asset = await siteAssetsRepo.get(guild.id, path).catch(() => null);
+    if (asset) {
+      const buf = asset.encoding === 'base64' ? Buffer.from(asset.content, 'base64') : Buffer.from(asset.content, 'utf8');
+      res.writeHead(200, { 'Content-Type': asset.mime, 'Cache-Control': 'public, max-age=300' });
+      return res.end(buf);
+    }
   }
 
   // ── авторизація ──
@@ -446,7 +491,9 @@ async function handle(req, res) {
     return html(res, 200, guild, session, lang, path, t(lang, 'top.title'), R.leaderboardPage(rows, lang));
   }
 
-  const custom = await sitePagesRepo.get(guild.id, path.slice(1)).catch(() => null);
+  // Список опублікованих сторінок уже лежить у кеші каркаса — окремий запит
+  // на кожен невідомий шлях (а це всі 404) більше не потрібен.
+  const custom = (await shellData(guild.id)).pages.find((p) => p.slug === path.slice(1)) ?? null;
   if (custom && custom.published) {
     return html(res, 200, guild, session, lang, path, custom.title, R.customPage(custom));
   }
@@ -505,7 +552,9 @@ async function renderGallery(res, guild, session, lang, path, errKey, sort = 'ne
     error: errKey ? errors[errKey] : null,
   });
 
-  return html(res, 200, guild, session, lang, path, t(lang, 'gal.title'), body, true);
+  // Сортування несемо в перемикач мов, щоб вибір мови не збивав стрічку.
+  return html(res, 200, guild, session, lang, path, t(lang, 'gal.title'), body, true,
+    null, null, null, sort === 'top' ? 'sort=top' : '');
 }
 
 async function handleUpload(req, res, guild, session, lang) {
@@ -774,7 +823,9 @@ async function profileApi(req, res, guild, session) {
     const known = ['about', 'chart', 'stats', 'gallery'];
     const order = Array.isArray(body.layout) ? body.layout.filter((k) => known.includes(k)) : [];
     const cur = await prefsRepo.get(guild.id, session.user_id);
-    patch.layout = { ...(cur.layout ?? {}), order: [...new Set(order)] };
+    // Спираємось на patch.layout, а не лише на збережене: інакше порядок блоків
+    // в одному запиті з «сховати блок» чи «вітрина» стирав ті зміни.
+    patch.layout = { ...(patch.layout ?? cur.layout ?? {}), order: [...new Set(order)] };
   }
 
   // банер і власне тло — лише із завантажених картинок (приватний канал)
@@ -1244,17 +1295,23 @@ async function cinemaAction(req, res, guild, session, action) {
       await save({ playing: true });
       await note('play', fmtTime(livePosition(state)));
       break;
-    case 'pause':
-      await save({ playing: false, positionMs: Math.max(0, Number(body.positionMs ?? livePosition(state))) });
-      await note('pause', fmtTime(Number(body.positionMs ?? livePosition(state))));
+    case 'pause': {
+      const at = positionFrom(body.positionMs, livePosition(state));
+      if (at === null) return json(res, 400, { error: 'positionMs' });
+      await save({ playing: false, positionMs: at });
+      await note('pause', fmtTime(at));
       break;
+    }
 
     // Перемотка, джерело, черга й завершення — тим, хто керує сеансом.
-    case 'seek':
+    case 'seek': {
       if (!editor) return json(res, 403, { error: 'editor' });
-      await save({ positionMs: Math.max(0, Number(body.positionMs ?? 0)) });
-      await note('seek', fmtTime(Number(body.positionMs ?? 0)));
+      const at = positionFrom(body.positionMs, 0);
+      if (at === null) return json(res, 400, { error: 'positionMs' });
+      await save({ positionMs: at });
+      await note('seek', fmtTime(at));
       break;
+    }
 
     case 'source': {
       if (!editor) return json(res, 403, { error: 'editor' });
@@ -1383,6 +1440,9 @@ export async function corsWouldBlock(src, origin) {
     clearTimeout(timer);
   }
 
+  // Кеш живе весь час роботи бота, а хостів за місяці набігає багато —
+  // тримаємо його в межах розумного, як і кеш карток профілю.
+  if (corsCache.size > 200) corsCache.clear();
   corsCache.set(host, { at: Date.now(), blocked });
   return blocked;
 }
@@ -1405,6 +1465,20 @@ function originOfUrl(u) {
 function fmtTime(ms) {
   const s = Math.max(0, Math.round(Number(ms) / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Позиція з тіла запиту. Раніше сюди пролазило будь-що: Number('абв') давав
+ * NaN, той ішов у базу як порожнеча й читався назад нулем — тобто зіпсований
+ * запит тихо перемотував сеанс на початок усім у залі, ще й лишав у журналі
+ * «NaN:NaN». Тепер таке видно одразу.
+ * @returns {number|null} null — значення непридатне
+ */
+function positionFrom(value, fallback = null) {
+  if (value === undefined || value === null) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(n, 24 * 3600_000));
 }
 
 async function renderCinema(res, guild, session, lang, path, host) {
@@ -1578,9 +1652,11 @@ function ogFor(guild, path, title, description, image) {
 }
 
 async function html(res, code, guild, session, lang, path, title, body,
-  gallery = false, page = null, og = null, lookOverride = null) {
-  const hasCustomCss = !!(await siteAssetsRepo.get(guild.id, '/custom.css').catch(() => null));
-  const pages = await sitePagesRepo.list(guild.id).catch(() => []);
+  gallery = false, page = null, og = null, lookOverride = null, query = '') {
+  // Обидва — з кешу каркаса; окремий запит по /custom.css був зайвим,
+  // бо перелік асетів у нас уже є.
+  const { assets, pages } = await shellData(guild.id);
+  const hasCustomCss = assets.has('/custom.css');
 
   const nav = [
     { href: '/top', label: t(lang, 'nav.top'), active: path === '/top' },
@@ -1608,7 +1684,7 @@ async function html(res, code, guild, session, lang, path, title, body,
     title: `${title} · ${guild.name}`,
     guildName: guild.name,
     og: og ?? ogFor(guild, path, title),
-    body, nav, session, hasCustomCss, lang, path, gallery, page, look,
+    body, nav, session, hasCustomCss, lang, path, query, gallery, page, look,
   });
   return send(res, code, 'text/html; charset=utf-8', out);
 }

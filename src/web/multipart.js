@@ -34,6 +34,16 @@ export function parseMultipart(req, { maxBytes = 8 * 1024 * 1024 } = {}) {
 
     req.on('error', (err) => !aborted && reject(err));
 
+    // Обірваний вивантаж (людина закрила вкладку посеред заливки) не дає
+    // події 'end', тож без цього обіцянка лишалася висіти назавжди, а вже
+    // прочитані шматки файлу — в пам'яті.
+    req.on('aborted', () => {
+      if (aborted) return;
+      aborted = true;
+      chunks.length = 0;
+      reject(new Error('ABORTED'));
+    });
+
     req.on('end', () => {
       if (aborted) return;
       try {
