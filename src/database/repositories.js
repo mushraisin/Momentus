@@ -891,6 +891,20 @@ export const itemsRepo = {
       ON CONFLICT(guild_id, user_id, item_id) DO NOTHING
     `, [guildId, userId, itemId, price, Date.now()]);
   },
+
+  /**
+   * Хто має цю річ і скільки за неї заплатив. Потрібно, коли роботу
+   * видаляють: покупцям треба щось повернути.
+   */
+  owners(guildId, itemId) {
+    return all('SELECT user_id, price FROM user_items WHERE guild_id = ? AND item_id = ?',
+      [guildId, itemId]);
+  },
+
+  /** Прибрати річ у всіх — разом із самою роботою. */
+  removeAll(guildId, itemId) {
+    return run('DELETE FROM user_items WHERE guild_id = ? AND item_id = ?', [guildId, itemId]);
+  },
 };
 
 /** Особисті картинки оформлення. Файли — у приватному каналі Discord. */
@@ -926,11 +940,35 @@ export const assetsRepo = {
   },
 
   /** Виставити або зняти з вітрини. */
-  setListing(guildId, userId, id, { listed, price, title }) {
+  setListing(guildId, userId, id, { listed, price, title, booster = null }) {
     return run(`
-      UPDATE user_assets SET listed = ?, price = ?, title = COALESCE(?, title)
+      UPDATE user_assets SET listed = ?, price = ?, title = COALESCE(?, title),
+        booster = COALESCE(?, booster)
       WHERE guild_id = ? AND user_id = ? AND id = ?
-    `, [listed ? 1 : 0, Math.max(0, Math.round(price ?? 0)), title ?? null, guildId, userId, id]);
+    `, [listed ? 1 : 0, Math.max(0, Math.round(price ?? 0)), title ?? null,
+      booster === null ? null : (booster ? 1 : 0), guildId, userId, id]);
+  },
+
+  /**
+   * Правка від адміністратора: без прив'язки до автора. Передані лише ті поля,
+   * які справді міняють, — решта лишається як була.
+   */
+  edit(guildId, id, { title = null, price = null, booster = null, listed = null }) {
+    return run(`
+      UPDATE user_assets SET
+        title   = COALESCE(?, title),
+        price   = COALESCE(?, price),
+        booster = COALESCE(?, booster),
+        listed  = COALESCE(?, listed)
+      WHERE guild_id = ? AND id = ?
+    `, [title, price === null ? null : Math.max(0, Math.round(price)),
+      booster === null ? null : (booster ? 1 : 0),
+      listed === null ? null : (listed ? 1 : 0), guildId, id]);
+  },
+
+  /** Видалення без прив'язки до автора — для адміністратора. */
+  removeById(guildId, id) {
+    return run('DELETE FROM user_assets WHERE guild_id = ? AND id = ?', [guildId, id]);
   },
 
   addSale(id) {

@@ -1271,6 +1271,86 @@ ok('профіль: опис усім, гардероб із передпере�
 }
 ok('персоналізація по вкладках, фільтр магазину, заливка з підтвердженням, свій hls.js');
 
+// 24. керування власним контентом: правка, буст, видалення з поверненням
+{
+  const { assetsRepo, walletRepo, itemsRepo, prefsRepo } = await import('../src/database/repositories.js');
+  const { cosmeticsService } = await import('../src/services/cosmeticsService.js');
+  const AUTHOR = '888000888000888000';
+  const BUYER = '999000999000999000';
+
+  const id = await assetsRepo.add(G, AUTHOR, {
+    kind: 'background', mime: 'image/png', sizeBytes: 1, objectKey: 'ch/del',
+  });
+  await assetsRepo.setListing(G, AUTHOR, id, { listed: true, price: 40, title: 'Ліс' });
+
+  // робота, закрита бустом, поводиться як каталожна річ
+  await cosmeticsService.editAsset(G, id, { booster: true });
+  assert.equal((await cosmeticsService.buy(G, BUYER, null, `asset:${id}`)).reason, 'booster',
+    'закриту бустом роботу без бусту не купиш');
+  await cosmeticsService.editAsset(G, id, { booster: false });
+
+  // правка опису й ціни
+  const edited = await cosmeticsService.editAsset(G, id, { title: 'Нічний ліс', price: 55 });
+  assert.equal(edited.asset.title, 'Нічний ліс', 'опис змінено');
+  assert.equal(Number(edited.asset.price), 55, 'ціну змінено');
+
+  // покупка й вдягання
+  await walletRepo.add(G, BUYER, 200);
+  await cosmeticsService.buy(G, BUYER, null, `asset:${id}`);
+  await cosmeticsService.setOwnImage(G, BUYER, { slot: 'background', asset: id });
+  await prefsRepo.save(G, BUYER, { layout: { showcase: [id] } });
+  const buyerAfterBuy = (await walletRepo.get(G, BUYER)).balance;
+  const authorAfterSale = (await walletRepo.get(G, AUTHOR)).balance;
+
+  // видалення: покупцю повертається половина, авторові — нічого
+  const del = await cosmeticsService.deleteAsset(G, id);
+  assert.equal(del.refunded, 1, 'повернуто одному покупцю');
+  assert.equal(del.total, 27, 'половина від 55 — 27');
+  assert.equal((await walletRepo.get(G, BUYER)).balance, buyerAfterBuy + 27, 'покупцю повернулось');
+  assert.equal((await walletRepo.get(G, AUTHOR)).balance, authorAfterSale, 'авторові не повертали');
+
+  // річ зникає звідусіль, а не лишається порожньою рамкою
+  assert.ok(!await assetsRepo.meta(id), 'робота зникла з бази');
+  assert.ok(!await itemsRepo.has(G, BUYER, `asset:${id}`), 'і з володінь покупця');
+  const prefs = await prefsRepo.get(G, BUYER);
+  assert.equal(prefs.background, null, 'знята з оформлення');
+  assert.equal((prefs.layout?.showcase ?? []).length, 0, 'і з вітрини');
+
+  // ── доступ: чужу роботу править лише адміністратор ──
+  const id2 = await assetsRepo.add(G, AUTHOR, {
+    kind: 'art', mime: 'image/png', sizeBytes: 1, objectKey: 'ch/a2',
+  });
+  await assetsRepo.setListing(G, AUTHOR, id2, { listed: true, price: 10, title: 'Робота' });
+  assert.equal((await jreq('/api/shop/asset', auth, { asset: id2, price: 5 })).status, 403,
+    'сторонній чужу роботу не править');
+  assert.equal((await jreq('/api/shop/assetDelete', auth, { asset: id2 })).status, 403,
+    'і не видаляє');
+  assert.equal((await jreq('/api/shop/asset', adm, { asset: id2, title: 'Від адміна' })).status, 200,
+    'адміністратор править');
+  assert.equal((await jreq('/api/shop/assetDelete', adm, { asset: id2 })).status, 200,
+    'і видаляє');
+
+  // ── інтерфейс ──
+  const shop = await req('/shop', adm);
+  assert.ok(shop.body.includes('sh-mydel'), 'кнопка видалення роботи');
+  assert.ok(shop.body.includes('sh-myboost'), 'перемикач бусту для роботи');
+  assert.ok(shop.body.includes('Роботи учасників'), 'адміністратор править чужі роботи у вікні цін');
+  assert.ok(shop.body.includes('window.toast='), 'спливаючі повідомлення підключено');
+  assert.ok(!shop.body.includes('id="sh-err"'), 'смуги помилок унизу сторінки більше немає');
+  assert.ok(shop.body.includes('🚀') && !shop.body.includes('💜'), 'позначка бустерів — ракета');
+  assert.ok(!/class="btn ghost sm sh-prev"/.test(shop.body), 'окремої кнопки «Подивитись» немає');
+  assert.ok(shop.body.includes('<button class="sh-prev"'), 'саме прев’ю і є кнопкою перегляду');
+  assert.match(shop.body, /\.sh-wallet\{position:sticky/, 'баланс FP видно під час гортання');
+
+  const shopBooster = await req('/shop', adm);
+  assert.ok(!/id="sh-upprice"[^>]*value=/.test(shopBooster.body), 'ціна не підставляється наперед');
+
+  const me = await req('/me', auth);
+  assert.ok(me.body.includes('id="pf-txt"'), 'тексти повідомлень профілю');
+  assert.ok(me.body.includes('window.toast='), 'спливаючі повідомлення в профілі');
+}
+ok('свій контент: правка, буст, видалення з поверненням; спливаючі повідомлення');
+
 // 18. адмін видаляє публікацію
 const gone = await req(`/api/item/${itemId}/delete`, { method: 'POST', ...adm });
 assert.equal(gone.status, 200);

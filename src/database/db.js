@@ -437,6 +437,8 @@ export async function initDatabase() {
   await addColumn('user_assets', 'price', 'INTEGER NOT NULL DEFAULT 0');
   await addColumn('user_assets', 'listed', 'INTEGER NOT NULL DEFAULT 0');
   await addColumn('user_assets', 'sales', 'INTEGER NOT NULL DEFAULT 0');
+  // Свою роботу теж можна закрити бустом — так само, як каталожну річ.
+  await addColumn('user_assets', 'booster', 'INTEGER NOT NULL DEFAULT 0');
 
   log.info(`База даних готова: ${isRemote ? 'Turso (remote)' : url}`);
 }

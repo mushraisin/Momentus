@@ -69,6 +69,27 @@ export function categoryOfKind(kind) {
 }
 
 /**
+ * Прибрати роботу з оформлення однієї людини: фон, банер і вітрина.
+ * Без цього після видалення в профілі лишалась би порожня рамка замість
+ * картинки, яку вже нічим не показати.
+ */
+async function stripAsset(guildId, userId, assetId) {
+  const ref = `asset:${assetId}`;
+  const p = await prefsRepo.get(guildId, userId);
+  const patch = {};
+
+  if (p.background === ref) patch.background = null;
+  if (p.banner === ref) patch.banner = null;
+
+  const show = Array.isArray(p.layout?.showcase) ? p.layout.showcase : [];
+  if (show.some((x) => Number(x) === Number(assetId))) {
+    patch.layout = { ...(p.layout ?? {}), showcase: show.filter((x) => Number(x) !== Number(assetId)) };
+  }
+
+  if (Object.keys(patch).length) await prefsRepo.save(guildId, userId, patch);
+}
+
+/**
  * Безкоштовний набір. Це єдине, що купується цілком: вісім спокійних
  * кольорів як стартовий вибір для кожного, без бусту й без FP.
  */
@@ -283,7 +304,7 @@ export const cosmeticsService = {
    * вітрина й існує.
    */
   async buy(guildId, userId, member, id) {
-    if (String(id).startsWith('asset:')) return this.buyFromMarket(guildId, userId, id);
+    if (String(id).startsWith('asset:')) return this.buyFromMarket(guildId, userId, id, member);
 
     const pack = BY_PACK.get(id);
     if (!pack) return { ok: false, reason: 'unknown' };
@@ -304,11 +325,15 @@ export const cosmeticsService = {
   },
 
   /** Покупка з вітрини учасників: FP переходять авторові роботи. */
-  async buyFromMarket(guildId, userId, ref) {
+  async buyFromMarket(guildId, userId, ref, member = null) {
     const assetId = Number(String(ref).slice(6));
     const a = await assetsRepo.meta(assetId);
     if (!a || a.guild_id !== guildId || !a.listed) return { ok: false, reason: 'unknown' };
     if (a.user_id === userId) return { ok: false, reason: 'owned' };
+    // робота, закрита бустом, поводиться так само, як каталожна
+    if (Number(a.booster ?? 0) && !this.isBooster(guildId, member)) {
+      return { ok: false, reason: 'booster' };
+    }
     if (await itemsRepo.has(guildId, userId, ref)) return { ok: false, reason: 'owned' };
 
     const price = Math.max(0, Number(a.price ?? 0));
@@ -325,7 +350,7 @@ export const cosmeticsService = {
   },
 
   /** Виставити свою картинку на вітрину (або зняти звідти). */
-  async listOnMarket(guildId, userId, member, { asset, price, title, listed = true }) {
+  async listOnMarket(guildId, userId, member, { asset, price, title, listed = true, booster = null }) {
     if (!this.canUpload(guildId, member)) return { ok: false, reason: 'booster' };
     const a = await assetsRepo.meta(Number(asset));
     if (!a || a.guild_id !== guildId || a.user_id !== userId) return { ok: false, reason: 'not yours' };
@@ -334,8 +359,67 @@ export const cosmeticsService = {
       listed,
       price: Math.max(1, Math.round(Number(price) || 1)),   // безкоштовно роздавати нічого
       title: title ? String(title).slice(0, 60) : null,
+      booster,
     });
     return { ok: true };
+  },
+
+  /**
+   * Правка чужої роботи адміністратором: опис, ціна, буст, наявність
+   * на вітрині. Каталожні речі правляться через конфіг гільдії, а робота
+   * учасника живе в самій таблиці — тож і шлях у неї свій.
+   */
+  async editAsset(guildId, assetId, { title = null, price = null, booster = null, listed = null }) {
+    const a = await assetsRepo.meta(Number(assetId));
+    if (!a || a.guild_id !== guildId) return { ok: false, reason: 'not found' };
+
+    await assetsRepo.edit(guildId, a.id, {
+      title: title === null ? null : String(title).slice(0, 60),
+      price: price === null ? null : Math.max(1, Math.round(Number(price) || 1)),
+      booster,
+      listed,
+    });
+    return { ok: true, asset: await assetsRepo.meta(a.id) };
+  },
+
+  /**
+   * Видалити роботу назавжди.
+   *
+   * Її могли вже купити, тож просто стерти рядок не можна: у людей лишилися б
+   * порожні рамки замість картинки й списані ні за що FP. Тому покупцям
+   * повертаємо половину сплаченого, прибираємо річ з їхніх гаманців і знімаємо
+   * її з оформлення. Авторові не повертаємо нічого — він продавав, а не купував.
+   *
+   * @returns {Promise<{ok:boolean, refunded:number, total:number, asset?:object}>}
+   */
+  async deleteAsset(guildId, assetId) {
+    const a = await assetsRepo.meta(Number(assetId));
+    if (!a || a.guild_id !== guildId) return { ok: false, refunded: 0, total: 0 };
+
+    const ref = `asset:${a.id}`;
+    const owners = await itemsRepo.owners(guildId, ref).catch(() => []);
+
+    let refunded = 0;
+    let total = 0;
+    for (const o of owners) {
+      if (o.user_id === a.user_id) continue;          // автор нічого не платив
+      const back = Math.max(1, Math.floor(Number(o.price ?? 0) / 2));
+      if (Number(o.price ?? 0) > 0) {
+        await walletRepo.add(guildId, o.user_id, back).catch(() => {});
+        total += back;
+        refunded++;
+      }
+    }
+
+    // прибираємо з оформлення в усіх, хто міг її носити, — разом з автором
+    const touched = new Set([a.user_id, ...owners.map((o) => o.user_id)]);
+    for (const uid of touched) await stripAsset(guildId, uid, a.id).catch(() => {});
+
+    await itemsRepo.removeAll(guildId, ref).catch(() => {});
+    await assetsRepo.removeById(guildId, a.id);
+
+    log.info(`Роботу #${a.id} видалено; повернуто ${total} FP ${refunded} покупцям`);
+    return { ok: true, refunded, total, asset: a };
   },
 
   /**
@@ -354,7 +438,8 @@ export const cosmeticsService = {
         kind: spec.kind,
         category: spec.category,
         price: Number(a.price ?? 0),
-        booster: false,
+        // автор може закрити свою роботу бустом так само, як каталожну річ
+        booster: !!Number(a.booster ?? 0),
         author: a.user_id,
         sales: Number(a.sales ?? 0),
         value: { type: 'image', url: `/asset/${a.id}` },

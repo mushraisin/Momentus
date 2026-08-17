@@ -724,7 +724,8 @@ async function renderShop(res, guild, session, lang, path) {
     // свої роботи — щоб можна було виставити їх на вітрину прямо тут
     mine: (await assetsRepo.list(guild.id, session.user_id, null, 24)).map((a) => ({
       id: a.id, kind: a.kind, url: `/asset/${a.id}`,
-      title: a.title ?? '', price: Number(a.price ?? 0), listed: !!a.listed, sales: Number(a.sales ?? 0),
+      title: a.title ?? '', price: Number(a.price ?? 0), listed: !!a.listed,
+      booster: !!Number(a.booster ?? 0), sales: Number(a.sales ?? 0),
     })),
     lang,
   });
@@ -768,16 +769,66 @@ async function shopApi(req, res, guild, session, action) {
     return json(res, 200, { ok: true, look });
   }
 
-  // виставити свою роботу на вітрину «Кастом» (або зняти звідти)
+  // виставити свою роботу на вітрину (або зняти звідти)
   if (action === 'list') {
     const r = await cosmeticsService.listOnMarket(guild.id, session.user_id, member, {
       asset: body.asset,
       price: body.price,
       title: body.title,
       listed: body.listed !== false,
+      booster: body.booster === undefined ? null : !!body.booster,
     });
     if (!r.ok) return json(res, r.reason === 'booster' ? 403 : 400, { error: r.reason });
     return json(res, 200, { ok: true });
+  }
+
+  // Правка роботи учасника: опис, ціна, буст, наявність на вітрині.
+  // Свою править автор, будь-чию — адміністратор.
+  if (action === 'asset') {
+    const asset = await assetsRepo.meta(Number(body.asset)).catch(() => null);
+    if (!asset || asset.guild_id !== guild.id) return json(res, 404, { error: 'not found' });
+    if (!isAdmin(guild, session) && asset.user_id !== session.user_id) {
+      return json(res, 403, { error: 'forbidden' });
+    }
+
+    const r = await cosmeticsService.editAsset(guild.id, asset.id, {
+      title: body.title === undefined ? null : String(body.title),
+      price: body.price === undefined ? null : body.price,
+      booster: body.booster === undefined ? null : !!body.booster,
+      listed: body.listed === undefined ? null : !!body.listed,
+    });
+    if (!r.ok) return json(res, 400, { error: r.reason });
+    return json(res, 200, {
+      ok: true,
+      asset: {
+        id: r.asset.id,
+        title: r.asset.title ?? '',
+        price: Number(r.asset.price ?? 0),
+        booster: !!Number(r.asset.booster ?? 0),
+        listed: !!Number(r.asset.listed ?? 0),
+      },
+    });
+  }
+
+  // Видалення роботи. Її могли купити, тож покупцям повертається половина
+  // сплаченого, а сама річ зникає з їхнього оформлення — інакше в профілі
+  // лишилась би порожня рамка.
+  if (action === 'assetDelete') {
+    const asset = await assetsRepo.meta(Number(body.asset)).catch(() => null);
+    if (!asset || asset.guild_id !== guild.id) return json(res, 404, { error: 'not found' });
+    if (!isAdmin(guild, session) && asset.user_id !== session.user_id) {
+      return json(res, 403, { error: 'forbidden' });
+    }
+
+    const r = await cosmeticsService.deleteAsset(guild.id, asset.id);
+    if (!r.ok) return json(res, 400, { error: 'not found' });
+
+    // сам файл прибираємо зі сховища вже після того, як прибрали посилання
+    if (asset.object_key) await discordStore.remove(guild, asset.object_key).catch(() => {});
+
+    log.info(`Магазин: ${session.username} видалив роботу #${asset.id}`);
+    const wallet = await cosmeticsService.wallet(guild.id, session.user_id);
+    return json(res, 200, { ok: true, refunded: r.refunded, total: r.total, balance: wallet.balance });
   }
 
   // ціни й позначки править лише адміністратор
@@ -947,6 +998,8 @@ async function assetUpload(req, res, guild, session) {
   }
   await assetsRepo.setListing(guild.id, session.user_id, id, {
     listed: true, price: paid.listPrice, title: title || null,
+    // автор одразу вирішує, чи закривати роботу бустом
+    booster: String(form.fields?.booster ?? '') === '1',
   });
 
   const wallet = await cosmeticsService.wallet(guild.id, session.user_id);
