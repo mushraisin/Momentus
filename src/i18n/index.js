@@ -34,6 +34,7 @@ const DICT = {
     'err.imageOnly': 'Потрібна саме картинка',
     'err.mediaOnly': 'Підійде картинка, GIF або відео',
     'err.notYours': 'Це не ваша картинка',
+    'err.level': 'Це відкривається з вищого рівня',
     'err.net': 'Не вдалося звʼязатися з сервером',
     'err.unknown': 'Не вдалося — спробуйте ще раз',
 
@@ -100,6 +101,7 @@ const DICT = {
     'profile.kind.frame': 'Рамки аватара',
     'profile.kind.card': 'Стиль вікон',
     'profile.kindEmpty': 'Нічого з цього ще немає',
+    'profile.needLevel': 'Відкривається з {n} рівня',
     'profile.take': 'Зняти',
     'profile.resetAll': 'Скинути все оформлення',
     'profile.resetAllHint': 'Поверне типовий вигляд. Куплене лишиться у вас.',
@@ -341,6 +343,7 @@ const DICT = {
     'err.imageOnly': 'That has to be an image',
     'err.mediaOnly': 'An image, GIF or video will do',
     'err.notYours': 'That image is not yours',
+    'err.level': 'This unlocks at a higher level',
     'err.net': 'Could not reach the server',
     'err.unknown': 'Something went wrong — try again',
 
@@ -406,6 +409,7 @@ const DICT = {
     'profile.kind.frame': 'Avatar frames',
     'profile.kind.card': 'Panel style',
     'profile.kindEmpty': 'Nothing of this kind yet',
+    'profile.needLevel': 'Unlocks at level {n}',
     'profile.take': 'Remove',
     'profile.resetAll': 'Reset everything',
     'profile.resetAllHint': 'Restores the default look. Anything you bought stays yours.',

@@ -76,6 +76,7 @@ export function categoryOfKind(kind) {
  * не дає сам по собі — за нього дають плюшки, перша з яких на десятому.
  */
 export const LEVEL_PERKS = [
+  { level: 5, key: 'banner', name: 'Банер у профілі' },
   { level: 10, key: 'upload', name: 'Свій контент у магазині без бусту' },
 ];
 
@@ -94,10 +95,15 @@ export function levelCost(level) {
   return Math.min(LEVEL_COST_CAP, 2 ** (from - 1));
 }
 
+/** З якого рівня відкривається плюшка. */
+export function perkLevel(key) {
+  return LEVEL_PERKS.find((p) => p.key === key)?.level ?? 0;
+}
+
 /** Чи відкрита плюшка на цьому рівні. */
 export function hasPerk(level, key) {
-  const need = LEVEL_PERKS.find((p) => p.key === key);
-  return !!need && Math.max(1, Number(level) || 1) >= need.level;
+  const need = perkLevel(key);
+  return !!need && Math.max(1, Number(level) || 1) >= need;
 }
 
 /**
@@ -628,6 +634,7 @@ export const cosmeticsService = {
   LEVEL_COST_CAP,
   levelCost,
   hasPerk,
+  perkLevel,
 
   /** Рівень і скільки коштує наступний. */
   async level(guildId, userId) {
@@ -705,6 +712,16 @@ export const cosmeticsService = {
     if (!asset) {
       await prefsRepo.save(guildId, userId, { [slot]: null });
       return { ok: true };
+    }
+
+    // Банер відкривається пʼятим рівнем. Зняти його можна завжди — вимога
+    // стосується саме встановлення, інакше людина могла б лишитись із
+    // банером, якого вже не має права міняти.
+    if (slot === 'banner') {
+      const { level } = await walletRepo.get(guildId, userId);
+      if (!hasPerk(level, 'banner')) {
+        return { ok: false, reason: 'level', need: perkLevel('banner') };
+      }
     }
 
     // своя картинка або куплена чужа — обидві дозволені

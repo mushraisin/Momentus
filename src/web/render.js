@@ -4338,6 +4338,7 @@ function errorDict(lang) {
     'image only': 'err.imageOnly',
     'media only': 'err.mediaOnly',
     'not yours': 'err.notYours',
+    level: 'err.level',
     net: 'err.net',
     unknown: 'err.unknown',
   };
@@ -4753,9 +4754,23 @@ export function profilePage(profile, {
   const allMine = [...(wardrobe?.assets ?? []), ...(wardrobe?.bought ?? [])];
   const picked = look.layout?.showcase ?? [];
 
+  // Банер відкривається пʼятим рівнем — про це має бути сказано просто
+  // в його ж групі, а не з'ясовуватись після невдалого кліку.
+  const perkOf = (key) => (wardrobe?.levelPerks ?? []).find((p) => p.key === key) ?? null;
+  const bannerPerk = perkOf('banner');
+  const bannerLocked = !!bannerPerk && !bannerPerk.unlocked;
+
   const imageGroup = (spec) => {
     const list = allMine.filter((a) => a.kind === spec.kind);
     const isArt = spec.slot === null;
+    const locked = spec.slot === 'banner' && bannerLocked;
+
+    if (locked) {
+      return `<div class="pf-group">
+        <div class="pf-gt"><span>${esc(spec.name)}</span></div>
+        <div class="hint">🔒 ${esc(t(lang, 'profile.needLevel', { n: bannerPerk.level }))}</div>
+      </div>`;
+    }
     if (!list.length) {
       return `<div class="pf-group">
         <div class="pf-gt"><span>${esc(spec.name)}</span></div>

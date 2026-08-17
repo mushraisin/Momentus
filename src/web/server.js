@@ -944,7 +944,10 @@ async function profileApi(req, res, guild, session) {
     const r = await cosmeticsService.setOwnImage(guild.id, session.user_id, {
       slot, asset: body[slot] || null,
     });
-    if (!r.ok) return json(res, r.reason === 'locked' ? 403 : 400, { error: r.reason });
+    if (!r.ok) {
+      const code = (r.reason === 'locked' || r.reason === 'level') ? 403 : 400;
+      return json(res, code, { error: r.reason, need: r.need });
+    }
   }
 
   if (Object.keys(patch).length) await prefsRepo.save(guild.id, session.user_id, patch);

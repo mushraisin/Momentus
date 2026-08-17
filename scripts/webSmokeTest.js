@@ -1447,6 +1447,39 @@ ok('персоналізація діє на весь сайт; каталог �
   assert.equal(up.balance, 999, 'списалось рівно 1 FP');
   assert.equal(up.next, 2, 'наступний уже дорожчий');
 
+  // ── плюшка пʼятого рівня: банер у профілі ──
+  const B = '444000444000444000';
+  const bAsset = await assetsRepo.add(G, B, {
+    kind: 'banner', mime: 'image/png', sizeBytes: 1, objectKey: 'ch/b',
+  });
+  assert.equal((await cosmeticsService.level(G, B)).level, 1, 'починаємо з першого');
+
+  const denied = await cosmeticsService.setOwnImage(G, B, { slot: 'banner', asset: bAsset });
+  assert.equal(denied.ok, false, 'до пʼятого рівня банер не поставиш');
+  assert.equal(denied.reason, 'level', 'і сказано чому');
+  assert.equal(denied.need, 5, 'названо потрібний рівень');
+
+  // фон при цьому лишається доступним будь-кому
+  const bgAsset = await assetsRepo.add(G, B, {
+    kind: 'background', mime: 'image/png', sizeBytes: 1, objectKey: 'ch/bg',
+  });
+  assert.equal((await cosmeticsService.setOwnImage(G, B, { slot: 'background', asset: bgAsset })).ok,
+    true, 'фон рівня не потребує');
+
+  // доростаємо до пʼятого — і банер відкривається
+  await walletRepo.add(G, B, 100);
+  for (let i = 1; i < 5; i++) await cosmeticsService.buyLevel(G, B);
+  assert.equal((await cosmeticsService.level(G, B)).level, 5, 'дійшли до пʼятого');
+  assert.equal((await cosmeticsService.setOwnImage(G, B, { slot: 'banner', asset: bAsset })).ok,
+    true, 'тепер банер ставиться');
+
+  // зняти банер можна завжди — інакше можна було б застрягти з чужим вибором
+  assert.equal((await cosmeticsService.setOwnImage(G, B, { slot: 'banner', asset: null })).ok,
+    true, 'зняти банер рівня не потребує');
+
+  assert.equal(hasPerk(4, 'banner'), false, 'на четвертому ще ні');
+  assert.equal(hasPerk(5, 'banner'), true, 'на пʼятому — так');
+
   // ── плюшка десятого рівня: заливка без бусту ──
   assert.equal(hasPerk(9, 'upload'), false, 'на девʼятому ще ні');
   assert.equal(hasPerk(10, 'upload'), true, 'на десятому — так');
