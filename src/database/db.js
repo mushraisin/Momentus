@@ -195,9 +195,6 @@ CREATE TABLE IF NOT EXISTS vote_inbox (
   seen     INTEGER NOT NULL DEFAULT 0
 );
 
--- Особисті картинки для оформлення (фони, банери). Самі файли лежать
--- у приватному каналі-сховищі Discord, тут — лише посилання на них.
-
 CREATE TABLE IF NOT EXISTS duels (
   guild_id TEXT NOT NULL,
   user_id  TEXT NOT NULL,
@@ -217,6 +214,8 @@ CREATE TABLE IF NOT EXISTS user_games (
   PRIMARY KEY (guild_id, user_id, game)
 );
 
+-- Особисті картинки для оформлення (фони, банери). Самі файли лежать
+-- у приватному каналі-сховищі Discord, тут — лише посилання на них.
 CREATE TABLE IF NOT EXISTS user_assets (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id    TEXT NOT NULL,
@@ -474,6 +473,8 @@ export async function initDatabase() {
   await addColumn('users', 'votes_got', 'INTEGER NOT NULL DEFAULT 0');
   // Третій у виборі: спершу показувались двоє, потім стало троє.
   await addColumn('duels', 'c', 'TEXT');
+  // Ролі, зняті разом із покаранням: повернемо їх, коли строк вийде.
+  await addColumn('punishments', 'stripped', 'TEXT');
   // Скринька спільна для двох подій: голос від людини й нагорода за місце.
   await addColumn('vote_inbox', 'kind', "TEXT NOT NULL DEFAULT 'vote'");
   await addColumn('vote_inbox', 'amount', 'INTEGER NOT NULL DEFAULT 1');

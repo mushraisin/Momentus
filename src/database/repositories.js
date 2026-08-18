@@ -738,15 +738,29 @@ export const cinemaLogRepo = {
 //  ЧИННІ ПОКАРАННЯ
 // ─────────────────────────────────────────────
 export const punishRepo = {
-  /** Поставити або продовжити покарання. */
-  set({ guildId, userId, kind, until, reason, moderatorId }) {
+  /**
+   * Поставити або продовжити покарання.
+   * `stripped` — ролі, зняті разом із ним; повернемо їх при знятті.
+   */
+  set({ guildId, userId, kind, until, reason, moderatorId, stripped = null }) {
     return run(`
-      INSERT INTO punishments (guild_id, user_id, kind, until, reason, moderator_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO punishments (guild_id, user_id, kind, until, reason, moderator_id, created_at, stripped)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(guild_id, user_id, kind) DO UPDATE SET
         until = excluded.until, reason = excluded.reason,
-        moderator_id = excluded.moderator_id, created_at = excluded.created_at
-    `, [guildId, userId, kind, until ?? null, reason ?? null, moderatorId, Date.now()]);
+        moderator_id = excluded.moderator_id, created_at = excluded.created_at,
+        stripped = COALESCE(excluded.stripped, punishments.stripped)
+    `, [guildId, userId, kind, until ?? null, reason ?? null, moderatorId, Date.now(),
+      stripped && stripped.length ? JSON.stringify(stripped) : null]);
+  },
+
+  /** Ролі, зняті разом із покаранням (щоб повернути їх при знятті). */
+  async strippedOf(guildId, userId, kind) {
+    const row = await get(
+      'SELECT stripped FROM punishments WHERE guild_id = ? AND user_id = ? AND kind = ?',
+      [guildId, userId, kind],
+    );
+    return safeJson(row?.stripped) ?? [];
   },
 
   remove(guildId, userId, kind) {

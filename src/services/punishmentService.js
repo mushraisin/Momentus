@@ -117,8 +117,20 @@ export const punishmentService = {
    * Видати покарання.
    * @param {object} opts kind: text|voice|full, minutes: 0 — назавжди
    */
-  async apply(guild, member, { kind, minutes, reason, moderatorId }) {
+  async apply(guild, member, { kind, minutes, reason, moderatorId, strip = false }) {
     const until = minutes ? Date.now() + minutes * 60_000 : null;
+
+    // Мут за 3/3 забирає ще й владні ролі: інакше покараний модератор
+    // просто зняв би мут сам собі. Повернемо їх, коли строк вийде.
+    let stripped = null;
+    if (strip) {
+      const roles = powerRoles(guild, member);
+      if (roles.length) {
+        const ok = await member.roles.remove(roles, reason ?? 'Мут').then(() => true).catch(() => false);
+        if (ok) stripped = roles.map((r) => r.id);
+        else log.warn(`Не вдалося зняти владні ролі з ${member.id}`);
+      }
+    }
 
     if (kind === 'full') {
       // рідний timeout: сам знімається, сам виганяє з голосового
@@ -135,7 +147,7 @@ export const punishmentService = {
     }
 
     await punishRepo.set({
-      guildId: guild.id, userId: member.id, kind, until, reason, moderatorId,
+      guildId: guild.id, userId: member.id, kind, until, reason, moderatorId, stripped,
     });
     // Будь-яке покарання анулює попередження — зокрема й мут за 3/3,
     // інакше людина вийшла б із мута й одразу отримала наступний.
@@ -238,6 +250,13 @@ export const punishmentService = {
           }
         }
       }
+      // ролі повертаємо ДО видалення рядка — саме там вони записані
+      const back = await punishRepo.strippedOf(guild.id, userId, k).catch(() => []);
+      if (member && back.length) {
+        await member.roles.add(back, 'Строк покарання вийшов').catch(() => {
+          log.warn(`Не вдалося повернути ролі ${userId}: ${back.join(', ')}`);
+        });
+      }
       await punishRepo.remove(guild.id, userId, k);
     }
 
@@ -295,6 +314,7 @@ export const punishmentService = {
       minutes,
       reason: `${WARN_LIMIT}/${WARN_LIMIT} попереджень`,
       moderatorId: 'system',
+      strip: true,
     });
     return { count: active.length, auto: { minutes } };
   },
@@ -382,6 +402,39 @@ export const KIND_LABEL = {
 };
 
 /** Скільки чинних попереджень призводять до автоматичного мута. */
+/**
+ * Права, які роблять роль «владною»: і рідні дозволи Discord, і доступ
+ * до панелі бота. Саме їх забирають на час мута за 3/3 попереджень.
+ */
+const POWER_PERMS = [
+  'Administrator', 'ManageGuild', 'ModerateMembers', 'KickMembers',
+  'BanMembers', 'ManageMessages', 'ManageRoles', 'ManageChannels',
+];
+
+/**
+ * Ролі учасника, що дають право модерувати — сервер або бота.
+ *
+ * Свідомо пропускаємо:
+ *   • ролі інтеграцій (managed) — Discord їх зняти не дасть;
+ *   • ролі, вищі за роль самого бота — теж не дасть;
+ *   • @everyone.
+ */
+function powerRoles(guild, member) {
+  const cfg = configService.all(guild.id);
+  const botRoles = new Set([
+    ...(cfg['access.adminRoleIds'] ?? []),
+    ...(cfg['access.moderatorRoleIds'] ?? []),
+  ]);
+  const mine = guild.members?.me?.roles?.highest?.position ?? Infinity;
+
+  return [...(member.roles?.cache?.values?.() ?? [])].filter((r) => {
+    if (!r || r.id === guild.id || r.managed) return false;
+    if ((r.position ?? 0) >= mine) return false;
+    if (botRoles.has(r.id)) return true;
+    return POWER_PERMS.some((p) => r.permissions?.has?.(p));
+  });
+}
+
 export const WARN_LIMIT = 3;
 
 /**

@@ -46,8 +46,8 @@ const member = {
   user: { id: USER, username: 'Порушник', send: async (p) => done.sent.push({ dm: p }) },
   roles: {
     cache: new Map(),
-    add: async (role) => { done.rolesAdded.push(role.id ?? role); },
-    remove: async (roleId) => { done.rolesRemoved.push(roleId); },
+    add: async (r) => { for (const x of [r].flat()) done.rolesAdded.push(x.id ?? x); },
+    remove: async (r) => { for (const x of [r].flat()) done.rolesRemoved.push(x.id ?? x); },
   },
   voice: { channelId: 'voice-1', setMute: async (on) => done.voiceMutes.push(on) },
   timeout: async (ms) => { done.timeouts.push(ms); },
@@ -57,7 +57,11 @@ const guild = {
   id: G,
   name: 'Тест',
   channels: { cache: channels, fetch: async (id) => channels.get(id) ?? null },
-  members: { cache: new Map([[USER, member]]), fetch: async () => member },
+  members: {
+    cache: new Map([[USER, member]]),
+    fetch: async () => member,
+    me: { roles: { highest: { position: 90 } } },
+  },
   roles: {
     // у discord.js це Collection — у неї є find(), тож мок теж має його мати
     cache: Object.assign(new Map(), {
@@ -231,6 +235,50 @@ ok('свій термін: «90хв», «3год», «2д», «1.5год» — �
   assert.equal((await warnRepo.active(G, USER)).length, 0, 'мут обнулив попередження');
   ok('будь-яке покарання анулює попередження');
 
+  await warnRepo.clear(G, USER);
+}
+
+// 11. мут за 3/3 забирає владні ролі й повертає їх при знятті
+{
+  const { warnRepo } = await import('../src/database/repositories.js');
+  const perm = (...list) => ({ has: (p) => list.includes(p) });
+  const roles = {
+    mod: { id: 'r-mod', name: 'Модератор', position: 50, managed: false, permissions: perm('ModerateMembers') },
+    panel: { id: 'r-panel', name: 'Панель бота', position: 40, managed: false, permissions: perm() },
+    plain: { id: 'r-plain', name: 'Учасник', position: 10, managed: false, permissions: perm() },
+    boost: { id: 'r-boost', name: 'Бустер', position: 60, managed: true, permissions: perm('Administrator') },
+    above: { id: 'r-above', name: 'Вище бота', position: 95, managed: false, permissions: perm('Administrator') },
+  };
+  for (const r of Object.values(roles)) member.roles.cache.set(r.id, r);
+  await configService.set(G, 'access.moderatorRoleIds', [roles.panel.id]);
+
+  await warnRepo.clear(G, USER);
+  await punishRepo.removeAll(G, USER);
+  done.rolesRemoved.length = 0;
+  done.rolesAdded.length = 0;
+  for (const r of ['раз', 'два', 'три']) {
+    await punishmentService.warn(guild, member, { reason: r, moderatorId: MOD });
+  }
+
+  assert.deepEqual(done.rolesRemoved.sort(), ['r-mod', 'r-panel'], 'знято владні ролі — і Discord, і бота');
+  ok('автомут 3/3 забирає ролі з правами модерації та доступом до панелі');
+  assert.ok(!done.rolesRemoved.includes('r-plain'), 'звичайну роль не чіпаємо');
+  assert.ok(!done.rolesRemoved.includes('r-boost'), 'роль інтеграції не чіпаємо');
+  assert.ok(!done.rolesRemoved.includes('r-above'), 'роль вище за бота не чіпаємо');
+  ok('звичайні ролі, ролі інтеграцій та вищі за бота лишаються на місці');
+
+  const saved = await punishRepo.strippedOf(G, USER, 'full');
+  assert.deepEqual(saved.slice().sort(), ['r-mod', 'r-panel'], 'список збережено в покаранні');
+  ok('зняті ролі записані в рядок покарання');
+
+  done.rolesAdded.length = 0;
+  await punishmentService.lift(guild, USER, 'full', 'system');
+  assert.deepEqual(done.rolesAdded.slice().sort(), ['r-mod', 'r-panel'], 'ролі повернуто після мута');
+  assert.deepEqual(await punishRepo.strippedOf(G, USER, 'full'), [], 'запис прибрано разом із покаранням');
+  ok('після зняття мута ролі повертаються власнику');
+
+  for (const r of Object.values(roles)) member.roles.cache.delete(r.id);
+  await configService.set(G, 'access.moderatorRoleIds', []);
   await warnRepo.clear(G, USER);
 }
 
