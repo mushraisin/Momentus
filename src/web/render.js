@@ -302,8 +302,29 @@ nav:has(.langs[open]){overflow:visible}
 /* ── Головна ── */
 .hero{position:relative;min-height:80vh;display:flex;flex-direction:column;align-items:flex-start;
   justify-content:center;text-align:left;gap:22px;padding-left:clamp(4px,5vw,88px);padding-top:6vh;max-width:780px}
-.logo{margin:0;display:flex;flex-wrap:wrap;line-height:1;
+/* ── Назва як сузір’я ──
+   Над кожною літерою висить своя зірка, між ними тягнеться тонка лінія.
+   Літери лишаються текстом; зорі — псевдоелементи, лінії малює canvas. */
+.logo{position:relative;margin:0;display:flex;flex-wrap:wrap;line-height:1;
+  padding-top:.62em;
   font-size:clamp(38px,8.4vw,96px);font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.lsky{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.logo span{position:relative;z-index:1}
+/* сама зірка: чотири промені, як на аватарці бота */
+.lstar{position:absolute;left:50%;top:calc(-0.10em - var(--rise) * 0.42em);
+  width:.16em;height:.16em;margin-left:-.08em;pointer-events:none;
+  background:radial-gradient(circle,#fff 0%,var(--accent) 55%,transparent 72%);
+  filter:drop-shadow(0 0 .12em var(--accent));
+  animation:starPop .8s cubic-bezier(.22,.9,.3,1) both,starTwinkle 3.4s ease-in-out infinite}
+.lstar::before,.lstar::after{content:"";position:absolute;left:50%;top:50%;
+  background:linear-gradient(var(--accent),transparent);transform-origin:center}
+.lstar::before{width:.03em;height:.5em;margin:-.25em 0 0 -.015em;
+  background:linear-gradient(180deg,transparent,#fff 50%,transparent)}
+.lstar::after{width:.5em;height:.03em;margin:-.015em 0 0 -.25em;
+  background:linear-gradient(90deg,transparent,#fff 50%,transparent)}
+@keyframes starPop{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:none}}
+@keyframes starTwinkle{0%,100%{opacity:.85}45%{opacity:.45}}
+@media(prefers-reduced-motion:reduce){.lstar{animation:starPop .01ms both}}
 .logo span{color:transparent;-webkit-text-stroke:1.6px rgba(255,255,255,.9);
   text-shadow:0 0 34px rgba(var(--accent-rgb),.45);animation:letterIn .75s cubic-bezier(.2,.85,.3,1) both;
   transition:color .35s ease,text-shadow .35s ease}
@@ -1187,11 +1208,13 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tp-3{box-shadow:0 0 0 1px rgba(205,127,80,.38),0 16px 40px rgba(205,127,80,.14)}
 /* Щоденна нагорода за місце — поруч із медаллю, щоб було видно, за що
    змагаються. Без цього нарахування було невидимим. */
-.tp-reward{position:absolute;right:12px;top:44px;z-index:3;padding:3px 10px;border-radius:999px;
-  font-size:12px;font-weight:700;color:#ffdf8a;background:rgba(224,180,92,.16);
-  border:1px solid rgba(224,180,92,.42);backdrop-filter:blur(6px);white-space:nowrap}
-.tp:not(.tp-top) .tp-reward{top:12px;right:12px;font-size:11px;padding:2px 9px}
-.tp-top .tp-reward{top:52px}
+/* Плашка стоїть просто біля ніка, а не поверх банера: там її було легко
+   не помітити, і вона затуляла картинку. */
+.tp-nrow{display:flex;align-items:center;gap:9px;min-width:0}
+.tp-nrow b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp-reward{flex:none;padding:2px 9px;border-radius:999px;
+  font-size:11px;font-weight:700;color:#ffdf8a;background:rgba(224,180,92,.16);
+  border:1px solid rgba(224,180,92,.42);white-space:nowrap}
 
 /* ── Статистика на картці ──
    Повідомлення, голос і скільки людина на сервері — заради цих чисел
@@ -4294,6 +4317,109 @@ export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 
 // ─────────────────────────────────────────────
 //  Каркас
 // ─────────────────────────────────────────────
+/**
+ * Лінії сузір’я між зорями назви.
+ *
+ * Малюємо canvas’ом, а не SVG: положення зірок відоме лише після того, як
+ * браузер розставить літери (їхня ширина залежить від шрифту й розміру
+ * екрана), тож координати доводиться міряти на місці й перемірювати після
+ * зміни розмірів вікна.
+ */
+const LOGO_JS = `
+(function(){
+  var box=document.getElementById('logo'),cv=document.getElementById('lsky');
+  if(!box||!cv)return;
+  var ctx=cv.getContext('2d');
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t0=performance.now();
+
+  function points(){
+    var b=box.getBoundingClientRect(),out=[];
+    box.querySelectorAll('.lstar').forEach(function(s){
+      var r=s.getBoundingClientRect();
+      out.push({x:r.left-b.left+r.width/2,y:r.top-b.top+r.height/2});
+    });
+    return out;
+  }
+
+  var pts=[],dpr=Math.min(devicePixelRatio||1,2);
+  function measure(){
+    var b=box.getBoundingClientRect();
+    cv.width=Math.max(1,Math.round(b.width*dpr));
+    cv.height=Math.max(1,Math.round(b.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    pts=points();
+  }
+
+  function accent(){
+    return (getComputedStyle(document.documentElement)
+      .getPropertyValue('--accent-rgb')||'107,124,255').trim();
+  }
+
+  var drew=false;
+
+  /** Намалювати сузір’я на задану частку — 0 порожньо, 1 повністю. */
+  function render(age){
+    var b=box.getBoundingClientRect();
+    ctx.clearRect(0,0,b.width,b.height);
+    if(pts.length<2)return;
+    drew=true;
+    var k=accent();
+    var upto=Math.max(0,Math.floor(age*(pts.length-1)));
+    var frac=(age*(pts.length-1))-upto;
+
+    ctx.lineWidth=1;
+    ctx.lineCap='round';
+    for(var i=0;i<upto;i++)line(pts[i],pts[i+1],1,k);
+    if(upto<pts.length-1&&frac>0){
+      var a=pts[upto],c=pts[upto+1];
+      line(a,{x:a.x+(c.x-a.x)*frac,y:a.y+(c.y-a.y)*frac},1,k);
+    }
+  }
+
+  function draw(now){
+    /* Наступний кадр плануємо ПЕРШИМ ділом: якщо перший кадр застав ще
+       нерозставлені літери, цикл не має вмирати назавжди. */
+    requestAnimationFrame(draw);
+    render(Math.min(1,(now-t0)/1400));
+  }
+
+  function line(a,b,alpha,k){
+    var g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);
+    g.addColorStop(0,'rgba('+k+','+(0.10*alpha)+')');
+    g.addColorStop(.5,'rgba(255,255,255,'+(0.34*alpha)+')');
+    g.addColorStop(1,'rgba('+k+','+(0.10*alpha)+')');
+    ctx.strokeStyle=g;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }
+
+  measure();
+  if(reduce){
+    render(1);
+  }else{
+    requestAnimationFrame(draw);
+    /* Кадри йдуть не завжди: у фоновій вкладці або коли вікно не малюється,
+       requestAnimationFrame просто не викликають. Щоб сузір’я не лишилось
+       порожнім, за мить домальовуємо його цілком. */
+    setTimeout(function(){if(!drew)render(1)},400);
+  }
+
+  /* Перший вимір майже завжди застає ще нерозставлені літери: шрифт
+     вантажиться асинхронно, і після нього назва змінює розмір. Тому
+     стежимо за самим блоком, а не покладаємось на одну подію. */
+  if(window.ResizeObserver){
+    var rt;
+    new ResizeObserver(function(){
+      clearTimeout(rt);
+      rt=setTimeout(function(){measure();render(1)},60);
+    }).observe(box);
+  }else{
+    addEventListener('resize',function(){measure();render(1)});
+  }
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){measure();render(1)});
+})();
+`;
+
 /** Спадний вибір мови. На <details> — працює навіть без JS. */
 function langSwitch(lang, path, query = '') {
   const cur = LANGS[lang] ?? LANGS.uk;
@@ -4311,9 +4437,21 @@ function langSwitch(lang, path, query = '') {
   </details>`;
 }
 
+/**
+ * Назва як сузір’я: над кожною літерою — своя зірка, між ними тягнеться
+ * лінія. Літери лишаються справжнім текстом (його читають пошук і читалки),
+ * а зорі й лінії домальовуються поверх.
+ *
+ * Висоти зірок задані тут, а не випадкові: випадкові щоразу давали то
+ * рівний ланцюжок, то купу — а сузір’я має бути впізнаваним.
+ */
+const STAR_RISE = [0.30, 0.62, 0.16, 0.74, 0.38, 0.08, 0.55, 0.26];
+
 function letters(word) {
   return [...word]
-    .map((ch, i) => `<span style="animation-delay:${(i * 0.055).toFixed(3)}s">${esc(ch)}</span>`)
+    .map((ch, i) => `<span style="animation-delay:${(i * 0.055).toFixed(3)}s"><i class="lstar"
+      style="--rise:${STAR_RISE[i % STAR_RISE.length]};animation-delay:${(0.5 + i * 0.09).toFixed(2)}s"
+      ></i>${esc(ch)}</span>`)
     .join('');
 }
 
@@ -4657,12 +4795,17 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
   return shell({
     title: 'Моментус',
     lang,
+    // сузір’я малюється лише тут — на інших сторінках назви немає
+    extraJs: LOGO_JS,
     description: og?.description ?? '',
     meta: og ? metaTags(og) : '',
     content: `<div class="wrap">
       <header><span></span><nav>${chip}${modChip}${langSwitch(lang, '/')}</nav></header>
       <section class="hero">
-        <h1 class="logo" aria-label="Моментус">${letters('МОМЕНТУС')}</h1>
+        <h1 class="logo" id="logo" aria-label="Моментус">
+          <canvas class="lsky" id="lsky" aria-hidden="true"></canvas>
+          ${letters('МОМЕНТУС')}
+        </h1>
         <div class="hline"></div>
         <div class="tag">${esc(t(lang, 'landing.tag'))}</div>
         ${session ? `<div class="signed">● ${esc(t(lang, 'landing.hi'))}</div>` : ''}
@@ -4735,14 +4878,16 @@ export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
       <span class="tp-head">
         <span class="tp-bg"${bg}></span>
         <span class="tp-place">${top ? medals[i] : `#${place}`}</span>
-        ${r.reward ? `<span class="tp-reward" title="${esc(t(lang, 'top.daily'))}">
-          +${r.reward} ✨</span>` : ''}
       </span>
       <span class="tp-body">
         <img class="tp-face" src="${esc(avatarUrl(r.user_id, r.avatar, top ? 128 : 64))}"
           alt="" loading="lazy">
         <span class="tp-id">
-          <b>${esc(r.username ?? r.user_id)}</b>
+          <span class="tp-nrow">
+            <b>${esc(r.username ?? r.user_id)}</b>
+            ${r.reward ? `<span class="tp-reward" title="${esc(t(lang, 'top.daily'))}">
+              +${r.reward} ✨</span>` : ''}
+          </span>
           <span class="tp-meta">
             ${r.roleName
     ? `<span class="tp-role" style="--r:${esc(r.roleColor || accent)}">
