@@ -840,7 +840,7 @@ async function shopApi(req, res, guild, session, action) {
     return json(res, 200, { ok: true, look });
   }
 
-  // Купівля наступного рівня. Ціна подвоюється щоразу, тож її рахує сервіс —
+  // Купівля наступного рівня. Ціну рахує сервіс, а не сторінка —
   // сторінка лише показує те, що він назвав.
   if (action === 'level') {
     const r = await cosmeticsService.buyLevel(guild.id, session.user_id);

@@ -4,7 +4,7 @@
  */
 import 'dotenv/config';
 import assert from 'node:assert';
-import { initDatabase } from '../src/database/db.js';
+import { initDatabase, run } from '../src/database/db.js';
 
 process.env.WEB_PORT = process.env.WEB_PORT || '8199';
 process.env.WEB_PUBLIC_URL = '';
@@ -1437,18 +1437,23 @@ ok('персоналізація діє на весь сайт; каталог �
   const { walletRepo, assetsRepo, prefsRepo } = await import('../src/database/repositories.js');
   const { cosmeticsService, levelCost, hasPerk } = await import('../src/services/cosmeticsService.js');
 
-  // Ціна подвоюється, але впирається у стелю: без неї до десятого рівня
-  // набігало 511 ✨FP — це була стіна, а не поступ.
+  // Ціна росте рівно на 1 за рівень і завмирає на пʼятнадцятому: подвоєння
+  // було стіною, а стеля з пʼятого рівня стирала будь-який поступ.
   assert.equal(levelCost(1), 1, '1→2 коштує 1');
   assert.equal(levelCost(2), 2, '2→3 коштує 2');
-  assert.equal(levelCost(3), 4, '3→4 коштує 4');
-  assert.equal(levelCost(4), 8, '4→5 коштує 8');
-  assert.equal(levelCost(5), 15, '5→6 упирається у стелю');
-  assert.equal(levelCost(20), 15, 'і далі не дорожчає');
+  assert.equal(levelCost(3), 3, '3→4 коштує 3');
+  assert.equal(levelCost(5), 5, '5→6 ще росте');
+  assert.equal(levelCost(14), 14, '14→15 коштує 14');
+  assert.equal(levelCost(15), 15, 'на пʼятнадцятому — стеля');
+  assert.equal(levelCost(20), 15, 'і далі завжди 15');
+  assert.equal(levelCost(200), 15, 'скільки б не було рівнів');
 
   let toTen = 0;
   for (let l = 1; l < 10; l++) toTen += levelCost(l);
-  assert.equal(toTen, 90, `до десятого рівня — 90 ✨FP (було ${511})`);
+  assert.equal(toTen, 45, 'до десятого рівня — 45 ✨FP');
+  let toFifteen = 0;
+  for (let l = 1; l < 15; l++) toFifteen += levelCost(l);
+  assert.equal(toFifteen, 105, 'до пʼятнадцятого — 105 ✨FP');
 
   const L = '555000555000555000';
   assert.equal((await cosmeticsService.level(G, L)).level, 1, 'у всіх стартує перший рівень');
@@ -1461,6 +1466,12 @@ ok('персоналізація діє на весь сайт; каталог �
   assert.equal(up.level, 2, 'рівень піднявся');
   assert.equal(up.balance, 999, 'списалось рівно 1 FP');
   assert.equal(up.next, 2, 'наступний уже дорожчий');
+
+  // після стелі ціна не рухається взагалі
+  await run('UPDATE wallets SET level = 15 WHERE guild_id = ? AND user_id = ?', [G, L]);
+  const capped = await cosmeticsService.buyLevel(G, L);
+  assert.equal(capped.level, 16, 'шістнадцятий береться');
+  assert.equal(capped.next, 15, 'і наступний коштує ті самі 15');
 
   // ── плюшка пʼятого рівня: банер у профілі ──
   const B = '444000444000444000';
