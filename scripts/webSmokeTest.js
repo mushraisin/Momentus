@@ -1000,6 +1000,19 @@ ok('профіль: загальне число й графік динаміки
   assert.equal(JSON.parse((await jreq('/api/shop/buy', auth, { item: 'motion.tide' })).body).error,
     'booster', 'бустерська річ закрита');
 
+  // фон закритий четвертим рівнем — навіть куплений
+  const lockedBg = await jreq('/api/shop/equip', auth, { item: 'solid.dusk' });
+  assert.equal(lockedBg.status, 403, 'до четвертого рівня фон не вдягнеш');
+  assert.equal(JSON.parse(lockedBg.body).need, 4, 'названо потрібний рівень');
+
+  // доростаємо — і та сама річ вдягається
+  {
+    const { walletRepo } = await import('../src/database/repositories.js');
+    const { cosmeticsService } = await import('../src/services/cosmeticsService.js');
+    await walletRepo.add(G, U, 50);
+    for (let i = 1; i < 4; i++) await cosmeticsService.buyLevel(G, U);
+  }
+
   // вдягається річ із купленого набору; чуже — ні
   assert.equal((await jreq('/api/shop/equip', auth, { item: 'solid.dusk' })).status, 200, 'своє вдягається');
   assert.equal((await jreq('/api/shop/equip', auth, { item: 'grad.ember' })).status, 400, 'чуже — ні');
@@ -1461,12 +1474,13 @@ ok('персоналізація діє на весь сайт; каталог �
   assert.equal(denied.reason, 'level', 'і сказано чому');
   assert.equal(denied.need, 5, 'названо потрібний рівень');
 
-  // фон при цьому лишається доступним будь-кому
+  // фон відкривається раніше за банер — четвертим рівнем
   const bgAsset = await assetsRepo.add(G, B, {
     kind: 'background', mime: 'image/png', sizeBytes: 1, objectKey: 'ch/bg',
   });
-  assert.equal((await cosmeticsService.setOwnImage(G, B, { slot: 'background', asset: bgAsset })).ok,
-    true, 'фон рівня не потребує');
+  const bgDenied = await cosmeticsService.setOwnImage(G, B, { slot: 'background', asset: bgAsset });
+  assert.equal(bgDenied.ok, false, 'до четвертого рівня фон не поставиш');
+  assert.equal(bgDenied.need, 4, 'названо потрібний рівень');
 
   // доростаємо до пʼятого — і банер відкривається
   await walletRepo.add(G, B, 100);
@@ -1481,6 +1495,16 @@ ok('персоналізація діє на весь сайт; каталог �
 
   assert.equal(hasPerk(4, 'banner'), false, 'на четвертому ще ні');
   assert.equal(hasPerk(5, 'banner'), true, 'на пʼятому — так');
+
+  // дійшовши до пʼятого, ми проминули четвертий — фон уже свій
+  assert.equal((await cosmeticsService.setOwnImage(G, B, { slot: 'background', asset: bgAsset })).ok,
+    true, 'з четвертого рівня фон ставиться');
+
+  // ── плюшка другого рівня: ілюстрації у вітрині ──
+  assert.equal(hasPerk(1, 'art'), false, 'на першому вітрини ще немає');
+  assert.equal(hasPerk(2, 'art'), true, 'на другому — є');
+  assert.equal(hasPerk(3, 'background'), false, 'фон на третьому ще закритий');
+  assert.equal(hasPerk(4, 'background'), true, 'на четвертому — відкритий');
 
   // ── плюшка десятого рівня: заливка без бусту ──
   assert.equal(hasPerk(9, 'upload'), false, 'на девʼятому ще ні');

@@ -835,6 +835,7 @@ async function shopApi(req, res, guild, session, action) {
   if (action === 'equip') {
     const saved = await cosmeticsService.equip(guild.id, session.user_id, itemId || null);
     if (saved === null) return json(res, 400, { error: 'not owned' });
+    if (saved?.locked) return json(res, 403, { error: 'level', need: saved.locked });
     const look = await cosmeticsService.look(guild.id, session.user_id);
     return json(res, 200, { ok: true, look });
   }
@@ -988,6 +989,14 @@ async function profileApi(req, res, guild, session) {
   if (body.showcase !== undefined) {
     const cur = await prefsRepo.get(guild.id, session.user_id);
     const ids = Array.isArray(body.showcase) ? body.showcase.map(Number).filter(Boolean) : [];
+    // Вітрина відкривається другим рівнем. Порожній список пропускаємо:
+    // прибрати з профілю вже поставлене можна завжди.
+    if (ids.length) {
+      const { level } = await walletRepo.get(guild.id, session.user_id);
+      if (!cosmeticsService.hasPerk(level, 'art')) {
+        return json(res, 403, { error: 'level', need: cosmeticsService.perkLevel('art') });
+      }
+    }
     const allowed = [];
     for (const id of ids.slice(0, cosmeticsService.SHOWCASE_MAX)) {
       if (await cosmeticsService.ownsItem(guild.id, session.user_id, `asset:${id}`)) allowed.push(id);

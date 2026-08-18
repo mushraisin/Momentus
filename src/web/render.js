@@ -4922,12 +4922,31 @@ export function profilePage(profile, {
 
   // Речі показуємо за призначенням, а не за набором, у якому їх куплено:
   // людина йде сюди з думкою «хочу інший фон», а не «що там було в наборі».
+  // Оформлення відкривається поступово: вітрина з другого рівня, тло з
+  // четвертого, банер з пʼятого. Про це має бути сказано просто в тій же
+  // групі, а не з'ясовуватись після невдалого кліку.
+  const perkOf = (key) => (wardrobe?.levelPerks ?? []).find((p) => p.key === key) ?? null;
+  // ключ плюшки для групи: у ілюстрацій свого слоту немає, вони йдуть у вітрину
+  const perkOfKind = (spec) => perkOf(spec.slot ?? 'art');
+  const lockedPerk = (spec) => {
+    const p = perkOfKind(spec);
+    return p && !p.unlocked ? p : null;
+  };
   const ownedItems = (wardrobe?.packs ?? []).flatMap((p) => p.items ?? []);
   const byKind = (kind) => ownedItems.filter((it) => it.kind === kind);
 
   const kindGroup = (kind) => {
     const list = byKind(kind);
     if (!list.length) return '';
+    // Фон із каталогу закритий тим самим рівнем, що й свій: правило одне
+    // на слот, інакше рівень обходився б купленою річчю.
+    const lock = perkOf(kind);
+    if (lock && !lock.unlocked) {
+      return `<div class="pf-group">
+        <div class="pf-gt"><span>${esc(t(lang, `profile.kind.${kind}`))}</span></div>
+        <div class="hint">🔒 ${esc(t(lang, 'profile.needLevel', { n: lock.level }))}</div>
+      </div>`;
+    }
     // «Зняти» стоїть у заголовку саме цієї групи — знімається те, на що дивишся
     const clearable = ['background', 'accent', 'frame', 'card'].includes(kind);
     return `<div class="pf-group">
@@ -4954,21 +4973,16 @@ export function profilePage(profile, {
   const allMine = [...(wardrobe?.assets ?? []), ...(wardrobe?.bought ?? [])];
   const picked = look.layout?.showcase ?? [];
 
-  // Банер відкривається пʼятим рівнем — про це має бути сказано просто
-  // в його ж групі, а не з'ясовуватись після невдалого кліку.
-  const perkOf = (key) => (wardrobe?.levelPerks ?? []).find((p) => p.key === key) ?? null;
-  const bannerPerk = perkOf('banner');
-  const bannerLocked = !!bannerPerk && !bannerPerk.unlocked;
 
   const imageGroup = (spec) => {
     const list = allMine.filter((a) => a.kind === spec.kind);
     const isArt = spec.slot === null;
-    const locked = spec.slot === 'banner' && bannerLocked;
+    const locked = lockedPerk(spec);
 
     if (locked) {
       return `<div class="pf-group">
         <div class="pf-gt"><span>${esc(spec.name)}</span></div>
-        <div class="hint">🔒 ${esc(t(lang, 'profile.needLevel', { n: bannerPerk.level }))}</div>
+        <div class="hint">🔒 ${esc(t(lang, 'profile.needLevel', { n: locked.level }))}</div>
       </div>`;
     }
     if (!list.length) {

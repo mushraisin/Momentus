@@ -72,10 +72,13 @@ export function categoryOfKind(kind) {
  * ── Рівні ──
  *
  * У всіх стартує перший. Кожен наступний коштує вдвічі більше за попередній:
- * 1→2 — 1 ✨FP, 2→3 — 2, 3→4 — 4, далі так само подвоюється. Рівень нічого
- * не дає сам по собі — за нього дають плюшки, перша з яких на десятому.
+ * 1→2 — 1 ✨FP, 2→3 — 2, 3→4 — 4, далі так само подвоюється. Сам по собі
+ * рівень нічого не дає — за нього відкривають плюшки, і оформлення профілю
+ * розкривається поступово: спершу вітрина, далі тло, банер і власні роботи.
  */
 export const LEVEL_PERKS = [
+  { level: 2, key: 'art', name: 'Ілюстрації у вітрині' },
+  { level: 4, key: 'background', name: 'Фон профілю' },
   { level: 5, key: 'banner', name: 'Банер у профілі' },
   { level: 10, key: 'upload', name: 'Свій контент у магазині без бусту' },
 ];
@@ -104,6 +107,13 @@ export function perkLevel(key) {
 export function hasPerk(level, key) {
   const need = perkLevel(key);
   return !!need && Math.max(1, Number(level) || 1) >= need;
+}
+
+/** Яка плюшка відповідає слоту оформлення. */
+export function perkOfSlot(slot) {
+  if (slot === 'banner') return 'banner';
+  if (slot === 'background') return 'background';
+  return null;
 }
 
 /**
@@ -579,11 +589,22 @@ export const cosmeticsService = {
   async equip(guildId, userId, itemId) {
     if (!itemId) return prefsRepo.save(guildId, userId, { background: null });
 
+    // Слот може бути закритий рівнем — тоді кажемо, якого саме бракує,
+    // щоб сторінка показала зрозуміле «відкривається з N рівня».
+    const gate = async (slot) => {
+      const key = perkOfSlot(slot);
+      if (!key) return null;
+      const { level } = await walletRepo.get(guildId, userId);
+      return hasPerk(level, key) ? null : { locked: perkLevel(key) };
+    };
+
     // куплена чужа робота лягає туди ж, куди й своя картинка
     if (String(itemId).startsWith('asset:')) {
       if (!await this.ownsItem(guildId, userId, itemId)) return null;
       const a = await assetsRepo.meta(Number(String(itemId).slice(6)));
       const slot = a?.kind === 'banner' ? 'banner' : 'background';
+      const no = await gate(slot);
+      if (no) return no;
       return prefsRepo.save(guildId, userId, { [slot]: itemId });
     }
 
@@ -591,7 +612,11 @@ export const cosmeticsService = {
     if (!it) return null;
     if (!await this.ownsItem(guildId, userId, itemId)) return null;
 
-    if (it.kind === 'background') return prefsRepo.save(guildId, userId, { background: itemId });
+    if (it.kind === 'background') {
+      const no = await gate('background');
+      if (no) return no;
+      return prefsRepo.save(guildId, userId, { background: itemId });
+    }
     if (it.kind === 'accent') return prefsRepo.save(guildId, userId, { accent: it.value.color });
     // рамка й стиль вікон живуть у layout — окремих колонок під них немає
     if (it.kind === 'frame' || it.kind === 'card') {
@@ -635,6 +660,7 @@ export const cosmeticsService = {
   levelCost,
   hasPerk,
   perkLevel,
+  perkOfSlot,
 
   /** Рівень і скільки коштує наступний. */
   async level(guildId, userId) {
@@ -714,13 +740,15 @@ export const cosmeticsService = {
       return { ok: true };
     }
 
-    // Банер відкривається пʼятим рівнем. Зняти його можна завжди — вимога
-    // стосується саме встановлення, інакше людина могла б лишитись із
-    // банером, якого вже не має права міняти.
-    if (slot === 'banner') {
+    // Оформлення відкривається рівнями: тло — четвертим, банер — пʼятим.
+    // Зняти вже поставлене можна завжди: вимога стосується саме
+    // встановлення, інакше людина лишилась би з банером, якого вже не
+    // має права міняти.
+    const perk = perkOfSlot(slot);
+    if (perk) {
       const { level } = await walletRepo.get(guildId, userId);
-      if (!hasPerk(level, 'banner')) {
-        return { ok: false, reason: 'level', need: perkLevel('banner') };
+      if (!hasPerk(level, perk)) {
+        return { ok: false, reason: 'level', need: perkLevel(perk) };
       }
     }
 
