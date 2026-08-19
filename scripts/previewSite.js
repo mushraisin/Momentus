@@ -22,7 +22,7 @@ await initDatabase();
 
 const {
   usersRepo, sessionsRepo, prefsRepo, walletRepo, assetsRepo, galleryRepo,
-  itemsRepo, modRepo, punishRepo, warnRepo, activityRepo,
+  itemsRepo, modRepo, punishRepo, warnRepo, activityRepo, duelRepo,
 } = await import('../src/database/repositories.js');
 const { configService } = await import('../src/services/configService.js');
 const { reputationService } = await import('../src/services/reputationService.js');
@@ -112,6 +112,10 @@ await punishRepo.set({
   guildId: G, userId: '205', kind: 'text', until: Date.now() + 3600_000,
   reason: 'капс і флуд', moderatorId: ME,
 });
+
+// Вибір для голосування чекає на нас — щоб вікно відкрилось одразу.
+// SMALL=1 лишає одного кандидата: так виглядає маленький сервер.
+await duelRepo.set(G, ME, '201', process.env.SMALL ? null : '202', process.env.SMALL ? null : '203');
 
 const SID = 'preview-site-session';
 await sessionsRepo.remove(SID).catch(() => {});

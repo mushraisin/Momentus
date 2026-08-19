@@ -1142,9 +1142,12 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   box-shadow:0 30px 80px rgba(0,0,0,.6);backdrop-filter:blur(var(--blur));
   animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
 .vs-x{position:absolute;right:10px;top:10px}
-.vs-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+/* Стільки колонок, скільки людей: на малому сервері їх буває одна-дві,
+   і жорсткі три залишали поруч порожні місця. */
+.vs-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
 @media(max-width:520px){.vs-row{grid-template-columns:1fr}}
-.vs-one{display:flex;flex-direction:column;align-items:center;gap:9px;padding:14px 10px;
+.vs-one{max-width:220px;width:100%;margin:0 auto;
+  display:flex;flex-direction:column;align-items:center;gap:9px;padding:14px 10px;
   border-radius:14px;cursor:pointer;background:rgba(255,255,255,.03);
   border:1px solid var(--line);color:var(--text);font:inherit;
   transition:.28s cubic-bezier(.22,.9,.3,1)}

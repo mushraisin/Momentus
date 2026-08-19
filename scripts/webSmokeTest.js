@@ -1702,6 +1702,28 @@ ok('тло не гасне під фоном, роль у своєму коль�
   await duelRepo.set(G, '702', '703', '701', null);
   assert.equal((await V.castVote(guild, '702', 'botX')).reason, 'not in pair', 'чужий вибір відхилено');
 
+  // ── маленький сервер: кандидат один ──
+  // Вибір вимагав щонайменше двох, а `duels.b` була NOT NULL — тож там,
+  // де на сервері двоє людей, голосування не з'являлось узагалі.
+  {
+    const S = `tiny-${Date.now()}`;
+    const tiny = { id: S, members: { cache: new Map() } };
+    await ur.ensure(S, 'a1', 'я', Date.now());
+    await ur.ensure(S, 'a2', 'друг', Date.now());
+
+    const one = await V.duelFor(tiny, 'a1');
+    assert.ok(one, 'голосування показується й удвох');
+    assert.deepEqual(one.people.map((p) => p.userId), ['a2'], 'у виборі — єдиний кандидат');
+    assert.equal(one.canVote, true, 'і за нього можна віддати голос');
+    assert.ok((await V.castVote(tiny, 'a1', 'a2')).ok, 'голос зараховано');
+    assert.equal((await V.duelFor(tiny, 'a1')).canVote, false, 'далі — доба очікування');
+
+    // сам-один голосувати нема за кого, і це не помилка
+    const alone = { id: `solo-${Date.now()}`, members: { cache: new Map() } };
+    await ur.ensure(alone.id, 'b1', 'сам', Date.now());
+    assert.equal(await V.duelFor(alone, 'b1'), null, 'на порожньому сервері вікна немає');
+  }
+
   // ── щоденні нагороди 3 / 2 / 1 ──
   const board = (await rr.leaderboard(G, 20))
     .filter((r) => !guild.members.cache.get(r.user_id)?.user?.bot);

@@ -199,7 +199,9 @@ CREATE TABLE IF NOT EXISTS duels (
   guild_id TEXT NOT NULL,
   user_id  TEXT NOT NULL,
   a        TEXT NOT NULL,
-  b        TEXT NOT NULL,
+  -- Другий і третій не обов'язкові: на маленькому сервері кандидат
+  -- може бути й один, і голосування має працювати так само.
+  b        TEXT,
   drawn_at INTEGER NOT NULL,
   voted_at INTEGER,
   PRIMARY KEY (guild_id, user_id)
@@ -427,6 +429,44 @@ async function addColumn(table, column, definition) {
   }
 }
 
+/**
+ * Другий у виборі більше не обов'язковий.
+ *
+ * Таблиця створювалась під пару, тож `b` була NOT NULL. На маленькому сервері
+ * кандидат буває один — і запис просто не вставлявся, а голосування мовчки
+ * не показувалось. ALTER TABLE у SQLite обмеження не знімає, тож
+ * перебудовуємо таблицю, переносячи наявні записи разом із часом голосу.
+ */
+async function relaxDuels() {
+  try {
+    const info = await client.execute('PRAGMA table_info(duels)');
+    const b = info.rows.find((r) => r.name === 'b');
+    if (!b || !b.notnull) return false;
+
+    await client.executeMultiple(`
+      CREATE TABLE duels_new (
+        guild_id TEXT NOT NULL,
+        user_id  TEXT NOT NULL,
+        a        TEXT NOT NULL,
+        b        TEXT,
+        c        TEXT,
+        drawn_at INTEGER NOT NULL,
+        voted_at INTEGER,
+        PRIMARY KEY (guild_id, user_id)
+      );
+      INSERT INTO duels_new (guild_id, user_id, a, b, c, drawn_at, voted_at)
+        SELECT guild_id, user_id, a, b, c, drawn_at, voted_at FROM duels;
+      DROP TABLE duels;
+      ALTER TABLE duels_new RENAME TO duels;
+    `);
+    log.info('Міграція: у виборі для голосу досить одного учасника');
+    return true;
+  } catch (err) {
+    log.warn('Міграція duels не вдалася', err.message);
+    return false;
+  }
+}
+
 export async function initDatabase() {
   if (localFilePath) {
     // WAL/PRAGMA доречні лише для локального файлу.
@@ -482,6 +522,7 @@ export async function initDatabase() {
   // Рівень купується за ✨FP; у всіх стартує з першого.
   await addColumn('wallets', 'level', 'INTEGER NOT NULL DEFAULT 1');
   await addColumn('wallets', 'spent_levels', 'INTEGER NOT NULL DEFAULT 0');
+  await relaxDuels();
 
   log.info(`База даних готова: ${isRemote ? 'Turso (remote)' : url}`);
 }

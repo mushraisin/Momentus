@@ -42,9 +42,14 @@ async function candidates(guild, exceptId) {
 /** Скільки людей показуємо на вибір. */
 export const CHOICES = 3;
 
-/** Кілька випадкових і різних із списку. */
+/**
+ * Кілька випадкових і різних із списку.
+ *
+ * Досить одного: на маленькому сервері більше просто нема кого показати,
+ * а вимога пари означала, що голосування там не з'являлося взагалі.
+ */
 function pickSome(list, n = CHOICES) {
-  if (list.length < 2) return null;
+  if (!list.length) return null;
   const pool = [...list];
   const out = [];
   while (out.length < Math.min(n, pool.length)) {
@@ -81,8 +86,8 @@ export async function duelFor(guild, userId) {
   const some = pickSome(list);
   if (!some) return null;
 
-  await duelRepo.set(guild.id, userId, some[0].userId, some[1].userId,
-    some[2]?.userId ?? null).catch(() => {});
+  await duelRepo.set(guild.id, userId, some[0].userId,
+    some[1]?.userId ?? null, some[2]?.userId ?? null).catch(() => {});
   return { people: some, canVote: true, nextAt: 0 };
 }
 
