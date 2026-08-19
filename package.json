@@ -1,6 +1,6 @@
 {
   "name": "discord-ai-community-bot",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "description": "Сурс код бота, створеного спеціально для сервера «задрипанка».",
   "type": "module",
   "main": "src/index.js",

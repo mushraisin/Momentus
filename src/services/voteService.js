@@ -34,7 +34,13 @@ async function candidates(guild, exceptId) {
     // Бот міг потрапити в таблицю зі старих запусків — звіряємось із Discord.
     const m = guild.members.cache.get(r.user_id);
     if (m?.user?.bot) continue;
-    out.push({ userId: r.user_id, username: m?.displayName ?? r.username ?? r.user_id });
+    out.push({
+      userId: r.user_id,
+      username: m?.displayName ?? r.username ?? r.user_id,
+      // Без цього сторінка малювала типову сіру заглушку замість людини —
+      // а вибирати пропонувалось саме по обличчю.
+      avatar: m?.user?.avatar ?? null,
+    });
   }
   return out;
 }
@@ -99,7 +105,11 @@ async function namesOf(guild, ids) {
     if (m?.user?.bot) return null;
     const row = await usersRepo.get(guild.id, id).catch(() => null);
     if (!row && !m) return null;
-    out.push({ userId: id, username: m?.displayName ?? row?.username ?? id });
+    out.push({
+      userId: id,
+      username: m?.displayName ?? row?.username ?? id,
+      avatar: m?.user?.avatar ?? null,
+    });
   }
   return out;
 }

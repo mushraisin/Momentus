@@ -1685,6 +1685,15 @@ ok('тло не гасне під фоном, роль у своєму коль�
   const same = await V.duelFor(guild, '701');
   assert.deepEqual(same.people.map((p) => p.userId), ids, 'вибір не перекидається до голосу');
 
+  // ── обличчя, а не сіра заглушка ──
+  // Сторінка малювала аватарку з хеша, а вибір його не віддавав — тож
+  // усі троє виглядали однаковими типовими силуетами.
+  guild.members.cache.get('702').user.avatar = 'abc123';
+  await duelRepo.set(G, '705', '702', null, null);
+  await ur.ensure(G, '705', 'Женя', Date.now());
+  const withFace = await V.duelFor(guild, '705');
+  assert.equal(withFace.people[0].avatar, 'abc123', 'у виборі є хеш аватарки');
+
   // ── голос: обидва отримують по 1 FP, голосуючий нічого не витрачає ──
   const mine = (await wr.get(G, '701')).balance;
   const theirs = (await wr.get(G, ids[0])).balance;
@@ -1742,8 +1751,15 @@ ok('тло не гасне під фоном, роль у своєму коль�
   assert.ok(!page.body.includes('>Робот<'), 'бота в рейтингу немає');
   assert.ok(page.body.includes('id="vs"'), 'блок голосування є');
   assert.ok((page.body.match(/class="vs-one"/g) ?? []).length >= 2, 'кількох показано на вибір');
-  assert.ok(!/<div class="vs[^"]*"[^>]*>[\s\S]{0,200}<p/.test(page.body),
-    'без пояснювального тексту');
+
+  // ── правило гри стоїть у самому вікні ──
+  // Доти там були три обличчя без жодного слова: незрозуміло ні що робить
+  // клік, ні що це безкоштовно — і половина просто закривала вікно.
+  assert.ok(page.body.includes('Кому віддати голос'), 'у вікна є заголовок');
+  assert.ok(page.body.includes('він отримає ✨1FP, і ви теж'), 'сказано, що отримають обоє');
+  assert.ok(page.body.includes('Власні ✨FP не витрачаються'), 'і що свої FP не витрачаються');
+  assert.ok(page.body.includes('data-done='), 'підтвердження після голосу підготовано');
+  assert.ok(/data-name="[^"]+"/.test(page.body), 'ім\'я обраного відоме сторінці');
 
   // анонімам голосувати нічим — блока немає
   const anon = await req('/top');

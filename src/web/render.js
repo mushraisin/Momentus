@@ -1142,6 +1142,18 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   box-shadow:0 30px 80px rgba(0,0,0,.6);backdrop-filter:blur(var(--blur));
   animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
 .vs-x{position:absolute;right:10px;top:10px}
+/* Заголовок і правило: заради них вікно й читається з першого погляду. */
+.vs-h{margin:0 0 16px;padding-right:28px}
+.vs-h b{display:block;font-size:17px;font-weight:800;letter-spacing:-.01em}
+.vs-h p{margin:5px 0 0;font-size:13px;color:var(--dim);line-height:1.5}
+/* Головне заперечення — «а що це мені коштує» — знімаємо просто під вибором. */
+.vs-f{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--dim);text-align:center;letter-spacing:.02em}
+/* Після голосу вибір змінюється підтвердженням — у тому ж вікні. */
+.vs-ok{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 0 4px;
+  animation:pop .3s cubic-bezier(.22,.9,.3,1) both}
+.vs-ok i{font-style:normal;font-size:32px;line-height:1}
+.vs-ok b{font-size:15px;font-weight:700;text-align:center}
 /* Стільки колонок, скільки людей: на малому сервері їх буває одна-дві,
    і жорсткі три залишали поруч порожні місця. */
 .vs-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
@@ -3295,10 +3307,25 @@ const VOTE_JS = `
           if(window.toast)window.toast(window.errText?window.errText(j.error):j.error,'bad');
           return;
         }
-        /* Підтвердження — самою карткою: обраний зеленіє, і вікно
-           закривається, бо голос уже віддано. */
+        /* Підтвердження в тому ж вікні: обраний зеленіє, а на місці вибору
+           з'являється рядок про те, що сталося й коли буде наступний раз.
+           Доти вікно просто зникало, і чи зарахувався голос — лишалось
+           здогадуватись. */
         b.classList.add('won');
-        setTimeout(shut,700);
+        var win=box.querySelector('.vswin');
+        setTimeout(function(){
+          var row=box.querySelector('.vs-row'),foot=box.querySelector('.vs-f'),
+              head=box.querySelector('.vs-h');
+          if(!row)return;
+          var ok=document.createElement('div');
+          ok.className='vs-ok';
+          ok.innerHTML='<i>✨</i><b></b>';
+          ok.querySelector('b').textContent=(win.dataset.done||'').replace('{name}',b.dataset.name||'');
+          row.replaceWith(ok);
+          if(head)head.remove();
+          if(foot)foot.remove();
+          setTimeout(shut,2200);
+        },520);
       }).catch(function(){
         box.querySelectorAll('.vs-one').forEach(function(x){x.disabled=false});
       });
@@ -4854,15 +4881,28 @@ export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
 
   // Голосування — окремим спливаючим вікном, а не смугою на сторінці:
   // так воно не тисне рейтинг і його видно одразу, коли заходиш.
-  const face = (p) => `<button class="vs-one" data-user="${esc(p.userId)}">
-    <img src="${esc(avatarUrl(p.userId, null, 96))}" alt="" loading="lazy">
+  //
+  // Ім'я в data-name потрібне для підтвердження після голосу: сторінка каже,
+  // кому саме пішов голос, не перепитуючи сервер.
+  const face = (p) => `<button class="vs-one" data-user="${esc(p.userId)}"
+      data-name="${esc(p.username)}">
+    <img src="${esc(avatarUrl(p.userId, p.avatar ?? null, 96))}" alt="" loading="lazy">
     <b>${esc(p.username)}</b>
   </button>`;
 
+  // Правило гри мусить стояти в самому вікні. Доти там були три обличчя
+  // без жодного слова: не було зрозуміло ні що робить клік, ні що це
+  // безкоштовно — і половина просто закривала вікно.
   const vsBox = (duel && duel.canVote && (duel.people ?? []).length)
-    ? `<div class="vsback" id="vs" hidden><div class="vswin">
+    ? `<div class="vsback" id="vs" hidden><div class="vswin"
+        data-done="${esc(t(lang, 'vote.done'))}">
         <button class="gate-x vs-x" aria-label="×">×</button>
+        <div class="vs-h">
+          <b>${esc(t(lang, 'vote.title'))}</b>
+          <p>${esc(t(lang, 'vote.hint'))}</p>
+        </div>
         <div class="vs-row">${duel.people.map(face).join('')}</div>
+        <div class="vs-f">${esc(t(lang, 'vote.free'))}</div>
       </div></div>`
     : '';
 

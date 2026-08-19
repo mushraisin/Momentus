@@ -38,7 +38,7 @@ const members = new Map();
 
 const PEOPLE = [
   { id: ME, name: 'Костя', messages: 620, accent: '#a8e05f', level: 7, about: 'Тримаю тут лад і монтую ролики.' },
-  { id: '201', name: 'Ліна', messages: 480, accent: '#ff7f6e', level: 5, about: 'Малюю, коли не сплю.' },
+  { id: '201', name: 'Ліна', messages: 480, accent: '#ff7f6e', level: 5, about: 'Малюю, коли не сплю.', hash: 'a1b2c3d4e5f60718293a4b5c6d7e8f90' },
   { id: '202', name: 'Марко', messages: 360, accent: '#5aa9ff', level: 4, about: '' },
   { id: '203', name: 'Оля', messages: 300, accent: '#f0a44a', level: 3, about: 'Люблю довгі голосові.' },
   { id: '204', name: 'Тарас', messages: 190, accent: null, level: 2, about: '' },
@@ -69,7 +69,8 @@ for (const p of PEOPLE) {
   members.set(p.id, {
     id: p.id,
     displayName: p.name,
-    user: { bot: false, avatar: null, displayAvatarURL: () => AVATAR },
+    // хеш аватарки як у Discord — щоб було видно, що сторінка бере саме його
+    user: { bot: false, avatar: p.hash ?? null, displayAvatarURL: () => AVATAR },
     roles: { cache: new Map() },
     permissions: { has: () => p.id === ME },
     guild: { id: G },

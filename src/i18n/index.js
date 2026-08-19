@@ -206,6 +206,12 @@ const DICT = {
     'top.days': 'на сервері',
     'top.votes': 'голосів',
     'top.daily': 'Щодня за це місце',
+
+    // ── голосування ──
+    'vote.title': 'Кому віддати голос',
+    'vote.hint': 'Оберіть одного учасника — він отримає ✨1FP, і ви теж.',
+    'vote.free': 'Власні ✨FP не витрачаються · раз на добу',
+    'vote.done': '{name} отримує ✨1FP, і ви теж. Наступний вибір — завтра.',
     'news.vote': '{name} віддав вам голос — +{n} ✨FP',
     'news.top': '+{n} ✨FP за {place} місце в рейтингу',
     'top.empty': 'Даних ще немає.',
@@ -516,6 +522,12 @@ const DICT = {
     'top.days': 'on server',
     'top.votes': 'votes',
     'top.daily': 'Daily for this place',
+
+    // ── voting ──
+    'vote.title': 'Give your vote',
+    'vote.hint': 'Pick one member — they get ✨1FP, and so do you.',
+    'vote.free': 'Your own ✨FP are not spent · once a day',
+    'vote.done': '{name} gets ✨1FP, and so do you. Next pick tomorrow.',
     'news.vote': '{name} voted for you — +{n} ✨FP',
     'news.top': '+{n} ✨FP for place {place} in the leaderboard',
     'top.empty': 'No data yet.',
