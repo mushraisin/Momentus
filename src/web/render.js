@@ -829,17 +829,17 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 /* ── Шапка сторінки ──
    Раніше кожна сторінка починалась по-своєму: рейтинг одразу картками,
    галерея — рядком сортування, магазин — смугою гаманця. Тепер усі вони
-   відкриваються однаково: назва, рядок пояснення під нею й місце праворуч
-   під те, що саме тут доречно (сортування, гаманець, дія). */
-.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
-  flex-wrap:wrap;margin:2px 0 20px;padding-bottom:16px;
+   відкриваються однаково: назва й місце праворуч під те, що саме тут
+   доречно (сортування, дія). Назва стоїть сама — пояснення під нею лише
+   відсувало б сторінку вниз, нічого не додаючи. */
+.phead{display:flex;align-items:center;justify-content:space-between;gap:18px;
+  flex-wrap:wrap;margin:2px 0 18px;padding-bottom:14px;
   border-bottom:1px solid var(--line);animation:fadeUp .5s both}
-.phead-t{min-width:0;display:flex;flex-direction:column;gap:5px}
+.phead-t{min-width:0}
 .phead h1{margin:0;font-size:25px;font-weight:800;letter-spacing:-.01em;line-height:1.15}
-.phead p{margin:0;font-size:13px;color:var(--dim);max-width:62ch;line-height:1.5}
 .phead-a{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none}
 @media(max-width:640px){
-  .phead{align-items:stretch;gap:12px;margin-bottom:16px;padding-bottom:13px}
+  .phead{align-items:stretch;gap:12px;margin-bottom:15px;padding-bottom:12px}
   .phead h1{font-size:22px}
   .phead-a{width:100%}
 }
@@ -4748,17 +4748,19 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
  * нічим не відрізнялась від четвертого місця.
  */
 /**
- * Шапка сторінки: назва, рядок пояснення й місце під дії праворуч.
+ * Шапка сторінки: назва й місце під дії праворуч.
  *
  * Однакова на всіх сторінках навмисне. Доти кожна починалась по-своєму —
  * рейтинг одразу картками, галерея рядком сортування, магазин смугою
  * гаманця, — і сайт розпадався на кілька різних сайтів під одним меню.
+ *
+ * Пояснення під назвою немає свідомо: людина бачить, куди потрапила,
+ * з самої назви й вмісту, а зайвий рядок лише відсував сторінку вниз.
  */
-function pageHead(title, sub = '', actions = '') {
+function pageHead(title, actions = '') {
   return `<div class="phead">
     <div class="phead-t">
       <h1>${esc(title)}</h1>
-      ${sub ? `<p>${esc(sub)}</p>` : ''}
     </div>
     ${actions ? `<div class="phead-a">${actions}</div>` : ''}
   </div>`;
@@ -4766,7 +4768,7 @@ function pageHead(title, sub = '', actions = '') {
 
 export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
   if (!rows.length) {
-    return `${pageHead(t(lang, 'top.title'), t(lang, 'head.top'))}
+    return `${pageHead(t(lang, 'top.title'))}
       <div class="card empty rise" data-ico="◆">${esc(t(lang, 'top.empty'))}</div>`;
   }
 
@@ -4862,7 +4864,7 @@ export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
     : '';
 
   return `${vsBox}
-  ${pageHead(t(lang, 'top.title'), t(lang, 'head.top'))}
+  ${pageHead(t(lang, 'top.title'))}
   <div class="tpwrap">
     <div class="tp-podium">${rows.slice(0, 3).map(card).join('')}</div>
     ${rows.length > 3
@@ -5583,7 +5585,7 @@ export function galleryPage({
       </div>
     </article>`).join('');
 
-  return `${pageHead(t(lang, 'nav.gallery'), t(lang, 'head.gallery'), tabs)}
+  return `${pageHead(t(lang, 'nav.gallery'), tabs)}
   <div class="glayout">
     <div class="gmain">
       ${spots}
@@ -5872,7 +5874,7 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
   // Екран головний, під ним — черга й зал; решта ховається в шухляду.
   // Кнопка налаштувань стоїть у шапці — там, де на інших сторінках
   // теж живуть дії над усією сторінкою.
-  return `${pageHead(t(lang, 'cin.title'), t(lang, 'head.cinema'))}
+  return `${pageHead(t(lang, 'cin.title'))}
   <div class="clayout">
     ${room}
     <div class="cpanels">${queueBox}${people}</div>
@@ -6200,7 +6202,7 @@ export function shopPage({
       </div></div>`
     : '';
 
-  return `${pageHead(t(lang, 'shop.title'), t(lang, 'head.shop'))}
+  return `${pageHead(t(lang, 'shop.title'))}
   <div class="shop" data-boost="🚀 ${esc(t(lang, 'shop.boosterOnly'))}">
     <div class="sh-wallet rise">
       <div class="sh-bal">
@@ -6343,7 +6345,7 @@ export function modPage({
     <div class="log">${rowsHtml || `<div class="muted">◌ ${esc(t(lang, 'mod.empty'))}</div>`}</div>
   </div>`;
 
-  return `${pageHead(t(lang, 'mod.title'), t(lang, 'head.mod'))}
+  return `${pageHead(t(lang, 'mod.title'))}
   <div class="cpanels modgrid">${form}${activeBox}${warnBox}${journalBox}</div>`;
 }
 

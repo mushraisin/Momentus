@@ -199,15 +199,6 @@ const DICT = {
     'profile.points': 'точок',
     'profile.now': 'зараз',
 
-    // ── підзаголовки сторінок ──
-    // Один рядок під назвою: людина має розуміти, куди потрапила,
-    // ще до того, як почне розбирати вміст.
-    'head.top': 'Хто тримає сервер живим — за повідомленнями, голосом і голосами інших',
-    'head.gallery': 'Знімки, кліпи й малюнки, якими діляться учасники',
-    'head.shop': 'Оформлення профілю за ✨FP — і своє, і від інших учасників',
-    'head.mod': 'Покарання, попередження й журнал дій — усе на одній сторінці',
-    'head.cinema': 'Спільний перегляд: черга, зал і хто зараз дивиться',
-
     // ── рейтинг ──
     'top.title': 'Рейтинг',
     'top.member': 'Учасник',
@@ -518,13 +509,6 @@ const DICT = {
     'profile.daysShort': 'd',
     'profile.points': 'points',
     'profile.now': 'now',
-
-    // ── page subtitles ──
-    'head.top': 'Who keeps the server alive — messages, voice and votes from others',
-    'head.gallery': 'Shots, clips and drawings shared by members',
-    'head.shop': 'Profile looks for ✨FP — from the catalogue and from members',
-    'head.mod': 'Punishments, warnings and the action log — all on one page',
-    'head.cinema': 'Watch together: the queue, the room and who is in it',
 
     'top.title': 'Leaderboard',
     'top.member': 'Member',
