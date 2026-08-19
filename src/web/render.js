@@ -22,6 +22,12 @@ export function esc(s) {
  */
 // Гаманець і спливні повідомлення сюди свідомо не входять: це піл і
 // невеличкі плашки, а не вікна — від чужого радіуса вони лише ламаються.
+/**
+ * Типовий акцент. Той самий, що й --accent у стилях: коли людина ще нічого
+ * не обрала, сторінка й картки мають брати один колір, а не кожна свій.
+ */
+const DEFAULT_ACCENT = '#6b7cff';
+
 const CARD_SURFACES = [
   '.card', '.pane', '.pv', '.pf-lookwin', '.lbox', '.gate-box',
   '.cdrawer', '.drop-menu', '.pick-menu', '.langmenu',
@@ -55,7 +61,15 @@ export const BASE_CSS = `
   /* Поверхня спливних меню й вікон. Окремий токен, бо вони мають лишатися
      читабельними навіть тоді, коли обраний стиль вікон майже прозорий. */
   --menu:rgba(14,18,30,.97);
+  /* «Утоплена» поверхня: підкладка під прев'ю, зразки, порожні екрани.
+     Раніше ту саму роль грали шість схожих майже-чорних кольорів,
+     розкиданих по стилях, і краї сусідніх блоків не збігалися. */
+  --sunk:#0a0d16;--sunk-2:#0e121c;
   --radius:18px;--blur:14px;
+  /* Скільки лишати згори всьому липкому. Смуга навігації заввишки 64px,
+     і кожен блок відміряв цей відступ по-своєму: бічна панель галереї
+     стояла на 18px і заповзала просто під смугу. */
+  --stick:80px;
   --discord:#5865f2;
 }
 *{box-sizing:border-box}
@@ -113,7 +127,7 @@ a{color:inherit;text-decoration:none}
 .topbar .brand{flex:none}
 .topbar nav{padding:10px 0}
 header{display:flex;align-items:center;gap:12px;padding:14px 0 26px;flex-wrap:wrap;animation:fadeIn .6s both}
-.brand{font-size:18px;font-weight:800;display:flex;align-items:center;gap:9px}
+.brand{font-size:17px;font-weight:800;display:flex;align-items:center;gap:9px}
 .brand .dot{width:9px;height:9px;border-radius:2px;background:var(--accent);box-shadow:0 0 14px var(--accent)}
 nav{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
 nav a{padding:8px 15px;border-radius:999px;background:rgba(255,255,255,.04);
@@ -182,7 +196,7 @@ nav a.apart.active:hover{background:linear-gradient(180deg,#f47a77,#e04844)}
   border-radius:12px;background:var(--menu);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px;
   max-height:260px;overflow:auto;animation:menuIn .2s cubic-bezier(.22,.9,.3,1) both}
-.drop-opt{padding:9px 11px;border:0;border-radius:9px;background:0;color:var(--text);
+.drop-opt{padding:9px 11px;border:0;border-radius:10px;background:0;color:var(--text);
   font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:.16s}
 .drop-opt:hover{background:rgba(var(--accent-rgb),.16)}
 /* обраний пункт — у спільному блоці «обрано / натиснуто» */
@@ -380,13 +394,13 @@ td.num{text-align:right;font-weight:800}
 .item{display:flex;flex-direction:column;background:var(--card);border:var(--line-w,1px) solid var(--line);
   border-radius:var(--radius);overflow:hidden;animation:fadeUp .5s both;transition:.35s cubic-bezier(.22,.9,.3,1)}
 .item:hover{transform:translateY(-4px);border-color:rgba(var(--accent-rgb),.35)}
-.item .media{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#05070d;cursor:zoom-in}
+.item .media{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--bg0);cursor:zoom-in}
 .item video.media{cursor:zoom-in;pointer-events:none}
 .spot-m{cursor:zoom-in}
 .spot-m video.media{pointer-events:none}
 /* натяк, що плитку можна розгорнути */
 .item .shot::after{content:'⤢';position:absolute;right:10px;bottom:10px;width:28px;height:28px;
-  display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:13px;
+  display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:13px;
   color:#fff;background:rgba(8,11,19,.7);border:1px solid rgba(255,255,255,.14);
   opacity:0;transform:translateY(4px);transition:.25s;pointer-events:none}
 .item:hover .shot::after{opacity:1;transform:none}
@@ -406,7 +420,7 @@ td.num{text-align:right;font-weight:800}
 
 /* ── Розкладка галереї: сітка на всю ширину + бічна панель ── */
 .glayout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
-.gside{position:sticky;top:18px;display:flex;flex-direction:column;gap:16px}
+.gside{position:sticky;top:var(--stick);display:flex;flex-direction:column;gap:16px}
 .pane{padding:18px;transition:border-color .3s}
 /* Під курсором рамка світлішає в бік акценту, а не типового білого:
    раніше наведення збивало обраний колір рамки на стандартний, і стиль
@@ -437,7 +451,7 @@ td.num{text-align:right;font-weight:800}
 .item:hover .acts,.spot:hover .acts,.acts:focus-within{opacity:1;transform:none}
 .spot .acts{position:static;opacity:.55;transform:none;margin-left:auto}
 .spot:hover .acts{opacity:1}
-.act{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);cursor:pointer;
+.act{width:30px;height:30px;border-radius:10px;border:1px solid var(--line);cursor:pointer;
   background:rgba(5,7,13,.72);color:var(--text);font-size:13px;backdrop-filter:blur(6px);transition:.22s}
 .act:hover{border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.2)}
 .act.danger:hover{border-color:rgba(239,83,80,.7);background:rgba(239,83,80,.22)}
@@ -511,7 +525,7 @@ td.num{text-align:right;font-weight:800}
 .tagp.warn{border-color:rgba(233,185,73,.45);background:rgba(233,185,73,.14);color:#f0cd7a}
 .note{margin-top:12px;padding:11px 14px;border-radius:12px;font-size:13px;color:#f0cd7a;
   background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.3)}
-.screen{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:16/9;
+.screen{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9;
   display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.07);
   box-shadow:0 0 0 1px rgba(0,0,0,.5) inset,0 18px 60px rgba(var(--accent-rgb),.10);
   transition:box-shadow .6s ease}
@@ -536,19 +550,19 @@ td.num{text-align:right;font-weight:800}
 .cpanels.dim:hover{opacity:1}
 /* будь-який плеєр — відео, iframe YouTube/Vimeo/сайту — тягнеться на всю сцену */
 .screen .cin-media,.screen video,.screen iframe{position:absolute;inset:0;width:100%;height:100%;
-  border:0;object-fit:contain;background:#04060b;display:block}
+  border:0;object-fit:contain;background:var(--sunk);display:block}
 input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .btn.busy{opacity:.6;pointer-events:none}
-.screen.idle{background:repeating-linear-gradient(45deg,#080b13,#080b13 12px,#0a0e18 12px,#0a0e18 24px)}
+.screen.idle{background:repeating-linear-gradient(45deg,var(--sunk),var(--sunk) 12px,var(--sunk-2) 12px,var(--sunk-2) 24px)}
 .idle-t{color:var(--dim);font-size:14px;letter-spacing:.1em;text-transform:uppercase}
 /* панель керування залу — окремий клас, бо .bar уже зайнятий прогрес-барами профілю */
 .cbar{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;
-  padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.03);
+  padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.06)}
 /* розділювач перед групою правих кнопок */
 .cbar .vol{margin-left:6px;padding-left:14px;border-left:1px solid var(--line)}
-.btn.play{width:46px;height:46px;padding:0;border-radius:50%;font-size:16px;flex:none;
+.btn.play{width:46px;height:46px;padding:0;border-radius:50%;font-size:15px;flex:none;
   background:linear-gradient(180deg,var(--accent-hi),var(--accent-lo));box-shadow:0 8px 22px rgba(var(--accent-rgb),.35)}
 .btn.play:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 12px 28px rgba(var(--accent-rgb),.5)}
 .btn.play:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
@@ -561,7 +575,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   border-radius:999px;background:rgba(255,255,255,.1);transition:height .18s,margin-top .18s}
 .seek[data-admin="1"]{cursor:pointer}
 .seek i{position:absolute;left:0;top:50%;height:5px;margin-top:-2.5px;width:0;border-radius:999px;
-  background:linear-gradient(90deg,#6b7cff,#9b6bff);
+  background:linear-gradient(90deg,var(--accent),#9b6bff);
   box-shadow:0 0 14px rgba(var(--accent-rgb),.55);
   transition:width .25s linear,height .18s,margin-top .18s}
 .seek b{position:absolute;top:50%;left:0;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;
@@ -621,7 +635,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;
   background:rgba(4,6,11,.94);animation:fadeIn .25s both}
 .curtain[hidden]{display:none}
-.curtain-i{font-size:40px;opacity:.85}
+.curtain-i{font-size:38px;opacity:.85}
 .curtain-t{font-size:17px;font-weight:700;letter-spacing:.04em}
 .curtain-h{font-size:13px;color:var(--dim);max-width:420px;line-height:1.5}
 
@@ -630,9 +644,9 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
    фіксовано — лише розкладаємо всередині. Правила для :fullscreen і
    :-webkit-full-screen мають бути окремими: невідомий селектор у списку
    змусив би браузер відкинути все правило. */
-.room:fullscreen{border-radius:0;border:0;padding:0;background:#04060b;display:flex;flex-direction:column;
+.room:fullscreen{border-radius:0;border:0;padding:0;background:var(--sunk);display:flex;flex-direction:column;
   width:100%;height:100%;position:relative}
-.room:-webkit-full-screen{border-radius:0;border:0;padding:0;background:#04060b;display:flex;flex-direction:column;
+.room:-webkit-full-screen{border-radius:0;border:0;padding:0;background:var(--sunk);display:flex;flex-direction:column;
   width:100%;height:100%;position:relative}
 .room:fullscreen .room-h,.room:fullscreen .note{display:none}
 .room:-webkit-full-screen .room-h,.room:-webkit-full-screen .note{display:none}
@@ -696,15 +710,15 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   padding:24px;background:rgba(3,5,10,.72);backdrop-filter:blur(8px);animation:fadeIn .3s both}
 .gate-back.hidden{display:none}
 .gate-box{position:relative}
-.gate-x{position:absolute;right:14px;top:12px;width:30px;height:30px;border-radius:9px;cursor:pointer;
+.gate-x{position:absolute;right:14px;top:12px;width:30px;height:30px;border-radius:10px;cursor:pointer;
   background:0;border:0;color:var(--dim);font-size:20px;line-height:1;transition:.2s}
 .gate-x:hover{background:rgba(255,255,255,.08);color:#fff}
-.gate-box{max-width:430px;width:100%;padding:34px 30px;border-radius:22px;text-align:center;
+.gate-box{max-width:430px;width:100%;padding:34px 30px;border-radius:24px;text-align:center;
   background:var(--card);border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.6);
   animation:pop .45s cubic-bezier(.22,.9,.3,1) both}
 .gate-box h2{margin:0 0 10px;font-size:22px}
 .gate-box p{margin:0 0 18px;color:var(--dim);line-height:1.55}
-.gate-ico{font-size:46px;margin-bottom:12px;animation:fadeUp .6s .1s both}
+.gate-ico{font-size:44px;margin-bottom:12px;animation:fadeUp .6s .1s both}
 .gate-vc{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border-radius:999px;
   font-size:13px;background:rgba(255,255,255,.05);border:1px solid var(--line);margin-bottom:18px}
 .gate-wait{display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;
@@ -732,7 +746,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .qa{font-size:11px;color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qitem .act{width:26px;height:26px;font-size:11px;border-radius:8px;opacity:.6}
 .qitem:hover .act{opacity:1}
-.pane-h .act{width:24px;height:24px;font-size:11px;margin-left:auto;border-radius:7px}
+.pane-h .act{width:24px;height:24px;font-size:11px;margin-left:auto;border-radius:8px}
 .pane-h{display:flex;align-items:center;gap:8px}
 .viewer .act{width:26px;height:26px;font-size:11px;opacity:.45}
 .viewer .act.ctl{margin-left:auto}
@@ -771,7 +785,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .lsub{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--dim);font-size:11px}
 .lt{margin-left:auto;font-variant-numeric:tabular-nums;flex:none}
 .btn.sm{padding:8px 14px;font-size:13px}
-.locked-now{margin-bottom:12px;padding:10px 13px;border-radius:11px;font-size:13px;color:#f0cd7a;
+.locked-now{margin-bottom:12px;padding:10px 13px;border-radius:12px;font-size:13px;color:#f0cd7a;
   background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.3)}
 .lock{opacity:.75}
 .viewers{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow:auto}
@@ -800,8 +814,8 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .spot:hover::before{border-color:rgba(var(--accent-rgb),.45);box-shadow:0 0 40px rgba(var(--accent-rgb),.14) inset}
 .spot-h{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--dim);margin-bottom:13px}
-.spot-h i{font-style:normal;font-size:16px;color:var(--accent);text-shadow:0 0 14px var(--accent)}
-.spot-m{border-radius:14px;overflow:hidden;background:#0b0e16}
+.spot-h i{font-style:normal;font-size:15px;color:var(--accent);text-shadow:0 0 14px var(--accent)}
+.spot-m{border-radius:14px;overflow:hidden;background:var(--sunk)}
 .spot .media.big{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;cursor:zoom-in;
   transition:transform .6s cubic-bezier(.22,.9,.3,1)}
 .spot:hover .media.big{transform:scale(1.03)}
@@ -810,10 +824,39 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .spot-f .who{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:7px}
 .spot-f .who img{width:20px;height:20px;border-radius:50%}
 .spot-f .like{margin-top:0}
-.spot.empty{display:flex;flex-direction:column;justify-content:flex-start;text-align:left;padding:16px}
+.spot.blank{display:flex;flex-direction:column;justify-content:flex-start;text-align:left;padding:16px}
+
+/* ── Шапка сторінки ──
+   Раніше кожна сторінка починалась по-своєму: рейтинг одразу картками,
+   галерея — рядком сортування, магазин — смугою гаманця. Тепер усі вони
+   відкриваються однаково: назва, рядок пояснення під нею й місце праворуч
+   під те, що саме тут доречно (сортування, гаманець, дія). */
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  flex-wrap:wrap;margin:2px 0 20px;padding-bottom:16px;
+  border-bottom:1px solid var(--line);animation:fadeUp .5s both}
+.phead-t{min-width:0;display:flex;flex-direction:column;gap:5px}
+.phead h1{margin:0;font-size:25px;font-weight:800;letter-spacing:-.01em;line-height:1.15}
+.phead p{margin:0;font-size:13px;color:var(--dim);max-width:62ch;line-height:1.5}
+.phead-a{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none}
+@media(max-width:640px){
+  .phead{align-items:stretch;gap:12px;margin-bottom:16px;padding-bottom:13px}
+  .phead h1{font-size:22px}
+  .phead-a{width:100%}
+}
+
+/* ── Заголовок розділу ──
+   Той самий вигляд, що й у шапки, лише дрібніший: сторінка й розділ
+   усередині неї не мають виглядати двома різними сайтами. */
+.sec-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin-bottom:14px}
+.sec-h h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em}
+.sec-h .hint{margin-top:4px}
 
 /* ── Вкладки стрічки ── */
 .tabs{display:flex;align-items:center;gap:8px;margin:0 0 16px;animation:fadeIn .6s .2s both}
+/* у шапці сторінки вкладки вже стоять на своєму місці — зайвий відступ
+   лише відривав би їх від назви */
+.phead-a .tabs{margin:0;animation:none}
 .tabs .th{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
   color:var(--dim);margin-right:6px}
 .tabs a{padding:7px 15px;border-radius:999px;font-size:13px;border:1px solid var(--line);
@@ -870,7 +913,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
   border-radius:18px;overflow:hidden;background:var(--card);border:1px solid var(--line);
   box-shadow:0 30px 90px rgba(0,0,0,.6);animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
 @keyframes lbIn{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:none}}
-.lbm{display:flex;align-items:center;justify-content:center;background:#04060c;
+.lbm{display:flex;align-items:center;justify-content:center;background:var(--sunk);
   height:var(--stage);flex:none;min-width:0;position:relative}
 .lbm img,.lbm video{max-width:100%;max-height:100%;width:auto;height:auto;
   display:block;object-fit:contain}
@@ -902,7 +945,7 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 .lbnext{right:18px}
 .lbn{font-size:12px;color:var(--dim);flex:none;letter-spacing:.06em}
 @media(max-width:640px){
-  .lbnav{width:38px;height:38px;font-size:16px}
+  .lbnav{width:38px;height:38px;font-size:15px}
   .lbprev{left:6px}.lbnext{right:6px}
   .lbf{flex-wrap:wrap;gap:10px}
 }
@@ -920,7 +963,19 @@ input.bad{border-color:rgba(239,83,80,.75);animation:shake .35s}
 @media(max-width:640px){.ghbar{right:12px;bottom:12px;gap:6px}.gh{width:32px;height:32px}}
 
 .muted{color:var(--dim)}
-.empty{padding:52px;text-align:center;color:var(--dim)}
+/* ── Порожній стан ──
+   Був просто сірим рядком тексту посеред великої картки — виглядало так,
+   ніби сторінка не догрузилась. Тепер це той самий блок скрізь: знак,
+   під ним пояснення. */
+.empty{padding:52px 34px;text-align:center;color:var(--dim);font-size:15px}
+.empty::before{content:attr(data-ico);display:block;font-size:32px;line-height:1;
+  margin-bottom:14px;opacity:.5}
+.empty:not([data-ico])::before{content:'◌'}
+/* Головний рядок порожнього стану: трохи більший за пояснення під ним. */
+.empty-t{font-size:17px;color:var(--text);font-weight:700}
+/* Код помилки — той самий знак, лише великий: 404 не має бути емодзі. */
+.empty[data-ico^="4"]::before,.empty[data-ico^="5"]::before{font-size:44px;
+  font-weight:800;color:var(--text);opacity:.22;letter-spacing:-.02em}
 footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity:.6}
 /* На середніх екранах меню теж не має розповзатися на два ряди —
    краще один рядок із горизонтальним скролом. */
@@ -941,7 +996,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   header{padding-bottom:18px}
   .topbar-in{min-height:56px;padding:0 14px}
   .wrap.under-top{padding-top:18px}
-  .brand{flex:none;font-size:16px}
+  .brand{flex:none;font-size:15px}
   nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;-webkit-overflow-scrolling:touch}
   nav::-webkit-scrollbar{display:none}
   nav a,.langs summary{flex:none;white-space:nowrap;padding:7px 12px;font-size:13px}
@@ -950,7 +1005,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   .room{padding:13px}
   .cbar{gap:10px}
   .stats{gap:6px}
-  .stat b{font-size:19px}
+  .stat b{font-size:20px}
 }
 /* Екран великий, але не переростає вікно — керування має лишатись на видноті */
 @media(min-width:981px){
@@ -970,7 +1025,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 
 /* порядок блоків: маленький список зі стрілками */
 .pf-order{display:flex;flex-direction:column;gap:6px}
-.pf-orow{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:11px;
+.pf-orow{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:12px;
   background:rgba(255,255,255,.04);border:1px solid var(--line)}
 .pf-onum{width:20px;flex:none;text-align:center;font-size:12px;color:var(--dim);
   font-variant-numeric:tabular-nums}
@@ -998,7 +1053,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    Так видно результат до того, як щось вдягати. */
 .pv-back{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
   padding:22px;background:rgba(3,5,10,.86);backdrop-filter:blur(6px);animation:fadeIn .22s both}
-.pv{width:min(680px,94vw);border-radius:20px;overflow:hidden;background:var(--card);
+.pv{width:min(680px,94vw);border-radius:18px;overflow:hidden;background:var(--card);
   border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.6);
   animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
 .pv-h{display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -1012,17 +1067,17 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   backdrop-filter:blur(8px)}
 .pv-dot{width:8px;height:8px;border-radius:2px;background:#fff;opacity:.7}
 .pv-bar i{display:block;width:52px;height:9px;border-radius:999px;background:rgba(255,255,255,.12)}
-.pv-bar i.on{width:64px;background:#6b7cff}
-.pv-card{position:relative;margin-top:16px;padding:16px;border-radius:16px;
+.pv-bar i.on{width:64px;background:var(--accent)}
+.pv-card{position:relative;margin-top:16px;padding:16px;border-radius:14px;
   background:rgba(22,27,40,.78);border:1px solid rgba(255,255,255,.08);
   backdrop-filter:blur(10px);display:flex;align-items:center;gap:14px}
-.pv-ava{width:54px;height:54px;border-radius:50%;flex:none;border:3px solid #6b7cff;
+.pv-ava{width:54px;height:54px;border-radius:50%;flex:none;border:3px solid var(--accent);
   background:linear-gradient(135deg,#20263a,#141926)}
 .pv-lines{flex:1;display:flex;flex-direction:column;gap:8px}
 .pv-lines i{display:block;height:10px;border-radius:999px;background:rgba(255,255,255,.16)}
 .pv-lines i.s{width:55%;height:8px;background:rgba(255,255,255,.09)}
-.pv-btn{padding:9px 16px;border-radius:11px;font-size:13px;font-weight:700;color:#fff;
-  background:#6b7cff;flex:none}
+.pv-btn{padding:9px 16px;border-radius:12px;font-size:13px;font-weight:700;color:#fff;
+  background:var(--accent);flex:none}
 .pv-f{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px}
 
 /* ── Вітрина ілюстрацій ──
@@ -1037,9 +1092,9 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    Робота, за яку платили, займає все полотно, а не мініатюру в сітці.
    Під нею — смуга решти; клік по ній міняє велике зображення. */
 .pf-stage{position:relative;border-radius:calc(var(--radius) - 4px);overflow:hidden;
-  background:#05070d;border:1px solid var(--line)}
+  background:var(--bg0);border:1px solid var(--line)}
 .pf-big{position:relative;width:100%;aspect-ratio:16/9;display:flex;
-  align-items:center;justify-content:center;background:#05070d}
+  align-items:center;justify-content:center;background:var(--bg0)}
 .pf-big-m{width:100%;height:100%;object-fit:cover;display:block;
   animation:fadeIn .4s both}
 /* Вітрина без заголовка й підпису — сама картинка й є вітриною. */
@@ -1052,7 +1107,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .pf-bigopen:hover{border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.22)}
 .pf-strip{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px}
 .pf-th{position:relative;width:88px;height:52px;flex:none;border-radius:10px;cursor:pointer;
-  padding:0;border:1px solid var(--line);background:#0a0d16 center/cover no-repeat;
+  padding:0;border:1px solid var(--line);background:var(--sunk) center/cover no-repeat;
   transition:.22s cubic-bezier(.22,.9,.3,1)}
 .pf-th:hover{transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.55)}
 .pf-th.on{border-color:rgba(var(--accent-rgb),.85);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.22)}
@@ -1090,7 +1145,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .vs-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media(max-width:520px){.vs-row{grid-template-columns:1fr}}
 .vs-one{display:flex;flex-direction:column;align-items:center;gap:9px;padding:14px 10px;
-  border-radius:16px;cursor:pointer;background:rgba(255,255,255,.03);
+  border-radius:14px;cursor:pointer;background:rgba(255,255,255,.03);
   border:1px solid var(--line);color:var(--text);font:inherit;
   transition:.28s cubic-bezier(.22,.9,.3,1)}
 .vs-one img{width:66px;height:66px;border-radius:50%;border:2px solid var(--line);
@@ -1139,7 +1194,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tp:hover .tp-bg{transform:scale(1.05)}
 /* без банера смуга не порожня — беремо акцент власника */
 .tp-head::before{content:'';position:absolute;inset:0;z-index:0;
-  background:linear-gradient(135deg,color-mix(in srgb,var(--c) 42%,#0a0d16),#0a0d16)}
+  background:linear-gradient(135deg,color-mix(in srgb,var(--c) 42%,var(--sunk)),var(--sunk))}
 .tp-bg{z-index:1}
 /* розчиняємо низ смуги в картці — стик не має бути різким */
 .tp-head::after{content:'';position:absolute;left:0;right:0;bottom:0;height:62%;z-index:2;
@@ -1151,10 +1206,10 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 
 .tp-body{position:relative;z-index:3;display:flex;align-items:center;gap:14px;margin-top:-26px}
 .tp-face{width:58px;height:58px;flex:none;border-radius:50%;border:3px solid var(--f);
-  background:#0a0d16;
+  background:var(--sunk);
   box-shadow:0 0 0 4px var(--tp-bg,rgba(16,20,30,.9)),0 0 22px color-mix(in srgb,var(--f) 45%,transparent)}
 .tp-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:20px}
-.tp-id b{font-size:16px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp-id b{font-size:15px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tp-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .tp-lvl{font-style:normal;font-size:11px;color:var(--c);letter-spacing:.06em;text-transform:uppercase}
 /* Найвища роль — у її ж кольорі, з крапкою, як у списку учасників Discord:
@@ -1174,14 +1229,14 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .tp-score{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;
   padding-top:20px}
 .tp-score b{font-size:22px;font-weight:800;color:var(--c)}
-.tp-score span{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.tp-score span{font-size:11px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
 /* трійка лідерів — вища смуга банера й більший аватар */
 .tp-top .tp-head{height:172px}
 .tp-top .tp-face{width:76px;height:76px}
 .tp-top .tp-id{padding-top:26px}
-.tp-top .tp-id b{font-size:19px}
+.tp-top .tp-id b{font-size:20px}
 .tp-top .tp-score{padding-top:26px}
-.tp-top .tp-score b{font-size:27px}
+.tp-top .tp-score b{font-size:25px}
 .tp-1{box-shadow:0 0 0 1px rgba(224,180,92,.45),0 18px 46px rgba(224,180,92,.20)}
 .tp-2{box-shadow:0 0 0 1px rgba(200,210,228,.38),0 16px 40px rgba(200,210,228,.14)}
 .tp-3{box-shadow:0 0 0 1px rgba(205,127,80,.38),0 16px 40px rgba(205,127,80,.14)}
@@ -1205,7 +1260,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   backdrop-filter:blur(4px);white-space:nowrap}
 .tp-stat i{font-style:normal;font-size:11px;opacity:.75;align-self:center}
 .tp-stat b{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
-.tp-stat em{font-style:normal;font-size:10px;color:var(--dim);letter-spacing:.06em}
+.tp-stat em{font-style:normal;font-size:11px;color:var(--dim);letter-spacing:.06em}
 .tp-top .tp-stats{margin-top:14px}
 /* Рядки нижче трійки — компактніші: смуга банера тонша, і все лишається
    в одному стовпці, щоб довгі ніки не ламали розкладку. */
@@ -1227,7 +1282,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .lvchip{display:flex;align-items:baseline;gap:7px;padding:6px 13px;border-radius:999px;
   background:rgba(var(--accent-rgb),.14);border:1px solid rgba(var(--accent-rgb),.4)}
 .lvchip i{font-style:normal;color:var(--accent);font-size:12px;align-self:center}
-.lvchip b{font-size:19px;font-weight:800;line-height:1}
+.lvchip b{font-size:20px;font-weight:800;line-height:1}
 .lvchip span{font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
 .lvgrow{flex:1;min-width:180px;display:flex;flex-direction:column;gap:6px}
 .lvtrack{height:6px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
@@ -1244,7 +1299,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   padding:22px;background:rgba(3,5,10,.82);backdrop-filter:blur(6px);animation:fadeIn .22s both}
 .pf-lookback[hidden]{display:none}
 .pf-lookwin{width:min(760px,94vw);max-height:88vh;overflow:auto;padding:20px 22px;
-  border-radius:20px;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;background:var(--card);border:1px solid var(--line);
   box-shadow:0 30px 80px rgba(0,0,0,.6);animation:lbIn .28s cubic-bezier(.22,.9,.3,1) both}
 .pf-lookh{display:flex;align-items:center;gap:10px}
 .pf-lookh .gate-x{position:static}
@@ -1262,7 +1317,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    розділи, і видно рівно один. */
 .pf-tabs{display:flex;gap:6px;margin:14px 0 4px;flex-wrap:wrap;
   border-bottom:1px solid var(--line);padding-bottom:12px}
-.pf-tab{padding:9px 14px;border-radius:11px;border:1px solid var(--line);cursor:pointer;
+.pf-tab{padding:9px 14px;border-radius:12px;border:1px solid var(--line);cursor:pointer;
   background:rgba(255,255,255,.04);color:var(--dim);font:inherit;font-size:13px;
   display:flex;align-items:center;gap:7px;transition:.25s cubic-bezier(.22,.9,.3,1)}
 .pf-tab:hover{color:var(--text);border-color:rgba(var(--accent-rgb),.5);transform:translateY(-2px)}
@@ -1292,12 +1347,12 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   text-shadow:0 1px 4px rgba(0,0,0,.9)}
 .pf-sw.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
   background-size:300% 300%;animation:flow 9s ease-in-out infinite}
-.pf-sw.accent{background:radial-gradient(circle at 38% 34%,var(--c),#0a0d16 74%)}
+.pf-sw.accent{background:radial-gradient(circle at 38% 34%,var(--c),var(--sunk) 74%)}
 /* стиль вікон показуємо самим вікном — маленька картка в тому ж вигляді */
 .pf-sw.card{border-style:solid;backdrop-filter:blur(8px)}
 .pf-sw.card::before{content:'';position:absolute;left:9px;right:9px;top:12px;height:6px;
   border-radius:999px;background:rgba(255,255,255,.22)}
-.pf-sw.frame{background:#0a0d16}
+.pf-sw.frame{background:var(--sunk)}
 .pf-sw.frame::before{content:'';position:absolute;left:50%;top:42%;width:30px;height:30px;
   margin:-15px 0 0 -15px;border-radius:50%;border:2px solid var(--c);box-shadow:0 0 14px var(--c)}
 .pf-up{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
@@ -1323,7 +1378,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    Тепер це компактна плашка по ширині вмісту: місця займає рівно стільки,
    скільки треба, і так само липне під шапку, щоб баланс було видно
    під час гортання. */
-.sh-wallet{position:sticky;top:72px;z-index:35;align-self:flex-start;
+.sh-wallet{position:sticky;top:var(--stick);z-index:35;align-self:flex-start;
   display:inline-flex;align-items:center;gap:10px;width:fit-content;max-width:100%;
   padding:7px 8px 7px 14px;border-radius:999px;
   background:linear-gradient(135deg,rgba(var(--accent-rgb),.18),rgba(155,107,255,.10)),
@@ -1334,18 +1389,18 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 /* кнопка цін — частина плашки, а не щось на іншому кінці смуги */
 .sh-wallet .sh-openprices{margin-left:4px;border-radius:999px}
 @media(max-width:600px){
-  .sh-wallet{top:64px}
+  .sh-wallet{top:calc(var(--stick) - 16px)}
   .sh-bal b{font-size:20px}
-  .sh-bal .sh-coin{font-size:19px}
+  .sh-bal .sh-coin{font-size:20px}
 }
 .sh-bal{display:flex;align-items:baseline;gap:8px}
-.sh-bal b{font-size:23px;line-height:1;font-weight:800;letter-spacing:-.02em;
+.sh-bal b{font-size:22px;line-height:1;font-weight:800;letter-spacing:-.02em;
   background:linear-gradient(180deg,#fff,#b9c2ff);-webkit-background-clip:text;
   background-clip:text;color:transparent}
 /* підпис «FP» дрібний, але сама монетка — ні: інакше правило для span
    тиснуло б і її (тому тут :not, а не окремий клас нижче) */
 .sh-bal span:not(.sh-coin){color:var(--dim);font-size:11px;letter-spacing:.12em}
-.sh-bal .sh-coin{font-size:21px;line-height:1;display:inline-block;align-self:center;
+.sh-bal .sh-coin{font-size:20px;line-height:1;display:inline-block;align-self:center;
   filter:drop-shadow(0 0 10px rgba(255,214,102,.45));
   animation:coin 3.5s ease-in-out infinite;transform-origin:center}
 @keyframes coin{0%,88%,100%{transform:rotate(0) scale(1)}92%{transform:rotate(-12deg) scale(1.14)}96%{transform:rotate(10deg) scale(1.08)}}
@@ -1355,7 +1410,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 
 /* Категорії ліворуч списком згори вниз, набори — праворуч. */
 .sh-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:22px;align-items:start}
-.sh-side{position:sticky;top:84px;display:flex;flex-direction:column;gap:4px}
+.sh-side{position:sticky;top:var(--stick);display:flex;flex-direction:column;gap:4px}
 .sh-cat{display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:11px 13px;border-radius:12px;font-size:14px;border:1px solid transparent;
   color:var(--dim);transition:.22s cubic-bezier(.22,.9,.3,1)}
@@ -1381,12 +1436,12 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .toasts{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:80;
   display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;
   width:max-content;max-width:min(440px,92vw)}
-.toast{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:13px;
+.toast{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:12px;
   font-size:14px;color:var(--text);background:var(--menu);border:1px solid var(--line);
   box-shadow:0 16px 40px rgba(0,0,0,.55);backdrop-filter:blur(10px);
   animation:toastIn .3s cubic-bezier(.22,.9,.3,1) both;pointer-events:auto}
 .toast.out{animation:toastOut .28s ease-in both}
-.toast i{font-style:normal;font-size:16px;line-height:1;flex:none}
+.toast i{font-style:normal;font-size:15px;line-height:1;flex:none}
 .toast-face{width:30px;height:30px;flex:none;border-radius:50%;border:1px solid var(--line)}
 .toast.good{border-color:rgba(67,196,123,.42);background:rgba(16,38,27,.96)}
 .toast.bad{border-color:rgba(239,83,80,.45);background:rgba(42,16,16,.96)}
@@ -1421,13 +1476,13 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   transition:.25s cubic-bezier(.22,.9,.3,1)}
 .sh-updrop:hover{border-color:rgba(var(--accent-rgb),.6);background:rgba(var(--accent-rgb),.07)}
 .sh-updrop.has{border-style:solid;border-color:rgba(var(--accent-rgb),.45)}
-.sh-upshot{display:none;width:100%;height:150px;border-radius:11px;
-  background:#0a0d16 center/contain no-repeat}
+.sh-upshot{display:none;width:100%;height:150px;border-radius:12px;
+  background:var(--sunk) center/contain no-repeat}
 .sh-updrop.has .sh-upshot{display:block}
 .sh-updrop.has .sh-uppick{font-size:12px;color:var(--dim)}
 .sh-uppick{font-size:14px;color:var(--dim)}
 .sh-upfields{display:flex;gap:10px;flex-wrap:wrap}
-.sh-upfields input{padding:10px 12px;border-radius:11px;font:inherit;font-size:13px;
+.sh-upfields input{padding:10px 12px;border-radius:12px;font:inherit;font-size:13px;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
 .sh-upfields input:focus{outline:0;border-color:rgba(var(--accent-rgb),.6)}
 #sh-uptitle{flex:1;min-width:180px}
@@ -1451,14 +1506,14 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
    було незрозуміло, скільки їх узагалі й що вже бачив. */
 .pv-strip{display:flex;gap:8px;padding:10px 18px 0;overflow-x:auto}
 .pv-strip[hidden]{display:none}
-.pv-th{width:56px;height:38px;flex:none;border-radius:9px;cursor:pointer;padding:0;
-  border:1px solid var(--line);background:#0a0d16 center/cover no-repeat;
+.pv-th{width:56px;height:38px;flex:none;border-radius:10px;cursor:pointer;padding:0;
+  border:1px solid var(--line);background:var(--sunk) center/cover no-repeat;
   transition:.22s cubic-bezier(.22,.9,.3,1)}
 .pv-th:hover{transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.55)}
 .pv-th.on{border-color:rgba(var(--accent-rgb),.85);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.22)}
 .pv-th.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
   background-size:300% 300%;animation:flow 9s ease-in-out infinite}
-.pv-th.ac{background:radial-gradient(circle at 38% 34%,var(--c),#0a0d16 74%)}
+.pv-th.ac{background:radial-gradient(circle at 38% 34%,var(--c),var(--sunk) 74%)}
 .pv-th.fr::before{content:'';display:block;width:18px;height:18px;margin:9px auto;
   border-radius:50%;border:2px solid var(--c);box-shadow:0 0 10px var(--c)}
 .pv-name{padding:8px 18px 0;font-size:13px;color:var(--dim)}
@@ -1467,7 +1522,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-body{display:flex;flex-direction:column;gap:30px}
 .sh-sec{scroll-margin-top:90px;animation:fadeUp .5s both}
 .sh-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px}
-.sh-h h2{margin:0 0 2px;font-size:19px;letter-spacing:-.01em}
+.sh-h h2{margin:0 0 2px;font-size:20px;letter-spacing:-.01em}
 .sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(226px,1fr));gap:16px}
 
 .sh-by{font-size:12px;color:var(--dim);margin-top:4px}
@@ -1475,7 +1530,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-prev i.im{background:center/cover no-repeat}
 
 /* свої роботи: назва, ціна й одна кнопка «виставити» */
-.sh-own{margin-bottom:16px;padding:14px;border-radius:16px;
+.sh-own{margin-bottom:16px;padding:14px;border-radius:14px;
   background:rgba(255,255,255,.03);border:1px solid var(--line)}
 .sh-gt{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
 .sh-mine{display:flex;flex-direction:column;gap:10px}
@@ -1496,15 +1551,15 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-pricelist{max-height:60vh;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:14px}
 .sh-pgroup{display:flex;flex-direction:column;gap:8px}
 .sh-prow{display:flex;align-items:center;gap:10px}
-.sh-pv{width:46px;height:32px;flex:none;border-radius:9px;overflow:hidden;display:grid;
+.sh-pv{width:46px;height:32px;flex:none;border-radius:10px;overflow:hidden;display:grid;
   border:1px solid var(--line)}
 .sh-pv i{display:block;width:100%;height:100%}
 .sh-pv i.im{background:center/cover no-repeat}
-.sh-pv i.ac{background:radial-gradient(circle at 40% 35%,var(--c),#0a0d16 74%)}
-.sh-pv i.fr{background:#0a0d16;position:relative}
+.sh-pv i.ac{background:radial-gradient(circle at 40% 35%,var(--c),var(--sunk) 74%)}
+.sh-pv i.fr{background:var(--sunk);position:relative}
 .sh-pv i.fr::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;
   margin:-8px 0 0 -8px;border-radius:50%;border:2px solid var(--c);box-shadow:0 0 8px var(--c)}
-.sh-pv i.cd{border:1px solid;border-radius:6px;margin:4px}
+.sh-pv i.cd{border:1px solid;border-radius:8px;margin:4px}
 .sh-pv i.mo{background:linear-gradient(120deg,var(--a),var(--b),var(--a));
   background-size:300% 300%;animation:flow 9s ease-in-out infinite}
 .sh-pn{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -1518,7 +1573,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-openprices{margin-left:auto}
 
 .sh-card{position:relative;display:flex;flex-direction:column;gap:12px;padding:14px;
-  border-radius:16px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;background:var(--card);border:1px solid var(--line);
   scroll-margin-top:90px;animation:fadeUp .5s both;transition:.32s cubic-bezier(.22,.9,.3,1)}
 .sh-card:hover{transform:translateY(-4px);border-color:rgba(var(--accent-rgb),.4);
   box-shadow:0 16px 40px rgba(0,0,0,.45)}
@@ -1550,9 +1605,9 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
 .sh-prev:hover .sh-zoom,.sh-prev:focus-visible .sh-zoom{opacity:1;transform:translate(-50%,-50%) scale(1)}
 @media(hover:none){.sh-zoom{display:none}}
 .sh-prev i{display:block}
-.sh-prev i.ac{background:radial-gradient(circle at 40% 35%,var(--c),#0a0d16 74%)}
+.sh-prev i.ac{background:radial-gradient(circle at 40% 35%,var(--c),var(--sunk) 74%)}
 .sh-prev i.cd{border-style:solid;margin:9px 4px;backdrop-filter:blur(6px)}
-.sh-prev i.fr{background:#0a0d16;position:relative}
+.sh-prev i.fr{background:var(--sunk);position:relative}
 .sh-prev i.fr::after{content:'';position:absolute;left:50%;top:50%;width:34px;height:34px;
   margin:-17px 0 0 -17px;border-radius:50%;border:2px solid var(--c);
   box-shadow:0 0 14px var(--c)}
@@ -1560,7 +1615,7 @@ footer{margin-top:34px;color:var(--dim);font-size:12px;text-align:center;opacity
   background-size:300% 300%;animation:flow 9s ease-in-out infinite}
 @keyframes flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 .sh-prev.custom{display:flex;align-items:center;justify-content:center;font-size:32px;
-  color:var(--dim);background:repeating-linear-gradient(45deg,#0a0d16,#0a0d16 10px,#0e121c 10px,#0e121c 20px)}
+  color:var(--dim);background:repeating-linear-gradient(45deg,var(--sunk),var(--sunk) 10px,var(--sunk-2) 10px,var(--sunk-2) 20px)}
 
 .sh-b{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .sh-n{font-weight:700;font-size:15px;margin-bottom:2px}
@@ -3261,8 +3316,8 @@ window.CosmeticPreview=(function(){
       return 'background:linear-gradient('+(v.angle||160)+'deg,'+v.from+','+v.to+')';
     if(it.kind==='background'&&v.type==='motion')
       return 'background:linear-gradient(120deg,'+v.from+','+v.to+','+v.from+');background-size:300% 300%;animation:flow 12s ease-in-out infinite';
-    if(it.kind==='background'&&v.type==='image')return 'background:#05070d url('+v.url+') center/cover no-repeat';
-    return 'background:#0a0d16';
+    if(it.kind==='background'&&v.type==='image')return 'background:var(--bg0) url('+v.url+') center/cover no-repeat';
+    return 'background:var(--sunk)';
   }
 
   /** Мініатюра варіанта в стрічці — показує сам зразок, а не підпис. */
@@ -3780,7 +3835,7 @@ const PROFILE_JS = `
     if(bg&&bg.type==='gradient')css+='.bg{background:linear-gradient('+(bg.angle||160)+'deg,'+bg.from+','+bg.to+')}';
     if(bg&&bg.type==='motion')css+='.bg{background:linear-gradient(120deg,'+bg.from+','+bg.to+','+bg.from+');background-size:300% 300%;animation:flow 18s ease-in-out infinite}';
     if(bg&&bg.type==='image'){
-      css+='.bg{background:#05070d url('+bg.url+') center/cover no-repeat fixed}';
+      css+='.bg{background:var(--bg0) url('+bg.url+') center/cover no-repeat fixed}';
       /* накладка під полотнами, інакше вона гасить дим і зорі */
       css+='.bg::after{content:"";position:absolute;inset:0;z-index:0;'
         +'background:linear-gradient(180deg,rgba(4,6,12,.62),rgba(4,6,12,.48))}';
@@ -4379,7 +4434,7 @@ function skinCss(look, { page = null } = {}) {
   // Старі записи могли мати префікс own:, для якого адреси вже немає, —
   // тоді у CSS ішло url(null) і фон ставав просто зламаним правилом.
   if (bg?.type === 'image' && bg.url) {
-    rules.push(`.bg{background:#05070d url(${bg.url}) center/cover no-repeat fixed}`);
+    rules.push(`.bg{background:var(--bg0) url(${bg.url}) center/cover no-repeat fixed}`);
     // під власною картинкою текст мусить лишатися читабельним; накладка сидить
     // під полотнами (z-index:0), тож гасить саму картинку, а не дим із зорями
     rules.push('.bg::after{content:"";position:absolute;inset:0;z-index:0;'
@@ -4692,8 +4747,28 @@ export function landingLayout({ lang = 'uk', session = null, og = null, mod = fa
  * місця йдуть ширшими картками з медаллю: без цього «перемога» в рейтингу
  * нічим не відрізнялась від четвертого місця.
  */
+/**
+ * Шапка сторінки: назва, рядок пояснення й місце під дії праворуч.
+ *
+ * Однакова на всіх сторінках навмисне. Доти кожна починалась по-своєму —
+ * рейтинг одразу картками, галерея рядком сортування, магазин смугою
+ * гаманця, — і сайт розпадався на кілька різних сайтів під одним меню.
+ */
+function pageHead(title, sub = '', actions = '') {
+  return `<div class="phead">
+    <div class="phead-t">
+      <h1>${esc(title)}</h1>
+      ${sub ? `<p>${esc(sub)}</p>` : ''}
+    </div>
+    ${actions ? `<div class="phead-a">${actions}</div>` : ''}
+  </div>`;
+}
+
 export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
-  if (!rows.length) return `<div class="card empty rise">${esc(t(lang, 'top.empty'))}</div>`;
+  if (!rows.length) {
+    return `${pageHead(t(lang, 'top.title'), t(lang, 'head.top'))}
+      <div class="card empty rise" data-ico="◆">${esc(t(lang, 'top.empty'))}</div>`;
+  }
 
   const medals = ['🥇', '🥈', '🥉'];
 
@@ -4705,7 +4780,7 @@ export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
   const card = (r, i) => {
     const place = i + 1;
     const top = place <= 3;
-    const accent = r.accent || '#6b7cff';
+    const accent = r.accent || DEFAULT_ACCENT;
     const frame = r.frame || accent;
 
     // Стиль вікон учасника діє на його ж картку: радіус, товщина рамки,
@@ -4787,6 +4862,7 @@ export function leaderboardPage(rows, lang = 'uk', { duel = null } = {}) {
     : '';
 
   return `${vsBox}
+  ${pageHead(t(lang, 'top.title'), t(lang, 'head.top'))}
   <div class="tpwrap">
     <div class="tp-podium">${rows.slice(0, 3).map(card).join('')}</div>
     ${rows.length > 3
@@ -4800,7 +4876,7 @@ export function profilePage(profile, {
   look = {}, mine = false, wardrobe = null, level = null, games = null,
 }) {
   // Обраний акцент важить більше за колір ролі: це свідомий вибір людини.
-  const accent = look.accent || roleColor || '#6b7cff';
+  const accent = look.accent || roleColor || DEFAULT_ACCENT;
 
   // Фон сторінки. Зорі й дим лишаються — просто лягають поверх обраного
   // кольору й трохи притлумлюються, щоб не забивати його.
@@ -5258,7 +5334,7 @@ function levelBar(level, { lang = 'uk', mine = false } = {}) {
  * фактичному діапазону з запасом — інакше рух у 30–40 балів виглядав би
  * рівною лінією й графік не мав би сенсу.
  */
-function scoreChart(profile, { lang = 'uk', accent = '#6b7cff' } = {}) {
+function scoreChart(profile, { lang = 'uk', accent = DEFAULT_ACCENT } = {}) {
   const pts = (profile.scoreHistory ?? []).filter((n) => Number.isFinite(n));
   const dW = profile.scoreDeltaWeek ?? 0;
   const dM = profile.scoreDeltaMonth ?? 0;
@@ -5420,9 +5496,9 @@ function timeAgo(ms, lang) {
 /** Велика картка-переможець: кліп дня або кліп місяця. */
 function spotlight(it, { label, icon, lang, liked, avatars, admin, session, delay }) {
   if (!it) {
-    return `<div class="spot empty" style="animation-delay:${delay}s">
+    return `<div class="spot blank" style="animation-delay:${delay}s">
       <div class="spot-h"><i>${icon}</i>${esc(label)}</div>
-      <div class="muted" style="padding:30px 0">${esc(t(lang, 'gal.noTop'))}</div>
+      <div class="muted" style="padding:30px 0">◌ ${esc(t(lang, 'gal.noTop'))}</div>
     </div>`;
   }
   return `<div class="spot" data-item="${it.id}" style="animation-delay:${delay}s">
@@ -5482,8 +5558,9 @@ export function galleryPage({
     ${spotlight(monthTop, { label: t(lang, 'gal.monthTop'), icon: '☾', lang, liked, avatars, admin, session, delay: 0.12 })}
   </div>`;
 
+  // Сортування живе в шапці сторінки: це вибір над усією стрічкою,
+  // а не ще один блок перед нею.
   const tabs = `<div class="tabs">
-    <span class="th">${esc(t(lang, 'gal.feed'))}</span>
     <a href="/gallery?sort=new" class="${sort === 'new' ? 'on' : ''}">${esc(t(lang, 'gal.sortNew'))}</a>
     <a href="/gallery?sort=top" class="${sort === 'top' ? 'on' : ''}">${esc(t(lang, 'gal.sortTop'))}</a>
   </div>`;
@@ -5506,13 +5583,13 @@ export function galleryPage({
       </div>
     </article>`).join('');
 
-  return `<div class="glayout">
+  return `${pageHead(t(lang, 'nav.gallery'), t(lang, 'head.gallery'), tabs)}
+  <div class="glayout">
     <div class="gmain">
       ${spots}
-      ${tabs}
       ${items.length
         ? `<div class="grid wide">${cards}</div>`
-        : `<div class="card empty rise">${esc(t(lang, 'gal.empty'))}</div>`}
+        : `<div class="card empty rise" data-ico="❖">${esc(t(lang, 'gal.empty'))}</div>`}
     </div>
     ${side}
   </div>`;
@@ -5758,9 +5835,8 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
 
   // Зал тимчасово зачинено адміністратором — для решти нічого не показуємо.
   if (!state.allowed) {
-    return `<div class="card empty rise">
-      <div class="gate-ico">🔒</div>
-      <div style="font-size:18px">${esc(t(lang, 'cin.lockedNow'))}</div>
+    return `<div class="card empty rise" data-ico="🔒">
+      <div class="empty-t">${esc(t(lang, 'cin.lockedNow'))}</div>
       <div class="hint" style="margin-top:12px">${esc(t(lang, 'cin.lockedUntil', {
         time: new Date(state.lockedUntil).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }),
       }))}</div>
@@ -5794,7 +5870,10 @@ export function cinemaPage({ state, session, lang = 'uk', host = '' }) {
     : '';
 
   // Екран головний, під ним — черга й зал; решта ховається в шухляду.
-  return `<div class="clayout">
+  // Кнопка налаштувань стоїть у шапці — там, де на інших сторінках
+  // теж живуть дії над усією сторінкою.
+  return `${pageHead(t(lang, 'cin.title'), t(lang, 'head.cinema'))}
+  <div class="clayout">
     ${room}
     <div class="cpanels">${queueBox}${people}</div>
   </div>${drawer}${modal}`;
@@ -5977,7 +6056,7 @@ export function shopPage({
       : '';
 
     return `<section class="sh-sec" id="${esc(c.id)}">
-      <div class="sh-h">
+      <div class="sh-h sec-h">
         <div>
           <h2>${esc(c.name)}</h2>
           <div class="hint">${esc(c.hint)}</div>
@@ -5987,7 +6066,7 @@ export function shopPage({
       ${own}
       ${list.length
     ? `<div class="sh-grid">${list.map(card).join('')}</div>`
-    : `<div class="muted">${esc(t(lang, 'shop.emptyCat'))}</div>`}
+    : `<div class="empty" data-ico="✨">${esc(t(lang, 'shop.emptyCat'))}</div>`}
     </section>`;
   }).join('');
 
@@ -6121,7 +6200,8 @@ export function shopPage({
       </div></div>`
     : '';
 
-  return `<div class="shop" data-boost="🚀 ${esc(t(lang, 'shop.boosterOnly'))}">
+  return `${pageHead(t(lang, 'shop.title'), t(lang, 'head.shop'))}
+  <div class="shop" data-boost="🚀 ${esc(t(lang, 'shop.boosterOnly'))}">
     <div class="sh-wallet rise">
       <div class="sh-bal">
         <span class="sh-coin">✨</span>
@@ -6134,7 +6214,7 @@ export function shopPage({
       ${side}
       <div class="sh-body">
         ${sections}
-        <div class="muted" id="sh-empty" hidden>${esc(t(lang, 'shop.nothingHere'))}</div>
+        <div class="empty" id="sh-empty" data-ico="✨" hidden>${esc(t(lang, 'shop.nothingHere'))}</div>
       </div>
     </div>
     ${uploadWin}
@@ -6216,7 +6296,7 @@ export function modPage({
         <span class="hint">${p.until ? esc(leftText(p.until, lang)) : esc(t(lang, 'mod.untilLift'))}</span>
         <button class="act danger mod-lift" data-user="${esc(p.userId)}" data-kind="${esc(p.kind)}"
           title="${esc(t(lang, 'mod.lift'))}">✕</button>
-      </div>`).join('') : `<div class="muted">${esc(t(lang, 'mod.nobody'))}</div>`}
+      </div>`).join('') : `<div class="muted">◌ ${esc(t(lang, 'mod.nobody'))}</div>`}
     </div>
   </div>`;
 
@@ -6231,7 +6311,7 @@ export function modPage({
         <span class="hint">${esc(leftText(w.soonest, lang))}</span>
         <button class="act mod-unwarn" data-user="${esc(w.userId)}"
           title="${esc(t(lang, 'mod.clearWarns'))}">🧹</button>
-      </div>`).join('') : `<div class="muted">${esc(t(lang, 'mod.noWarns'))}</div>`}
+      </div>`).join('') : `<div class="muted">◌ ${esc(t(lang, 'mod.noWarns'))}</div>`}
     </div>
   </div>`;
 
@@ -6260,10 +6340,11 @@ export function modPage({
 
   const journalBox = `<div class="card pane journalbox">
     <div class="pane-h">${esc(t(lang, 'mod.journal'))} · <b>${journal.length}</b></div>
-    <div class="log">${rowsHtml || `<div class="muted">${esc(t(lang, 'mod.empty'))}</div>`}</div>
+    <div class="log">${rowsHtml || `<div class="muted">◌ ${esc(t(lang, 'mod.empty'))}</div>`}</div>
   </div>`;
 
-  return `<div class="cpanels modgrid">${form}${activeBox}${warnBox}${journalBox}</div>`;
+  return `${pageHead(t(lang, 'mod.title'), t(lang, 'head.mod'))}
+  <div class="cpanels modgrid">${form}${activeBox}${warnBox}${journalBox}</div>`;
 }
 
 function actIcon(a) {
@@ -6301,9 +6382,8 @@ export function customPage(page) {
 }
 
 export function errorPage(code, message, lang = 'uk') {
-  return `<div class="card empty rise">
-    <h1 style="margin:0 0 10px;font-size:56px">${code}</h1>
-    <div>${esc(message)}</div>
+  return `<div class="card empty rise" data-ico="${esc(String(code))}">
+    <div class="empty-t">${esc(message)}</div>
     <div style="margin-top:22px"><a class="btn" href="/">${esc(t(lang, 'err.home'))}</a></div>
   </div>`;
 }

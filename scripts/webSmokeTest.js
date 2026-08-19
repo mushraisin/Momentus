@@ -1742,6 +1742,64 @@ assert.equal(gone.status, 200);
 assert.equal((await galleryRepo.list(G)).length, 0, 'запис прибрано з БД');
 ok('адміністратор видаляє публікацію');
 
+// 31. один вигляд на весь сайт: шапка сторінки, драбина розмірів, порожні стани
+{
+  const pages = {
+    top: await req('/top', auth),
+    gallery: await req('/gallery', auth),
+    shop: await req('/shop', auth),
+    // модерація відкривається лише з доступом — беремо адміністраторський сеанс
+    mod: await req('/mod', adm),
+  };
+
+  // ── Кожна сторінка відкривається однаково ──
+  // Доти рейтинг починався одразу картками, галерея — рядком сортування,
+  // а магазин — смугою гаманця, і сайт розпадався на кілька різних.
+  for (const [name, page] of Object.entries(pages)) {
+    assert.ok(page.body.includes('class="phead"'), `${name}: сторінка має спільну шапку`);
+    const at = page.body.indexOf('class="phead-t">');
+    assert.ok(at > 0 && page.body.slice(at, at + 40).includes('<h1>'),
+      `${name}: назва на своєму місці`);
+  }
+  assert.ok(pages.top.body.includes('Хто тримає сервер живим'), 'під назвою — пояснення');
+  // сортування галереї переїхало в шапку, а не окремим рядком над стрічкою
+  assert.match(pages.gallery.body, /class="phead-a"><div class="tabs">/, 'дії стоять у шапці');
+  // свій профіль — виняток: його шапка це картка з банером
+  const meHead = await req('/me', auth);
+  assert.ok(!meHead.body.includes('class="phead"'), 'у профілі шапкою служить сама картка');
+
+  // ── Драбина розмірів і радіусів ──
+  // Раніше в стилях жило 23 різні кеглі й 20 радіусів: сусідні значення
+  // відрізнялись на піксель і читались як недбалість, а не як задум.
+  const uniq = (re) => [...new Set([...pages.top.body.matchAll(re)].map((m) => Number(m[1])))];
+  const sizes = uniq(/font-size:(\d+)px/g).sort((a, b) => a - b);
+  const radii = uniq(/border-radius:(\d+)px/g).sort((a, b) => a - b);
+  assert.ok(sizes.length <= 13, `кеглів небагато (${sizes.length}): ${sizes}`);
+  assert.ok(radii.length <= 9, `радіусів небагато (${radii.length}): ${radii}`);
+  assert.ok(!sizes.includes(10) && !sizes.includes(18), 'сусідніх кеглів через піксель немає');
+
+  // ── Липке міряє відступ одним токеном ──
+  // Бічна панель галереї стояла на 18px і заповзала просто під смугу.
+  assert.match(pages.top.body, /--stick:80px/, 'відступ під смугою — токеном');
+  assert.ok(pages.gallery.body.includes('.gside{position:sticky;top:var(--stick)'),
+    'бічна панель галереї більше не ховається під смугу');
+  assert.ok(pages.shop.body.includes('.sh-side{position:sticky;top:var(--stick)'),
+    'категорії магазину міряють той самий відступ');
+
+  // ── Утоплені поверхні одного кольору ──
+  assert.ok(pages.top.body.includes('--sunk:#0a0d16'), 'підкладка превʼю — токеном');
+  assert.ok(!pages.shop.body.includes('background:#0a0d16'),
+    'жорстко вписаних майже-чорних не лишилось');
+
+  // ── Порожні стани виглядають однаково ──
+  assert.ok(pages.top.body.includes('.empty::before{content:attr(data-ico)'),
+    'у порожнього стану є знак');
+  const missing = await req('/nope', auth);
+  assert.equal(missing.status, 404);
+  assert.ok(missing.body.includes('data-ico="404"'), 'сторінка помилки — той самий блок');
+}
+ok('спільна шапка сторінок, драбина розмірів, липке під смугою, порожні стани');
+
 stopWebServer();
 console.log(`\n✅ Усі ${passed} перевірок сайту пройдено.`);
 setTimeout(() => process.exit(0), 150);

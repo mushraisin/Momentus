@@ -1,6 +1,6 @@
 {
   "name": "discord-ai-community-bot",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "description": "Сурс код бота, створеного спеціально для сервера «задрипанка».",
   "type": "module",
   "main": "src/index.js",
@@ -15,7 +15,8 @@
     "games": "node scripts/gamesCheck.js",
     "banner": "node scripts/makeBanner.js",
     "banner:set": "node scripts/setBanner.js",
-    "demo:vote": "node scripts/previewVote.js"
+    "demo:vote": "node scripts/previewVote.js",
+    "demo:site": "node scripts/previewSite.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",
